@@ -1,0 +1,11 @@
+{
+  "name": "session-notation",
+  "description": "Session-specific status line notations for Claude Code. Allows Claude to set custom labels visible in the status line, scoped to individual sessions with automatic cleanup.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Vat",
+    "url": "https://github.com/vatvit"
+  },
+  "license": "MIT",
+  "keywords": ["statusline", "session", "notation", "hooks"]
+}
