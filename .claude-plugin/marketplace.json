@@ -1,0 +1,14 @@
+{
+  "name": "vatvit-plugins",
+  "owner": {
+    "name": "Vat"
+  },
+  "plugins": [
+    {
+      "name": "session-storage",
+      "source": "session-storage",
+      "description": "Session-scoped key-value storage for Claude Code. Store and retrieve data tied to individual sessions with automatic cleanup.",
+      "version": "1.0.0"
+    }
+  ]
+}
