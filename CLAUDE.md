@@ -4,61 +4,66 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A Claude Code plugin that enables session-specific custom notations in the status line. Each Claude session can set a label (task name, debug context, feature area) that only that session sees. Notations auto-clean when the session ends.
+A Claude Code plugin providing session-scoped key-value storage. Each session gets isolated storage that auto-cleans on session end.
 
 ## Architecture
 
-This is a **pure shell-based** Claude Code plugin — no build step, no npm, no compiled code. All logic is in bash scripts.
+Pure shell-based Claude Code plugin — no build step, no npm, no compiled code.
 
 ### Plugin Structure
 
-- `.claude-plugin/plugin.json` — Plugin manifest (name, version, metadata)
+- `.claude-plugin/plugin.json` — Plugin manifest (name: `session-storage`)
 - `hooks/hooks.json` — Declares `SessionStart` and `SessionEnd` lifecycle hooks
 - `scripts/` — All executable logic:
-  - `capture-session.sh` — SessionStart hook: captures `session_id` from stdin JSON, writes fallback file, injects `session_id` + usage instructions into Claude's context via `hookSpecificOutput.additionalContext`
-  - `cleanup-session.sh` — SessionEnd hook: removes the session's notation file, prunes stale files >24h
-  - `notation.sh` — Core CLI with subcommands: `set`, `clear`, `get`, `list`, `cleanup`
-  - `statusline-segment.sh` — Reads session_id from stdin JSON, outputs formatted notation text for status line integration
-- `skills/session-notation/SKILL.md` — Skill definition that tells Claude when/how to set notations proactively
-- `commands/notation.md` — `/notation` command definition for manual control
+  - `storage.sh` — Core CLI with subcommands: `set <session_id> <key> <value>`, `get`, `clear`, `list`, `cleanup`
+  - `capture-session.sh` — SessionStart hook: captures `session_id`, creates session dir, injects storage instructions into Claude's context via `hookSpecificOutput.additionalContext`
+  - `cleanup-session.sh` — SessionEnd hook: removes session directory, prunes stale sessions >24h
+- `skills/session-storage/SKILL.md` — Skill definition for proactive key-value storage use
 
 ### Data Flow
 
-1. **SessionStart** hook fires → `capture-session.sh` reads JSON from stdin, extracts `session_id`, writes it to `/tmp/claude-notations/.current_session`, returns JSON with `additionalContext` that injects the session_id into Claude's context
-2. **Claude sets notation** → runs `notation.sh set <session_id> <text>` → writes plain text to `/tmp/claude-notations/{session_id}`
-3. **Status line reads** → `statusline-segment.sh` reads session_id from stdin JSON, reads the notation file, outputs formatted text
-4. **SessionEnd** hook fires → `cleanup-session.sh` removes the notation file and prunes stale files
+1. **SessionStart** hook → `capture-session.sh` reads JSON from stdin, extracts `session_id`, creates `/tmp/claude-session-storage/{session_id}/` dir, returns JSON with `additionalContext` injecting the session_id and storage commands into Claude's context
+2. **Claude stores data** → runs `storage.sh set <session_id> <key> <value>` → writes plain text to `/tmp/claude-session-storage/{session_id}/{key}`
+3. **Claude reads data** → runs `storage.sh get <session_id> <key>`
+4. **SessionEnd** hook → `cleanup-session.sh` removes the session directory
 
-### Storage
+### Storage Layout
 
-All notation data lives in `/tmp/claude-notations/` as plain text files named by session_id. The `.current_session` hidden file stores the last-known session_id as a fallback.
+```
+$CLAUDE_CODE_TMPDIR/claude-session-storage/   (falls back to /tmp/ if unset)
+├── .current_session          ← last-known session_id (fallback)
+├── {session_id_1}/
+│   ├── task-id               ← any arbitrary keys
+│   └── branch
+└── {session_id_2}/
+    └── ...
+```
 
 ## Key Conventions
 
-- Hook scripts receive JSON on stdin (from Claude Code) and output JSON on stdout (back to Claude Code)
-- The `${CLAUDE_PLUGIN_ROOT}` variable in `hooks.json` is resolved by Claude Code at runtime to the plugin's install directory
-- Scripts use `jq` for JSON parsing — it's a required dependency
-- Cross-platform: `stat` usage in `notation.sh list` handles both macOS (`-f %m`) and Linux (`-c %Y`) formats
+- Hook scripts receive JSON on stdin and output JSON on stdout
+- `${CLAUDE_PLUGIN_ROOT}` in `hooks.json` is resolved by Claude Code at runtime
+- `jq` is a required dependency for JSON parsing
+- Cross-platform: `stat` usage handles both macOS (`-f %m`) and Linux (`-c %Y`) formats
 
 ## Testing Changes
 
-No test framework. To test manually:
+No test framework. Test manually:
 
 ```bash
-# Test notation CLI directly
-bash scripts/notation.sh set test-session "Hello world"
-bash scripts/notation.sh get test-session
-bash scripts/notation.sh list
-bash scripts/notation.sh clear test-session
+# Test multi-key storage
+bash scripts/storage.sh set test-session task-id "TASK-450"
+bash scripts/storage.sh set test-session branch "feature/retarget"
+bash scripts/storage.sh get test-session task-id
+bash scripts/storage.sh get test-session branch
+bash scripts/storage.sh list test-session
+bash scripts/storage.sh list
+bash scripts/storage.sh clear test-session task-id
+bash scripts/storage.sh clear test-session
 
-# Test capture-session hook (simulate SessionStart input)
+# Test hooks
 echo '{"session_id":"test-123"}' | bash scripts/capture-session.sh
-
-# Test cleanup hook (simulate SessionEnd input)
 echo '{"session_id":"test-123"}' | bash scripts/cleanup-session.sh
-
-# Test statusline segment
-echo '{"session_id":"test-123"}' | bash scripts/statusline-segment.sh
 ```
 
 ## Loading as a Plugin

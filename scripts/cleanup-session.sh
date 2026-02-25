@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-# Cleans up session-specific notation file when a session ends.
+# Cleans up session-specific storage when a session ends.
 
-NOTATION_DIR="/tmp/claude-notations"
+BASE_TMP="${CLAUDE_CODE_TMPDIR:-/tmp}"
+STORAGE_DIR="${BASE_TMP}/claude-session-storage"
 
 input=$(cat)
 session_id=$(echo "$input" | jq -r '.session_id // empty' 2>/dev/null)
 
 if [ -n "$session_id" ]; then
-  rm -f "${NOTATION_DIR}/${session_id}"
+  rm -rf "${STORAGE_DIR}/${session_id}"
 fi
 
-# Also clean up stale notation files older than 24 hours
-find "$NOTATION_DIR" -type f -not -name ".*" -mmin +1440 -delete 2>/dev/null
+# Also clean up stale session directories older than 24 hours
+find "$STORAGE_DIR" -mindepth 1 -maxdepth 1 -type d -not -name ".*" -mmin +1440 -exec rm -rf {} + 2>/dev/null
 
 exit 0

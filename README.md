@@ -1,19 +1,13 @@
-# Session Notation Plugin for Claude Code
+# Session Storage Plugin for Claude Code
 
-A Claude Code plugin that enables session-specific custom notations in the status line. Claude can set a label (task name, debug context, feature area) that's visible only in the current session and auto-cleans when the session ends.
+A Claude Code plugin that provides session-scoped key-value storage. Store and retrieve data tied to individual sessions — it auto-cleans when the session ends.
 
-## What It Does
+## Features
 
-```
-📁 ~/project   🌿 main   +42 -10   📋 TASK-450   🏷️ Debugging texture pipeline   ctx: 15%
-                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                                                   This is the session notation
-```
-
-- **Session-scoped**: Each session has its own notation, invisible to other sessions
-- **Auto-cleanup**: Notation is removed when the session ends
-- **Stale protection**: Files older than 24h are auto-purged
-- **Proactive**: Claude sets notations automatically when starting focused work
+- **Session-scoped**: Each session has isolated key-value storage
+- **Multi-key**: Store multiple values per session
+- **Auto-cleanup**: All keys removed when the session ends
+- **Stale protection**: Session directories older than 24h are auto-purged
 
 ## Installation
 
@@ -29,34 +23,29 @@ claude --plugin-dir ~/projects/vatvit/claude-plugin-session-storage
 # Not yet published to a marketplace — use plugin-dir for now
 ```
 
-## Status Line Integration
-
-This plugin provides the notation **storage and hooks** but does NOT override your status line. You need to add the notation segment to your existing status line script.
-
-### Add to your existing `statusline-command.sh`
-
-Add these lines to your status line script (after parsing `input`):
+## CLI Usage
 
 ```bash
-# Session notation (from session-notation plugin)
-session_id=$(echo "$input" | jq -r '.session_id // empty' 2>/dev/null)
-if [ -n "$session_id" ]; then
-  notation_file="/tmp/claude-notations/${session_id}"
-  if [ -f "$notation_file" ]; then
-    notation=$(cat "$notation_file" 2>/dev/null)
-    if [ -n "$notation" ]; then
-      out+="$(printf "   \033[1m🏷️  %s\033[0m" "$notation")"
-    fi
-  fi
-fi
-```
+# Store a value
+bash scripts/storage.sh set <session_id> <key> <value>
 
-### Or use the standalone segment
+# Retrieve a value
+bash scripts/storage.sh get <session_id> <key>
 
-```bash
-# Pipe the same JSON input to the segment script
-notation=$(echo "$input" | bash /path/to/plugin/scripts/statusline-segment.sh)
-[ -n "$notation" ] && out+="   $notation"
+# Clear a specific key
+bash scripts/storage.sh clear <session_id> <key>
+
+# Clear all keys for a session
+bash scripts/storage.sh clear <session_id>
+
+# List keys for a session
+bash scripts/storage.sh list <session_id>
+
+# List all active sessions
+bash scripts/storage.sh list
+
+# Remove stale sessions (default: 24h)
+bash scripts/storage.sh cleanup [hours]
 ```
 
 ## Components
@@ -65,25 +54,20 @@ notation=$(echo "$input" | bash /path/to/plugin/scripts/statusline-segment.sh)
 
 | Event | Script | Purpose |
 |-------|--------|---------|
-| `SessionStart` | `scripts/capture-session.sh` | Captures `session_id`, injects into Claude's context |
-| `SessionEnd` | `scripts/cleanup-session.sh` | Removes notation file, cleans stale files |
-
-### Command
-
-`/notation [set <text> | clear | get]` — Manual control over the notation.
+| `SessionStart` | `scripts/capture-session.sh` | Captures `session_id`, creates session directory, injects storage instructions into Claude's context |
+| `SessionEnd` | `scripts/cleanup-session.sh` | Removes session directory, cleans stale sessions |
 
 ### Skill
 
-The `session-notation` skill activates automatically when Claude starts focused work, sets appropriate notations, and updates them as context shifts.
+The `session-storage` skill tells Claude how and when to use key-value storage within a session.
 
 ### Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/notation.sh` | Core CLI: set/clear/get/list/cleanup |
+| `scripts/storage.sh` | Core CLI: set/get/clear/list/cleanup for key-value storage |
 | `scripts/capture-session.sh` | SessionStart hook handler |
 | `scripts/cleanup-session.sh` | SessionEnd hook handler |
-| `scripts/statusline-segment.sh` | Status line segment (standalone or embeddable) |
 
 ## How It Works
 
@@ -93,36 +77,40 @@ The `session-notation` skill activates automatically when Claude starts focused 
 │  (hook fires)    │
 └────────┬────────┘
          │ captures session_id
-         │ injects into Claude's context
+         │ creates session dir
+         │ injects storage instructions into context
          ▼
 ┌─────────────────┐
-│  Claude works    │──→ bash notation.sh set <id> "Task: TASK-450"
-│  sets notation   │         │
-└────────┬────────┘         ▼
-         │         ┌─────────────────────┐
-         │         │ /tmp/claude-notations│
-         │         │   └── {session_id}   │ ← plain text file
-         │         └──────────┬──────────┘
-         │                    │
-         ▼                    ▼
-┌─────────────────┐  ┌──────────────────┐
-│  Status line     │←─│ Reads notation   │
-│  displays 🏷️     │  │ for session_id   │
-└─────────────────┘  └──────────────────┘
+│  Claude works    │──→ bash storage.sh set <id> task-id "TASK-450"
+│  stores values   │──→ bash storage.sh set <id> branch "feature/retarget"
+│  reads values    │──→ bash storage.sh get <id> task-id
+└────────┬────────┘         │
+         │         ┌────────────────────────────┐
+         │         │ /tmp/claude-session-storage │
+         │         │   └── {session_id}/         │
+         │         │       ├── task-id           │ ← plain text files
+         │         │       └── branch            │
+         │         └────────────────────────────┘
          │
          ▼
 ┌─────────────────┐
 │  Session End     │
-│  (hook fires)    │──→ removes /tmp/claude-notations/{session_id}
+│  (hook fires)    │──→ removes /tmp/claude-session-storage/{session_id}/
 └─────────────────┘
 ```
 
 ## Storage
 
-- **Location**: `/tmp/claude-notations/`
-- **Format**: One file per session, named by `session_id`, containing plain text
+- **Location**: `$CLAUDE_CODE_TMPDIR/claude-session-storage/` (falls back to `/tmp/claude-session-storage/` if unset)
+- **Format**: One directory per session (named by `session_id`), one file per key containing plain text
 - **Hidden files**: `.current_session` stores the last session_id (fallback discovery)
-- **Cleanup**: SessionEnd removes the file; stale files (>24h) auto-purge
+- **Cleanup**: SessionEnd removes the session directory; stale sessions (>24h) auto-purge
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `CLAUDE_CODE_TMPDIR` | Override the base temp directory (default: `/tmp`). Storage goes to `$CLAUDE_CODE_TMPDIR/claude-session-storage/`. |
 
 ## Requirements
 

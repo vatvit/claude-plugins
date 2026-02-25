@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Captures session_id from SessionStart hook input and injects it into Claude's context.
-# This allows Claude to discover its own session_id and use it for session-specific notation.
+# This allows Claude to discover its own session_id and use it for session-specific storage.
 
-NOTATION_DIR="/tmp/claude-notations"
-mkdir -p "$NOTATION_DIR"
+BASE_TMP="${CLAUDE_CODE_TMPDIR:-/tmp}"
+STORAGE_DIR="${BASE_TMP}/claude-session-storage"
+mkdir -p "$STORAGE_DIR"
 
 input=$(cat)
 
@@ -13,8 +14,11 @@ if [ -z "$session_id" ]; then
   exit 0
 fi
 
+# Create session directory
+mkdir -p "${STORAGE_DIR}/${session_id}"
+
 # Write a "last session" file as fallback discovery mechanism
-echo "$session_id" > "${NOTATION_DIR}/.current_session"
+echo "$session_id" > "${STORAGE_DIR}/.current_session"
 
 # Determine the directory where this script lives (plugin root/scripts/)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -24,7 +28,7 @@ PLUGIN_ROOT="$(dirname "$SCRIPT_DIR")"
 cat <<EOF
 {
   "hookSpecificOutput": {
-    "additionalContext": "SESSION NOTATION PLUGIN: Your session_id is: ${session_id}. You can set a status line notation by running: bash ${PLUGIN_ROOT}/scripts/notation.sh set ${session_id} YOUR_TEXT_HERE — and clear it with: bash ${PLUGIN_ROOT}/scripts/notation.sh clear ${session_id}"
+    "additionalContext": "SESSION STORAGE PLUGIN: Your session_id is: ${session_id}. You can store key-value data scoped to this session by running: bash ${PLUGIN_ROOT}/scripts/storage.sh set ${session_id} <key> <value> — retrieve with: bash ${PLUGIN_ROOT}/scripts/storage.sh get ${session_id} <key> — clear with: bash ${PLUGIN_ROOT}/scripts/storage.sh clear ${session_id} [key] — list keys: bash ${PLUGIN_ROOT}/scripts/storage.sh list ${session_id}"
   }
 }
 EOF

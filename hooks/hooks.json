@@ -1,5 +1,5 @@
 {
-  "description": "Session notation hooks — captures session_id on start, cleans up on end",
+  "description": "Session storage hooks — captures session_id on start, cleans up on end",
   "hooks": {
     "SessionStart": [
       {
