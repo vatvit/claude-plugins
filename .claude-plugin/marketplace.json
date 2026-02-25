@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "session-storage",
-      "source": "session-storage",
+      "source": "./session-storage",
       "description": "Session-scoped key-value storage for Claude Code. Store and retrieve data tied to individual sessions with automatic cleanup.",
       "version": "1.0.0"
     }
