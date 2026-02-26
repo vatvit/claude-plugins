@@ -28,6 +28,7 @@ PLUGIN_ROOT="$(dirname "$SCRIPT_DIR")"
 cat <<EOF
 {
   "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
     "additionalContext": "SESSION STORAGE PLUGIN: Your session_id is: ${session_id}. You can store key-value data scoped to this session by running: bash ${PLUGIN_ROOT}/scripts/storage.sh set ${session_id} <key> <value> — retrieve with: bash ${PLUGIN_ROOT}/scripts/storage.sh get ${session_id} <key> — clear with: bash ${PLUGIN_ROOT}/scripts/storage.sh clear ${session_id} [key] — list keys: bash ${PLUGIN_ROOT}/scripts/storage.sh list ${session_id}"
   }
 }
