@@ -9,6 +9,12 @@
       "source": "./session-storage",
       "description": "Session-scoped key-value storage for Claude Code. Store and retrieve data tied to individual sessions with automatic cleanup.",
       "version": "1.0.0"
+    },
+    {
+      "name": "docs-manager",
+      "source": "./docs-manager",
+      "description": "Treat docs as a product: auto-generated _index.md navigation, broken-link checks, and docs-as-product conventions.",
+      "version": "1.0.0"
     }
   ]
 }

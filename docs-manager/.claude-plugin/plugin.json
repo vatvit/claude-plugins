@@ -1,0 +1,11 @@
+{
+  "name": "docs-manager",
+  "description": "Treat docs as a product: auto-generated _index.md navigation, broken-link checks, and the docs-as-product conventions (frontmatter, DRY, single source of truth).",
+  "version": "1.0.0",
+  "author": {
+    "name": "Vat",
+    "url": "https://github.com/vatvit"
+  },
+  "license": "MIT",
+  "keywords": ["documentation", "docs", "index", "markdown", "links"]
+}

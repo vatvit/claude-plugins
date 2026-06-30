@@ -7,6 +7,7 @@ A collection of plugins for [Claude Code](https://claude.ai/code).
 | Plugin | Description |
 |--------|-------------|
 | [session-storage](session-storage/) | Session-scoped key-value storage with automatic cleanup |
+| [docs-manager](docs-manager/) | Docs-as-product: auto-generated `_index.md` navigation, link checks, conventions |
 
 ## Installation
 

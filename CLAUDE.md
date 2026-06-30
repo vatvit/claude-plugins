@@ -30,6 +30,7 @@ claude-plugins/
 | Plugin | Directory | Description |
 |--------|-----------|-------------|
 | session-storage | `session-storage/` | Session-scoped key-value storage with auto-cleanup |
+| docs-manager | `docs-manager/` | Docs-as-product: auto `_index.md` navigation, link checks, conventions |
 
 ## Adding a New Plugin
 
