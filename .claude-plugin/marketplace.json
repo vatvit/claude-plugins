@@ -20,7 +20,7 @@
       "name": "task-roadmap",
       "source": "./task-roadmap",
       "description": "Abstract-Gantt roadmap for a markdown task set: scheduled by dependencies and estimates, grouped by epic, critical path highlighted; self-contained HTML, auto-regenerated on task changes.",
-      "version": "1.0.0"
+      "version": "1.0.1"
     }
   ]
 }
