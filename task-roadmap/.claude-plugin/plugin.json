@@ -1,0 +1,11 @@
+{
+  "name": "task-roadmap",
+  "description": "Abstract-Gantt roadmap for a markdown task set: schedules tasks by dependencies and estimates, groups by epic, highlights the critical path, and renders a self-contained HTML page. Runtime-free (bash + awk); a hook keeps it in sync as task files change.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Vat",
+    "url": "https://github.com/vatvit"
+  },
+  "license": "MIT",
+  "keywords": ["tasks", "roadmap", "gantt", "critical-path", "planning", "visualization"]
+}

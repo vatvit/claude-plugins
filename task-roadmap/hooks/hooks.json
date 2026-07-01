@@ -1,0 +1,17 @@
+{
+  "description": "task-roadmap — regenerate the roadmap when a task file changes",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/scripts/regenerate-hook.sh",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
