@@ -15,14 +15,11 @@ fp="$(printf '%s' "$input" \
   | head -1 | sed 's/.*:[[:space:]]*"//; s/"$//')"
 [ -n "$fp" ] || exit 0
 
-# resolve tasks dir name (relative) from config, default "tasks"
-TASKS_DIR="tasks"
-for cfg in "$ROOT/.task-roadmap.json" "$ROOT/.task-config.json"; do
-  [ -f "$cfg" ] || continue
-  v="$(grep -o '"tasksDir"[[:space:]]*:[[:space:]]*"[^"]*"' "$cfg" | head -1 | sed 's/.*:[[:space:]]*"//; s/"$//')"
-  [ -n "$v" ] && { TASKS_DIR="$v"; break; }
-done
-TASKS_DIR="${TASKS_DIR%/}"
+# Same precedence rule as generate.sh, from the same function — these were two
+# separate implementations that agreed only by coincidence.
+# shellcheck source=lib.sh
+. "$PLUGIN_ROOT/scripts/lib.sh"
+TASKS_DIR="$(resolve_tasks_dir "$ROOT")"
 
 case "$fp" in
   */"$TASKS_DIR"/_workflow/*) exit 0 ;;      # workflow defs, not tasks

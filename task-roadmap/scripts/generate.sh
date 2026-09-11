@@ -25,24 +25,28 @@ ROOT="${1:-${CLAUDE_PROJECT_DIR:-$(pwd)}}"
 TEMPLATE="$PLUGIN_ROOT/assets/template.html"
 [ -f "$TEMPLATE" ] || { echo "error: template not found: $TEMPLATE" >&2; exit 1; }
 
-json_str () { grep -o "\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$2" 2>/dev/null | head -1 | sed 's/.*:[[:space:]]*"//; s/"$//'; }
+# shellcheck source=lib.sh
+. "$PLUGIN_ROOT/scripts/lib.sh"
 
 # --- resolve config ----------------------------------------------------------
 TITLE="Task Roadmap"
-TASKS_DIR="tasks"
-[ -f "$ROOT/.task-config.json" ]  && { v="$(json_str tasksDir "$ROOT/.task-config.json")";  [ -n "$v" ] && TASKS_DIR="$v"; }
+TASKS_DIR="$(resolve_tasks_dir "$ROOT")"
 CFG="$ROOT/.task-roadmap.json"
 declare -a OUTPUTS=()
 if [ -f "$CFG" ]; then
-  v="$(json_str title "$CFG")";    [ -n "$v" ] && TITLE="$v"
-  v="$(json_str tasksDir "$CFG")"; [ -n "$v" ] && TASKS_DIR="$v"
+  v="$(json_str title "$CFG")"; [ -n "$v" ] && TITLE="$v"
   # outputs: array of strings on a single line
-  while IFS= read -r o; do OUTPUTS+=("$o"); done < <(
-    grep -o '"outputs"[[:space:]]*:[[:space:]]*\[[^]]*\]' "$CFG" | grep -o '"[^"]*"' | sed '1d; s/^"//; s/"$//')
+  while IFS= read -r o; do [ -n "$o" ] && OUTPUTS+=("$o"); done <<EOF
+$(json_str_array outputs "$CFG")
+EOF
 fi
 
 case "$TASKS_DIR" in /*) : ;; *) TASKS_DIR="$ROOT/$TASKS_DIR" ;; esac
 [ -d "$TASKS_DIR" ] || { echo "error: tasks dir not found: $TASKS_DIR" >&2; exit 1; }
+# An empty tasks dir is a normal state (nothing planned yet), not a crash. Without this
+# the "$TASKS_DIR"/*.md glob stays literal and awk reports `can't open file .../*.md`.
+find "$TASKS_DIR" -maxdepth 1 -name '*.md' 2>/dev/null | grep -q . \
+  || { echo "error: no task files in $TASKS_DIR — nothing to chart" >&2; exit 1; }
 [ ${#OUTPUTS[@]} -gt 0 ] || OUTPUTS=("$TASKS_DIR/roadmap.html")
 declare -a OUTS=()
 for o in "${OUTPUTS[@]}"; do case "$o" in /*) OUTS+=("$o") ;; *) OUTS+=("$ROOT/$o") ;; esac; done

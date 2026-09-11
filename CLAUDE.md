@@ -82,6 +82,35 @@ records and read them with `while IFS=$'\t' read -r`.
 Hooks are auto-discovered at `<plugin>/hooks/hooks.json` — `plugin.json` does not
 declare them.
 
+## Plugin Independence
+
+**Every plugin must work standalone and in any combination with the others.** A plugin
+ships as its own directory and cannot assume a sibling is installed.
+
+- **Never source another plugin's file**, and never add a `lib/` at repo root. Each
+  plugin keeps its own `scripts/lib.sh` for what more than one of *its* scripts needs.
+- **DRY applies within a plugin, not across plugins.** Two plugins each carrying a small
+  JSON-reading helper is the correct outcome, not debt. The duplication to eliminate is
+  the second copy *inside* one plugin.
+- **Shared config data is fine; shared code is not.** A plugin may read a key out of a
+  file another tool owns — `task-roadmap` reads `tasksDir` from `.task-config.json` —
+  provided it has a working default when that file is absent. It degrades, never fails.
+- **Prove it**: copy the plugin directory somewhere with no siblings and no repo root,
+  and run its test suite there.
+
+### Config convention
+
+No plugin requires a config file. Where one is supported it is a flat JSON object at the
+project root named for the plugin (`.task-roadmap.json`), read with the plugin's own
+`json_str`, and every key is optional with a working default.
+
+**Beware `set -euo pipefail` when reading config.** `grep` exits non-zero when it matches
+nothing, and with `pipefail` that status propagates out of `v="$(json_str …)"` and kills
+the script. An absent key is normal. This shipped as a live bug in task-roadmap 1.0.1:
+any `.task-roadmap.json` missing *any* key aborted generation, and it went unnoticed
+because the one read that worked happened to sit inside an `&&` list where `set -e` is
+suppressed. Helpers whose empty result is normal must end in `|| true` or `return 0`.
+
 ## Changing an Existing Plugin
 
 When a plugin gains or loses a user-visible capability, three things drift apart unless
