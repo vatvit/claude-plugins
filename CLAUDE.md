@@ -82,6 +82,23 @@ records and read them with `while IFS=$'\t' read -r`.
 Hooks are auto-discovered at `<plugin>/hooks/hooks.json` — `plugin.json` does not
 declare them.
 
+## Changing an Existing Plugin
+
+When a plugin gains or loses a user-visible capability, three things drift apart unless
+updated together. The marketplace entry is what people read before installing, and the
+skill description is what decides whether the plugin ever activates — both are easy to
+forget because neither is exercised by any test.
+
+1. `<plugin>/.claude-plugin/plugin.json` — bump `version`, refresh `description` and `keywords`
+2. `.claude-plugin/marketplace.json` — sync that plugin's `description` and `version`
+3. `<plugin>/skills/<name>/SKILL.md` — add trigger phrases to `description:`, or the new
+   capability is unreachable no matter how good it is
+
+**Check trigger phrases against the other plugins' skill descriptions.** Two plugins
+competing for the same words is a coin flip at activation time. Today the vocabularies are
+disjoint: docs-manager owns *docs / index / links / diagram / picture*, task-roadmap owns
+*roadmap / gantt / timeline*, session-storage owns *storage / session data*.
+
 ## Tasks
 
 Task files live in `.tasks/` (`PLUG-NNN.md`), configured by `.task-config.json`.

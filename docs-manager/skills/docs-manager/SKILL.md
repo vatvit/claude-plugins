@@ -1,7 +1,7 @@
 ---
 name: docs-manager
-description: Use when creating or maintaining a markdown documentation set treated as a product — generating/validating per-folder _index.md navigation, checking broken cross-doc links, or applying the docs-as-product conventions (frontmatter, single source of truth, DRY via cross-links). Activate on "update the docs index", "regenerate _index.md", "check doc links", "are the docs consistent", or after adding/moving/removing docs.
-version: 1.0.0
+description: Use when creating or maintaining a markdown documentation set treated as a product — per-folder _index.md navigation, broken cross-doc link checks, the docs-as-product conventions (frontmatter, single source of truth, DRY via cross-links), and diagrams that live in text sources beside the docs they illustrate. Activate on "update the docs index", "regenerate _index.md", "check doc links", "are the docs consistent", or after adding/moving/removing docs. Also activate for diagrams in docs — "add a diagram to this doc", "draw the auth flow", "explain this with a picture", "update the diagram", "is the diagram still accurate", "bless the diagram" — and whenever a doc would be clearer as a picture than as prose.
+version: 1.1.0
 ---
 
 # Docs Manager
@@ -48,7 +48,18 @@ bash <PLUGIN_ROOT>/scripts/docs.sh index --check [root]
 # Report broken relative markdown links — non-zero exit if any
 bash <PLUGIN_ROOT>/scripts/docs.sh links [root]
 
-# index --check + links combined
+# Diagrams — regenerate the AUTO-DIAGRAM block in every doc carrying a marker
+bash <PLUGIN_ROOT>/scripts/docs.sh diagram index --write [root]
+bash <PLUGIN_ROOT>/scripts/docs.sh diagram index --check [root]
+
+# Diagrams — report ones whose watched files changed, and record a review
+bash <PLUGIN_ROOT>/scripts/docs.sh diagram check [root]
+bash <PLUGIN_ROOT>/scripts/docs.sh diagram bless <name> [root]
+
+# Diagrams — run the project's own render script, if it has one
+bash <PLUGIN_ROOT>/scripts/docs.sh diagram render [root]
+
+# index --check + diagram index --check + diagram check + links combined
 bash <PLUGIN_ROOT>/scripts/docs.sh check [root]
 ```
 
@@ -59,6 +70,51 @@ Notes:
   the parent listing updates.
 - The tool is mechanical (no LLM tokens). For *semantic* consistency review across many docs, read
   via the `_index.md` tree and delegate bulk reading to a sub-agent so file dumps stay out of context.
+
+## Diagrams
+
+When prose is doing a picture's job — a flow, a state machine, a set of components and their
+relationships — put a diagram in the doc. It lives in its own **source** file next to the doc:
+`<name>.diagram.md`, frontmatter plus **exactly one** fenced code block. The doc opts in with a
+marker where the picture should appear:
+
+```markdown
+<!-- DIAGRAM:auth-flow.diagram.md -->
+```
+
+Then `docs.sh diagram index --write` splices the fence in below it, between `AUTO-DIAGRAM` markers.
+
+**Nothing is rendered and nothing is installed.** A fenced block is already drawn by the viewer
+(GitHub, VS Code, JetBrains, Obsidian), so the fence is copied verbatim and never parsed — the
+language tag is the author's choice, and `mermaid`, `d2`, `dot` and `plantuml` all behave
+identically. Prefer `mermaid`: it has the widest free viewer support.
+
+Two optional frontmatter keys make a diagram pull its weight:
+
+```yaml
+---
+title: Auth flow
+refs:                                       # what the picture points at
+  api:   file:../src/api/gateway.ts "API gateway"
+  store: term:./glossary.md#refresh-token
+watch: [../src/auth/]                       # what the picture depicts
+stamp: 4272921961                           # written by `bless`, never by hand
+---
+```
+
+- **`refs:`** become a `**References**` caption of real links below the fence, validated by
+  `docs.sh links`. Paths are relative to the *source*; each embedding doc gets its own href.
+- **`watch:`** makes the diagram flag itself as *suspect* when what it depicts changes. `diagram
+  check` reports it and every embedding doc grows a notice; `diagram bless <name>` records a review.
+  **`bless` is the only thing that writes `stamp:`** — never edit it, and never re-stamp to silence
+  a warning without actually checking the diagram.
+
+**When you edit code a diagram watches**, a hook says so. Treat that as a real task: open the
+diagram, check it still describes reality, fix it if not, then bless it. Regenerating without
+looking is how a diagram becomes a lie the docs vouch for.
+
+Use the canonical terms verbatim when talking about this: *diagram source*, *fence*, *embed*,
+*generated block*, *ref*, *stamp*, *stale*.
 
 ## Workflow integration (optional)
 

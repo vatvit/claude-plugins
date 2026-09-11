@@ -1,6 +1,6 @@
 ---
 title: Diagram support in docs-manager — text-source diagrams with refs and staleness tracking
-status: in-progress
+status: completed
 type: epic
 epic-name: diagram-support
 priority: medium
@@ -675,3 +675,47 @@ current state. Those docs get updated by PLUG-002..005 as each slice lands.
 - `*.diagram.md` matching `*.md` was the one integration risk that only appeared from
   reading the existing globs — worth grepping how existing file matchers behave
   before inventing a new file suffix.
+
+## Epic outcome
+
+**Completed.** All five sub-tasks shipped; `docs-manager` 1.0.0 → 1.1.0.
+
+| Slice | Delivered |
+|---|---|
+| PLUG-002 | `*.diagram.md` sources spliced into docs via `AUTO-DIAGRAM`; `lib.sh` + `fm_parse` + test harness |
+| PLUG-003 | typed refs → a checked `**References**` caption, per-doc href resolution |
+| PLUG-004 | `watch:`/`stamp:`/`check`/`bless` staleness, plus the PostToolUse nudge hook |
+| PLUG-005 | optional render port — an executable the project supplies |
+| PLUG-007 | skill activation + manifests |
+
+**Acceptance criteria, as set at planning time:**
+
+1. **Uninstall test** — fences still render, artifacts still open, `AUTO-DIAGRAM`
+   markers are inert comments. ✅ by construction; nothing in a consuming project
+   references the plugin.
+2. **No-dependency test** — full command set succeeds with no Node, no Docker, no
+   diagram tooling. ✅ enforced by test 18a and by the standalone-copy run.
+3. **Format-swap test** — `mermaid` → `d2` changes nothing but the tag. ✅ case 5.
+4. **Idempotency** — second `index --write` leaves the tree clean. ✅ cases 3, 7.
+5. **Round-trip staleness** — touch → stale → bless → clean. ✅ case 13.
+
+Plus one added mid-epic by the user's constraint: **plugin independence** — the suite
+passes from a copy of the plugin directory with no siblings and no repo root present.
+
+**Final state:** 85 assertions, green on host (bash 3.2 + BSD), `bash:5` container
+(GNU) and standalone copy. Zero runtime dependencies. No config file — every path in
+the format is source-relative, and the single `DOCS_MANAGER_ROOT` env var exists only
+because a hook receives no arguments.
+
+**Three bugs the verification found that review did not:**
+- deleting the last watched file silently disabled staleness (PLUG-004)
+- absolute paths in the stamp made it differ per checkout, which would have made the
+  warning permanent noise and taught people to ignore it (PLUG-004)
+- `set -e` plus a helper ending in a failed test killed the whole run in the
+  no-renderer case — the state nearly every project is in (PLUG-005)
+
+Each was found by a cross-target or "nothing happens" check, not by reading the code.
+
+**Not delivered, deliberately:** click-directive injection into rendered artifacts
+(delegated to the project's render script, since it requires knowing diagram-language
+syntax and would break "the fence is never parsed").

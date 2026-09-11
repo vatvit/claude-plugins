@@ -11,6 +11,10 @@ small set of conventions that keep docs DRY and always reflecting the current st
 - **Diagrams** — a diagram lives in a text `*.diagram.md` source; the tool copies it into every
   doc that asks for it and keeps it current. Nothing is rendered and nothing is installed: a
   fenced block is already drawn by the viewer (GitHub, VS Code, JetBrains, Obsidian).
+- **Diagram refs** — a diagram can point at the code, docs, tasks and terms it depicts, rendered as
+  checked links and validated alongside every other cross-doc link.
+- **Diagram staleness** — a diagram declares what it depicts and flags itself as *suspect* when that
+  changes, with a hook that says so the moment you edit a watched file.
 - **Conventions** — docs reflect current state (history lives in tasks), single source of truth,
   cross-link instead of duplicate, frontmatter on every doc.
 
