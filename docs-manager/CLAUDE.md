@@ -35,6 +35,9 @@ Sourced, never executed. Holds what more than one script in *this* plugin needs:
   (`scalar|list|map<TAB>key<TAB>…`) in author order. `fm_field`, `fm_list` and `fm_map` are thin
   wrappers over it — **do not add a second frontmatter reader.**
 - `normalize_path`, `block_rewrite`, `has_marker`, `write_if_changed`.
+- `relpath <from-dir> <to-path>` — lexical relative path. Exists because a ref is written relative
+  to the source but must link correctly from every doc that embeds it, at any depth.
+- `parse_ref <value>` — splits `scheme:path "optional label"` into three tab-separated fields.
 
 A map is never held in bash: awk emits records, the shell reads them with
 `while IFS=$'\t' read -r`. That is what keeps this working on bash 3.2, which has no
@@ -68,6 +71,20 @@ Key behaviors (don't regress these):
 - Zero fences, two fences, or a missing language tag is an error naming the file.
 - A marker pointing at a missing source reports and leaves any existing block **untouched**.
 - `list_docs` excludes `*.diagram.md` — sources are input to a generated block, not documents.
+
+### Refs
+
+`refs:` in a source's frontmatter becomes a `**References**` caption below the fence.
+
+- **Paths are source-relative and the href is computed per embedding doc.** Never store a resolved
+  href: one source may be embedded at several depths, and case 7 in the suite exists to prove they
+  differ. This is why `relpath` exists.
+- **`url:` is emitted and never resolved.** No command in this plugin makes a network call, ever.
+- All other schemes resolve identically today — the scheme states intent and is where PLUG-005 will
+  key click injection. Do not add resolution logic that varies by scheme without a reason to.
+- A source with no `refs:` emits **no** caption line, not an empty one.
+- `cmd_links` checks refs at their point of declaration; the markdown pass separately validates the
+  caption links in each embedding doc, so a break is caught twice.
 
 ## Testing
 

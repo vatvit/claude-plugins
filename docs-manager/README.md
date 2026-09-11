@@ -83,6 +83,38 @@ gets its own copy.
 identically, because the tool copies and the *viewer* draws. That is why this needs no renderer, no
 Node, no Docker and no install step.
 
+### References
+
+A source can point at the things it depicts. Add a `refs:` map to its frontmatter:
+
+```yaml
+---
+title: Auth flow
+refs:
+  api:   file:../src/api/gateway.ts "API gateway"
+  store: term:./glossary.md#refresh-token
+  spec:  url:https://example.com/rfc
+---
+```
+
+The generated block gains a caption line below the fence:
+
+```markdown
+**References** — [API gateway](../src/api/gateway.ts) · [`store`](glossary.md#refresh-token) · [`spec`](https://example.com/rfc)
+```
+
+- **Paths are relative to the `.diagram.md` file**, like any markdown link — so there is no config
+  file, and no notion of a project root to get wrong.
+- **Each embedding doc gets its own href.** The same source embedded at two depths produces
+  `../src/…` in one doc and `../../src/…` in the other. Write the path once, from the source.
+- **The key is the label**, unless you add a quoted one. Keep the key matching your diagram's node id.
+- **Schemes**: `file:` `doc:` `task:` `term:` `diagram:` all resolve as paths and are checked by
+  `docs.sh links`; `url:` is emitted as-is and **never fetched**.
+
+Why a caption list and not clickable nodes? GitHub strips Mermaid's `click` directive, so a caption
+is the only form that works where people actually read the doc — and it is greppable, diffable and
+visible without hovering.
+
 Diagram sources are excluded from `_index.md` listings — they are input to a generated block, not
 documents in their own right.
 

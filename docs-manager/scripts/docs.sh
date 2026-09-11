@@ -110,6 +110,30 @@ EOF
   done <<EOF
 $(find "$root" -type f -name '*.md' | sort)
 EOF
+
+  # Second pass: frontmatter refs in diagram sources. The markdown pass above already
+  # validates the caption links these produce, once per embedding doc; this reports
+  # the break at its single point of declaration instead.
+  local srcfile key val scheme path label bare
+  while IFS= read -r srcfile; do
+    [ -n "$srcfile" ] || continue
+    while IFS=$'\t' read -r key val; do
+      [ -n "$key" ] || continue
+      IFS=$'\t' read -r scheme path label <<EOF2
+$(parse_ref "$val")
+EOF2
+      [ "$scheme" = "url" ] && continue      # emitted, never resolved, never fetched
+      bare="${path%%#*}"
+      [ -n "$bare" ] || continue
+      target="$(normalize_path "$(dirname "$srcfile")/$bare")"
+      [ -e "$target" ] || { echo "BROKEN REF: $srcfile -> $scheme:$path"; found=1; }
+    done <<EOF2
+$(fm_map "$srcfile" refs)
+EOF2
+  done <<EOF
+$(find "$root" -type f -name '*.diagram.md' | sort)
+EOF
+
   return $found
 }
 

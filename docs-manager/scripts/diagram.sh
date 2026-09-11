@@ -43,11 +43,61 @@ extract_fence() {
 # The generated block, markers included. PLUG-003 appends the References line and
 # PLUG-004 the staleness notice; both hook in after the fence, which is why the
 # fence is emitted through a variable rather than inline.
+# ref_href <source> <doc> <scheme> <path>
+#
+# A ref path is written relative to the SOURCE that declares it, but the link has to
+# work from the DOC that embeds it — and one source may be embedded at several
+# depths, so the href is computed per doc rather than stored.
+#
+# `url:` is passed through untouched and is never resolved or fetched. Every other
+# scheme resolves identically today; the scheme states intent (and PLUG-005 keys
+# click injection off it) rather than changing resolution.
+ref_href() {
+  local src="$1" doc="$2" scheme="$3" path="$4" bare frag target
+  if [ "$scheme" = "url" ]; then printf '%s\n' "$path"; return 0; fi
+  bare="${path%%#*}"
+  frag=""
+  case "$path" in *#*) frag="#${path#*\#}" ;; esac
+  target="$(normalize_path "$(dirname "$src")/$bare")"
+  printf '%s%s\n' "$(relpath "$(dirname "$doc")" "$target")" "$frag"
+}
+
+# refs_line <source> <doc>
+#
+# The "**References**" caption, or nothing at all when the source declares no refs —
+# an empty caption would be noise. Author order is preserved because fm_map emits in
+# frontmatter order.
+#
+# A caption list rather than clickable nodes: GitHub sanitizes Mermaid's `click`
+# directive, so this is the only form that works in the default view. It is also
+# greppable, diffable, and visible without hovering.
+refs_line() {
+  local src="$1" doc="$2" key val scheme path label href out=""
+  while IFS=$'\t' read -r key val; do
+    [ -n "$key" ] || continue
+    IFS=$'\t' read -r scheme path label <<EOF
+$(parse_ref "$val")
+EOF
+    href="$(ref_href "$src" "$doc" "$scheme" "$path")"
+    if [ -n "$label" ]; then
+      out="$out[$label]($href) · "
+    else
+      out="$out[\`$key\`]($href) · "
+    fi
+  done <<EOF
+$(fm_map "$src" refs)
+EOF
+  [ -n "$out" ] || return 0
+  printf '**References** — %s\n' "${out% · }"
+}
+
 build_diagram_block() {
-  local src="$1" fence
+  local src="$1" doc="$2" fence refs
   fence="$(extract_fence "$src")" || return 1
+  refs="$(refs_line "$src" "$doc")"
   printf '%s\n' "$DSTART"
   printf '%s\n' "$fence"
+  [ -n "$refs" ] && printf '%s\n' "$refs"
   printf '%s\n' "$DEND"
 }
 
@@ -82,7 +132,7 @@ cmd_diagram_index() {
       continue            # leave any existing block untouched
     fi
 
-    if ! build_diagram_block "$src" > "$blockfile"; then
+    if ! build_diagram_block "$src" "$doc" > "$blockfile"; then
       rc=1
       continue            # malformed source; existing block left alone
     fi

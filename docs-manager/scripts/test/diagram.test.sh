@@ -205,6 +205,89 @@ bash "$DOCS" index --write "$R" >/dev/null 2>&1
 check "25a real doc listed" "yes" "$(grep -q 'real.md' "$R/_index.md" && echo yes || echo no)"
 check "25b diagram source not listed" "no" "$(grep -q 'x.diagram.md' "$R/_index.md" && echo yes || echo no)"
 
+echo "== refs =="
+
+# srcrefs <path> <refs-block> — a source with a refs: map and one fence
+srcrefs() {
+    local p="$1"; shift
+    mkdir -p "$(dirname "$p")"
+    { printf -- '---\ntitle: s\nrefs:\n'; cat
+      printf -- '---\n\n```mermaid\nflowchart LR\n  a --> b\n```\n'; } > "$p"
+}
+
+# --- 6a/6b/6c: schemes, labels, key fallback --------------------------------
+R=$(fresh r6)
+mkdir -p "$R/code"
+: > "$R/code/gateway.ts"
+: > "$R/glossary.md"
+doc "$R/d.md" <<'EOF'
+<!-- DIAGRAM:x.diagram.md -->
+EOF
+srcrefs "$R/x.diagram.md" <<'EOF'
+  api:   file:./code/gateway.ts "API gateway"
+  store: term:./glossary.md#refresh-token
+  spec:  url:https://example.com/rfc
+EOF
+bash "$DOCS" diagram index --write "$R" >/dev/null 2>&1
+check "6a References line present" "1" "$(grep -c '^\*\*References\*\*' "$R/d.md")"
+check "6b quoted label used" "yes" "$(grep -q '\[API gateway\](code/gateway.ts)' "$R/d.md" && echo yes || echo no)"
+check "6c unlabelled falls back to key" "yes" "$(grep -q '\[`store`\](glossary.md#refresh-token)' "$R/d.md" && echo yes || echo no)"
+check "6e url passed through" "yes" "$(grep -q '\[`spec`\](https://example.com/rfc)' "$R/d.md" && echo yes || echo no)"
+
+# --- 6d: no refs -> no References line --------------------------------------
+R=$(fresh r6d)
+doc "$R/d.md" <<'EOF'
+<!-- DIAGRAM:x.diagram.md -->
+EOF
+src "$R/x.diagram.md" <<'EOF'
+```mermaid
+a --> b
+```
+EOF
+bash "$DOCS" diagram index --write "$R" >/dev/null 2>&1
+check "6d no refs -> no References line" "0" "$(grep -c '^\*\*References\*\*' "$R/d.md")"
+
+# --- 7: same source, two depths, DIFFERENT hrefs ----------------------------
+R=$(fresh r7refs)
+mkdir -p "$R/code"; : > "$R/code/gateway.ts"
+srcrefs "$R/x.diagram.md" <<'EOF'
+  api: file:./code/gateway.ts "API gateway"
+EOF
+doc "$R/top.md" <<'EOF'
+<!-- DIAGRAM:x.diagram.md -->
+EOF
+doc "$R/deep/nested.md" <<'EOF'
+<!-- DIAGRAM:../x.diagram.md -->
+EOF
+bash "$DOCS" diagram index --write "$R" >/dev/null 2>&1
+check "7c top href" "yes" "$(grep -q '(code/gateway.ts)' "$R/top.md" && echo yes || echo no)"
+check "7d nested href walks up" "yes" "$(grep -q '(../code/gateway.ts)' "$R/deep/nested.md" && echo yes || echo no)"
+check "7e hrefs differ" "differ" "$([ "$(grep -o '(\.\?\.*/*code/gateway.ts)' "$R/top.md")" != "$(grep -o '(\.\?\.*/*code/gateway.ts)' "$R/deep/nested.md")" ] && echo differ || echo same)"
+
+# --- 8: broken ref ----------------------------------------------------------
+R=$(fresh r8)
+doc "$R/d.md" <<'EOF'
+Hi.
+EOF
+srcrefs "$R/x.diagram.md" <<'EOF'
+  api: file:./nope.ts "Gone"
+EOF
+out=$(bash "$DOCS" links "$R" 2>&1); rc=$?
+check_rc "8a broken ref non-zero" "1" "$rc"
+check "8b reports BROKEN REF" "yes" "$(echo "$out" | grep -q 'BROKEN REF' && echo yes || echo no)"
+check "8c names scheme and path" "yes" "$(echo "$out" | grep -q 'file:./nope.ts' && echo yes || echo no)"
+
+# --- 9: url refs are never resolved -----------------------------------------
+R=$(fresh r9)
+doc "$R/d.md" <<'EOF'
+Hi.
+EOF
+srcrefs "$R/x.diagram.md" <<'EOF'
+  spec: url:https://example.invalid/definitely-not-there
+EOF
+bash "$DOCS" links "$R" >/dev/null 2>&1; rc=$?
+check_rc "9 url ref not checked" "0" "$rc"
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

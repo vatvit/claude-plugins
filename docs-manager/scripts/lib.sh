@@ -117,6 +117,57 @@ normalize_path() {
     print out }'
 }
 
+# relpath <from-dir> <to-path>
+#
+# The path to <to-path> as seen from <from-dir>. Purely lexical — no filesystem
+# access, and both arguments should already be normalized.
+#
+# Needed because a ref is written relative to the .diagram.md that declares it, but
+# the link has to work from each doc that embeds it — and one source may be embedded
+# at several depths, which is exactly what makes a stored relative path wrong.
+relpath() {
+  awk -v from="$1" -v to="$2" 'BEGIN{
+    nf = split(from, f, "/"); nt = split(to, t, "/")
+    # drop empty components (leading "/" or "./" artefacts)
+    af = 0; for (i = 1; i <= nf; i++) if (f[i] != "" && f[i] != ".") F[++af] = f[i]
+    at = 0; for (i = 1; i <= nt; i++) if (t[i] != "" && t[i] != ".") T[++at] = t[i]
+
+    c = 0
+    while (c < af && c < at && F[c+1] == T[c+1]) c++
+
+    out = ""
+    for (i = c + 1; i <= af; i++) out = out "../"
+    for (i = c + 1; i <= at; i++) { out = out T[i]; if (i < at) out = out "/" }
+    if (out == "") out = "."
+    print out
+  }'
+}
+
+# parse_ref <value>
+#
+# Split a ref value into "scheme<TAB>path<TAB>label". The label is an optional
+# trailing double-quoted string; when absent the field is empty and the caller
+# falls back to the ref key.
+#
+#   file:../../src/api/gateway.ts "API gateway"  ->  file<TAB>../../src/api/gateway.ts<TAB>API gateway
+#   url:https://example.com/rfc                  ->  url<TAB>https://example.com/rfc<TAB>
+parse_ref() {
+  awk -v v="$1" 'BEGIN{
+    label = ""
+    # a trailing "..." is the label
+    if (match(v, /[ \t]+"[^"]*"[ \t]*$/)) {
+      lab = substr(v, RSTART, RLENGTH)
+      v = substr(v, 1, RSTART - 1)
+      sub(/^[ \t]+"/, "", lab); sub(/"[ \t]*$/, "", lab)
+      label = lab
+    }
+    sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v)
+    c = index(v, ":")
+    if (c == 0) { printf "\t%s\t%s\n", v, label; exit }
+    printf "%s\t%s\t%s\n", substr(v, 1, c - 1), substr(v, c + 1), label
+  }'
+}
+
 # ---------------------------------------------------------------------------
 # Marked-block rewriting
 # ---------------------------------------------------------------------------
