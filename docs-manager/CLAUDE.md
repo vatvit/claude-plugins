@@ -15,8 +15,11 @@ docs-manager/
 ├── scripts/
 │   ├── lib.sh                   ← shared helpers, sourced by the others
 │   ├── docs.sh                  ← CLI front-end: index / links / diagram / check
-│   ├── diagram.sh               ← diagram sources → generated blocks
+│   ├── diagram.sh               ← diagram sources → generated blocks, staleness
 │   └── test/diagram.test.sh     ← the suite (no framework, no dependencies)
+├── hooks/
+│   ├── hooks.json               ← PostToolUse registration
+│   └── diagram-watch-hook.sh    ← warns when an edited file is watched
 ├── skills/docs-manager/SKILL.md ← when-to-use + commands + conventions
 ├── README.md
 └── CLAUDE.md                    ← this file
@@ -38,6 +41,8 @@ Sourced, never executed. Holds what more than one script in *this* plugin needs:
 - `relpath <from-dir> <to-path>` — lexical relative path. Exists because a ref is written relative
   to the source but must link correctly from every doc that embeds it, at any depth.
 - `parse_ref <value>` — splits `scheme:path "optional label"` into three tab-separated fields.
+- `fm_set <file> <key> <value>` — set one frontmatter scalar, preserving every other byte. Writes
+  via temp file + `mv`; never `sed -i`.
 
 A map is never held in bash: awk emits records, the shell reads them with
 `while IFS=$'\t' read -r`. That is what keeps this working on bash 3.2, which has no
@@ -85,6 +90,53 @@ Key behaviors (don't regress these):
 - A source with no `refs:` emits **no** caption line, not an empty one.
 - `cmd_links` checks refs at their point of declaration; the markdown pass separately validates the
   caption links in each embedding doc, so a break is caught twice.
+
+### Staleness
+
+- **`bless` is the only writer of `stamp:`.** If any other command ever re-stamps as a side effect,
+  staleness stops meaning anything. This is the invariant the whole feature rests on.
+- **Stale is a property of the source, not the embed.** Computed once per source; the notice is
+  repeated into each embedding doc, never recomputed per doc.
+- **The fingerprint uses paths RELATIVE TO THE SOURCE.** Absolute paths would bake the checkout
+  location into a committed stamp, so every contributor would compute a different value and every
+  diagram would read as permanently stale. Case 19 exists to catch a regression here; it was a real
+  bug found by blessing on the host and checking in the container.
+- **`has_watch` ≠ "watch matches files".** No `watch:` key means never stale (R16); `watch:` present
+  but matching zero files means everything it depicted was deleted, which must still be flagged.
+  Case 14b covers it.
+- Renames and deletions both change the digest, by design.
+
+### The hook
+
+`hooks/diagram-watch-hook.sh` is the only thing this plugin runs automatically, in someone else's
+project, on every edit. Non-negotiable:
+
+- **Always `exit 0`.** Never block the tool call — no diagrams, no docs dir, malformed payload,
+  unreadable file, all exit 0.
+- **Never write.** It reports; blessing stays a human act.
+- **Cheap when idle.** No `docs/`, or no `*.diagram.md` under it → return after one `find`.
+- Do **not** wrap its body in `2>/dev/null` — the warning it exists to emit goes to stderr.
+- `DOCS_MANAGER_ROOT` (default `docs`) is the **only** setting this plugin has, and it exists purely
+  because a hook receives no arguments. Do not grow it into a config file: every path in the diagram
+  format is source-relative precisely so that none is needed.
+
+### The render port
+
+`<root>/.docs-manager-render <source> <out-basename>` — an executable the **project** supplies. The
+plugin ships no renderer, pulls nothing, installs nothing.
+
+- **Convention, not config.** This was originally specced as a `diagrams.render` config key with a
+  placeholder grammar; that was dropped because it reintroduced the config file the rest of the
+  format exists to avoid. Do not re-add one.
+- **The script gets the source path**, so everything language-specific — Mermaid `click`, D2 `link:`,
+  theming — lives there. Nothing here may learn a diagram language; that is what keeps R2/R4 true.
+- **`render` is explicit, linking is automatic.** `index` must never shell out to someone's container
+  on a routine run. It only links an artifact that already exists next to the source.
+- Absent script → success, silent. Non-executable → reported, non-zero (a silent skip is
+  undebuggable). Failing script → reported, prior artifact untouched, `index` still writes the block.
+- **`set -e` trap:** a helper whose last command is a failing test (`[ -f … ]`) propagates non-zero
+  out through `x="$(helper)"` and kills the run. `render_script` and `artifact_for` both end in an
+  explicit `return 0` for this reason — "absent" is the normal case, not an error. This bit once.
 
 ## Testing
 

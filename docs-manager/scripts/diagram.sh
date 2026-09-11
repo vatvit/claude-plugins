@@ -91,14 +91,246 @@ EOF
   printf '**References** — %s\n' "${out% · }"
 }
 
+# ---------------------------------------------------------------------------
+# Staleness
+#
+# No tool can verify that a picture still describes reality. So a source declares
+# what it depicts via `watch:`, and the tool flags it as *suspect* when that changes.
+# Stale means "review me", never "wrong".
+#
+# Two invariants hold this together and must not be weakened:
+#   - Stale is a property of the SOURCE, not of an embed. One source stale in one
+#     place is stale everywhere; the notice is repeated into each embed, not
+#     recomputed per doc.
+#   - Blessing is a HUMAN act. Nothing but `bless` may write `stamp:`. The moment
+#     another command re-stamps as a side effect, staleness stops meaning anything.
+# ---------------------------------------------------------------------------
+
+STALE_NOTICE='⚠ *may be stale — watched files changed since this diagram was last reviewed*'
+
+# watch_files <source> — every file the source watches, one per line, sorted.
+#
+# A trailing "/" means "this directory, recursively"; anything else is an exact file.
+# No globs: `globstar` is bash 4 and this targets 3.2, and a diagram depicts a
+# region, which is a directory. Paths are source-relative, like refs.
+watch_files() {
+  local src="$1" base entry target
+  base="$(dirname "$src")"
+  while IFS= read -r entry; do
+    [ -n "$entry" ] || continue
+    target="$(normalize_path "$base/$entry")"
+    case "$entry" in
+      */) [ -d "$target" ] && find "$target" -type f 2>/dev/null ;;
+      *)  [ -f "$target" ] && printf '%s\n' "$target" ;;
+    esac
+  done <<EOF
+$(fm_list "$src" watch)
+EOF
+  return 0                       # a watch entry matching nothing is normal (set -e)
+}
+
+# has_watch <source> — does the source DECLARE watch:? (not: does it match anything)
+#
+# The distinction matters. "No watch: key" means the author never opted in, and the
+# diagram is never stale (R16). "watch: declared but matching zero files" means every
+# file it depicted has been deleted — which is precisely when the diagram is most
+# likely wrong, so it must still be fingerprinted.
+has_watch() { [ -n "$(fm_list "$1" watch)" ]; }
+
+# fingerprint <source> — a digest of the watched files, empty iff no watch: declared.
+#
+# cksum is POSIX and returns byte-identical output on BSD and GNU (verified), which
+# matters because the stamp is committed and re-checked on other machines.
+#
+# Path and content both feed in, so a RENAME counts as a change; a deleted file drops
+# out of the list, so a DELETION counts too — including deletion of the last one,
+# which still yields a stable digest of the empty set rather than "no opinion".
+# `cksum < f` keeps cksum's own filename output away, so the path is contributed
+# exactly once, by us, in sorted order.
+#
+# Paths enter the digest RELATIVE TO THE SOURCE, never absolute. The stamp is
+# committed and re-checked on other machines, so an absolute path would bake in the
+# checkout location: every contributor would compute a different stamp and every
+# diagram would read as permanently stale. Sorting happens after the rewrite so the
+# order is a property of the repo layout, not of where it happens to be cloned.
+fingerprint() {
+  local src="$1" base files
+  has_watch "$src" || return 0
+  base="$(dirname "$src")"
+  files="$(watch_files "$src" | sort)"
+  {
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      printf '%s ' "$(relpath "$base" "$f")"
+      cksum < "$f"
+    done <<EOF
+$files
+EOF
+  } | cksum | awk '{print $1}'
+}
+
+# stale_reason <source> — "" when fresh, otherwise why it is stale.
+stale_reason() {
+  local src="$1" fp stamp
+  fp="$(fingerprint "$src")"
+  [ -n "$fp" ] || return 0                       # no watch: DECLARED -> never stale (R16)
+  stamp="$(fm_field "$src" stamp)"
+  if [ -z "$stamp" ]; then echo "never blessed"; return 0; fi
+  [ "$fp" = "$stamp" ] || echo "watched files changed"
+}
+
+# ---------------------------------------------------------------------------
+# Optional rendering — convention, not configuration
+#
+# A project that wants a standalone artifact (clickable nodes, print, offline) drops
+# an executable script at <root>/.docs-manager-render. This plugin ships no renderer,
+# pulls nothing and installs nothing; the project owns the tool, its pinning and its
+# security surface.
+#
+# Contract:  .docs-manager-render <source-path> <out-basename>
+#            writes <out-basename>.<svg|png|pdf|webp>, exits non-zero on failure.
+#
+# The script gets the source path, so anything language-specific — which renderer,
+# click/link injection, theming — lives there. This file never learns what a node is,
+# which is what keeps "the fence is never parsed" true.
+# ---------------------------------------------------------------------------
+
+RENDER_SCRIPT_NAME=".docs-manager-render"
+ARTIFACT_EXTS="svg png pdf webp"
+
+# render_script <root> — path to the project's render script, or empty if absent.
+#
+# NOTE the explicit `return 0`. docs.sh runs under `set -e`, so a function ending in a
+# failed test propagates that status out through `x="$(f)"` and kills the run. "Absent"
+# is the normal case here, not an error, and must not look like one.
+render_script() {
+  local s="$1/$RENDER_SCRIPT_NAME"
+  [ -f "$s" ] && printf '%s\n' "$s"
+  return 0
+}
+
+# out_basename <source> — <source-dir>/<name>, name being the source minus .diagram.md
+out_basename() {
+  local src="$1" name
+  name="$(basename "$src" .diagram.md)"
+  printf '%s/%s\n' "$(dirname "$src")" "$name"
+}
+
+# artifact_for <source> — an existing rendered artifact next to the source, if any.
+artifact_for() {
+  local base ext
+  base="$(out_basename "$1")"
+  for ext in $ARTIFACT_EXTS; do
+    [ -f "$base.$ext" ] && { printf '%s\n' "$base.$ext"; return 0; }
+  done
+  return 0                       # "no artifact" is normal, not a failure (set -e)
+}
+
+# artifact_line <source> <doc> — link to the artifact, resolved from THIS doc.
+artifact_line() {
+  local src="$1" doc="$2" art
+  art="$(artifact_for "$src")"
+  [ -n "$art" ] || return 0
+  printf '[Open the rendered diagram](%s)\n' "$(relpath "$(dirname "$doc")" "$art")"
+}
+
 build_diagram_block() {
-  local src="$1" doc="$2" fence refs
+  local src="$1" doc="$2" fence refs stale art
   fence="$(extract_fence "$src")" || return 1
   refs="$(refs_line "$src" "$doc")"
+  stale="$(stale_reason "$src")"
+  art="$(artifact_line "$src" "$doc")"
   printf '%s\n' "$DSTART"
   printf '%s\n' "$fence"
   [ -n "$refs" ] && printf '%s\n' "$refs"
+  [ -n "$art" ] && printf '%s\n' "$art"
+  [ -n "$stale" ] && printf '%s\n' "$STALE_NOTICE"
   printf '%s\n' "$DEND"
+}
+
+# cmd_diagram_render [root]
+#
+# Explicit on purpose: `index` must never silently shell out to someone's container on
+# a routine run. Rendering is also never on the critical path — a failure here leaves
+# any previous artifact alone and does not stop `index` from writing the block.
+cmd_diagram_render() {
+  local root="${1:-$ROOT_DEFAULT}" script rc=0 src base
+  [ -d "$root" ] || { echo "No such root: $root" >&2; return 1; }
+
+  script="$(render_script "$root")"
+  if [ -z "$script" ]; then
+    echo "No $RENDER_SCRIPT_NAME in $root — nothing to render."
+    return 0                                    # the common case: not an error
+  fi
+  if [ ! -x "$script" ]; then
+    # A silent skip here would be a miserable thing to debug.
+    echo "ERROR: $script exists but is not executable (chmod +x it)" >&2
+    return 1
+  fi
+
+  while IFS= read -r src; do
+    [ -n "$src" ] || continue
+    base="$(out_basename "$src")"
+    if "$script" "$src" "$base"; then
+      echo "RENDERED: $(artifact_for "$src")"
+    else
+      echo "RENDER FAILED: $src" >&2
+      rc=1
+    fi
+  done <<EOF
+$(find "$root" -type f -name '*.diagram.md' | sort)
+EOF
+  return $rc
+}
+
+# find_source <name> <root> — resolve a bless target to exactly one source.
+# Zero matches is an error; more than one is an error listing them. Never a silent pick.
+find_source() {
+  local name="$1" root="$2" matches n
+  case "$name" in
+    */*) [ -f "$name" ] && { printf '%s\n' "$name"; return 0; } ;;
+  esac
+  case "$name" in *.diagram.md) : ;; *) name="$name.diagram.md" ;; esac
+  matches="$(find "$root" -type f -name "$name" | sort)"
+  # `grep -c` exits non-zero on a zero count, which under `set -e` would abort the run
+  # instead of reaching the "not found" message below. Zero matches is a normal input.
+  n="$(printf '%s\n' "$matches" | grep -c . || true)"
+  if [ "$n" -eq 0 ]; then echo "ERROR: no diagram source named '$1' under $root" >&2; return 1; fi
+  if [ "$n" -gt 1 ]; then
+    echo "ERROR: '$1' is ambiguous under $root:" >&2
+    printf '%s\n' "$matches" | sed 's/^/  /' >&2
+    return 1
+  fi
+  printf '%s\n' "$matches"
+}
+
+# cmd_diagram_check [root] — report stale sources; non-zero if any.
+cmd_diagram_check() {
+  local root="${1:-$ROOT_DEFAULT}" rc=0 src reason
+  [ -d "$root" ] || { echo "No such root: $root" >&2; return 1; }
+  while IFS= read -r src; do
+    [ -n "$src" ] || continue
+    reason="$(stale_reason "$src")"
+    [ -n "$reason" ] && { echo "STALE: $src ($reason)"; rc=1; }
+  done <<EOF
+$(find "$root" -type f -name '*.diagram.md' | sort)
+EOF
+  return $rc
+}
+
+# cmd_diagram_bless <name> [root] — record the current fingerprint as reviewed.
+# The ONLY writer of stamp: in the whole plugin.
+cmd_diagram_bless() {
+  local name="$1" root="${2:-$ROOT_DEFAULT}" src fp
+  [ -n "$name" ] || { echo "Usage: docs.sh diagram bless <name> [root]" >&2; return 2; }
+  src="$(find_source "$name" "$root")" || return 1
+  fp="$(fingerprint "$src")"
+  if [ -z "$fp" ]; then
+    echo "NOTHING TO BLESS: $src declares no watch: — it can never be stale" >&2
+    return 1
+  fi
+  fm_set "$src" stamp "$fp"
+  echo "BLESSED: $src (stamp $fp)"
 }
 
 # doc_marker_source <doc> -> the source filename named by the doc's DIAGRAM marker

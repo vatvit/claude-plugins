@@ -1,0 +1,17 @@
+{
+  "description": "docs-manager — warn when an edited file is watched by a diagram source",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/diagram-watch-hook.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

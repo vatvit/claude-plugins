@@ -33,6 +33,13 @@ bash scripts/docs.sh links
 bash scripts/docs.sh diagram index --write
 bash scripts/docs.sh diagram index --check
 
+# Staleness: report suspect diagrams, and record a review
+bash scripts/docs.sh diagram check
+bash scripts/docs.sh diagram bless auth-flow
+
+# Optional: run the project's own render script, if it has one
+bash scripts/docs.sh diagram render
+
 # All checks
 bash scripts/docs.sh check
 ```
@@ -83,6 +90,9 @@ gets its own copy.
 identically, because the tool copies and the *viewer* draws. That is why this needs no renderer, no
 Node, no Docker and no install step.
 
+Diagram sources are excluded from `_index.md` listings — they are input to a generated block,
+not documents in their own right.
+
 ### References
 
 A source can point at the things it depicts. Add a `refs:` map to its frontmatter:
@@ -115,8 +125,126 @@ Why a caption list and not clickable nodes? GitHub strips Mermaid's `click` dire
 is the only form that works where people actually read the doc — and it is greppable, diffable and
 visible without hovering.
 
-Diagram sources are excluded from `_index.md` listings — they are input to a generated block, not
-documents in their own right.
+### Staleness
+
+A stale diagram is worse than no diagram, because a reader trusts it. No tool can verify that a
+picture still matches reality, so docs-manager does the honest thing instead: a source declares
+**what it depicts**, and the tool flags it as *suspect* when that changes.
+
+```yaml
+---
+title: Auth flow
+watch: [../src/auth/, ../src/api/gateway.ts]
+stamp: 4272921961        # written by `bless`, never by hand
+---
+```
+
+A trailing `/` means "this directory, recursively"; anything else is an exact file. No globs.
+
+```bash
+docs.sh diagram check              # report stale diagrams; non-zero exit for CI
+docs.sh diagram bless auth-flow    # "I reviewed it, it is correct now"
+```
+
+When a watched file changes, every doc embedding the diagram grows a notice under it:
+
+```markdown
+⚠ *may be stale — watched files changed since this diagram was last reviewed*
+```
+
+Rules worth knowing:
+
+- **`bless` is the only thing that writes `stamp:`.** No command re-stamps as a side effect — the
+  moment one does, staleness stops meaning anything.
+- **No `watch:` means never stale.** Staleness is opt-in per diagram.
+- **A watched diagram that has never been blessed is stale**, reported as "never blessed". A new
+  diagram genuinely has not been reviewed against the code yet.
+- **Renames and deletions count**, not just edits — the path is part of the fingerprint.
+- **Stamps are portable.** The digest uses paths relative to the source, so it is identical on every
+  machine and safe to commit; a stamp blessed on macOS verifies clean on Linux CI.
+
+### The hook
+
+Installing the plugin registers a `PostToolUse` hook. When Claude edits a file that some diagram
+watches, it says so immediately:
+
+```
+docs-manager: src/auth/service.ts is watched by docs/auth-flow.diagram.md — the diagram may now be wrong.
+  review it, then: docs.sh diagram bless auth-flow
+```
+
+That is the point of the whole feature: the moment right after the code changed is the only moment
+the diagram realistically gets fixed. The hook never writes anything, never blocks the edit, and
+always exits 0. Projects with no `docs/` directory or no diagram sources pay a single `find` and stop.
+
+A hook receives no command-line arguments, so if your docs live somewhere other than `docs/`, tell it
+with an environment variable:
+
+```bash
+DOCS_MANAGER_ROOT=documentation
+```
+
+This is the plugin's only setting, and it exists solely because the hook cannot be passed a root the
+way every command can. There is no config file.
+
+### Optional: rendering a standalone artifact
+
+The caption list works everywhere with no toolchain, and that is the default. If you additionally
+want a rendered file — clickable nodes, print, offline — drop an **executable script** at
+`docs/.docs-manager-render`:
+
+```
+.docs-manager-render  <source-path>  <out-basename>
+```
+
+Write `<out-basename>.svg` (or `.png`, `.pdf`, `.webp`) and exit non-zero on failure. Then:
+
+```bash
+docs.sh diagram render        # runs your script over every source
+docs.sh diagram index --write # links any artifact it finds, per embedding doc
+```
+
+Rendering is explicit and linking is automatic, deliberately: `index` will never silently shell out
+to a container on a routine run. Each embedding doc links the artifact at its own relative path.
+
+**The plugin ships no renderer, pulls nothing and installs nothing.** Your script owns the tool, its
+version pinning, and its security surface — which is also why anything language-specific (Mermaid's
+`click`, D2's `link:`, theming) belongs in your script: it receives the source path and has the whole
+file in front of it. The plugin never parses the fence.
+
+If the script is absent, every command succeeds and nothing is rendered. If it fails, the failure is
+reported, any previous artifact is left alone, and `index` still writes the block — rendering is
+never on the critical path for a readable doc.
+
+<details>
+<summary>Recipes — knowledge, not dependencies. Copy one into your own script if you want it.</summary>
+
+```sh
+#!/bin/sh
+# Mermaid via mermaid-cli. Heavy (Node + Chromium); pin the digest.
+exec docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$(dirname "$1")":/w minlag/mermaid-cli:<pinned> \
+  -i "/w/$(basename "$1")" -o "/w/$(basename "$2").svg"
+```
+
+```sh
+#!/bin/sh
+# D2. Single Go binary; links come from `link:` in the source.
+sed -n '/^```/,/^```$/p' "$1" | sed '1d;$d' > /tmp/d.d2
+exec d2 --layout elk /tmp/d.d2 "$2.svg"
+```
+
+```sh
+#!/bin/sh
+# Kroki, self-hosted. One container fronting many engines.
+sed -n '/^```/,/^```$/p' "$1" | sed '1d;$d' \
+  | curl -sf -X POST --data-binary @- http://localhost:8000/mermaid/svg > "$2.svg"
+```
+
+These are examples to adapt, not supported integrations. docs-manager does not know or care which
+you use.
+</details>
+
 
 ## Testing
 

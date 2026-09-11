@@ -288,6 +288,204 @@ EOF
 bash "$DOCS" links "$R" >/dev/null 2>&1; rc=$?
 check_rc "9 url ref not checked" "0" "$rc"
 
+echo "== staleness =="
+
+HOOK="$(cd "$(dirname "$0")/../.." && pwd)/hooks/diagram-watch-hook.sh"
+
+# srcwatch <path> <watch-list> — a source with watch: and one fence
+srcwatch() {
+    local p="$1"; shift
+    mkdir -p "$(dirname "$p")"
+    { printf -- '---\ntitle: s\nwatch: [%s]\n---\n\n```mermaid\nflowchart LR\n  a --> b\n```\n' "$1"; } > "$p"
+}
+stale_count() { bash "$DOCS" diagram check "$1" 2>/dev/null | grep -c '^STALE:'; }
+
+# --- 18: never blessed ------------------------------------------------------
+R=$(fresh r18); mkdir -p "$R/code"; : > "$R/code/a.ts"
+srcwatch "$R/x.diagram.md" "./code/"
+out=$(bash "$DOCS" diagram check "$R" 2>&1); rc=$?
+check_rc "18a never-blessed is stale" "1" "$rc"
+check "18b says never blessed" "yes" "$(echo "$out" | grep -q 'never blessed' && echo yes || echo no)"
+
+# --- 12a/12b: bless writes only the stamp -----------------------------------
+before=$(cat "$R/x.diagram.md")
+out=$(bash "$DOCS" diagram bless x "$R" 2>&1); rc=$?
+check_rc "12a bless succeeds" "0" "$rc"
+check "12b stamp written" "1" "$(grep -c '^stamp: [0-9]' "$R/x.diagram.md")"
+# Strip the stamp line back out; what remains must be byte-identical to the original.
+# Deliberately not diff-output-based: busybox diff (Alpine, the container target)
+# defaults to unified format while BSD/GNU diff default to normal format, so any
+# assertion grepping for '^>' or '^+' passes on one target and fails on the other.
+check "12c only the stamp line added" "same" \
+  "$([ "$before" = "$(grep -v '^stamp: ' "$R/x.diagram.md")" ] && echo same || echo changed)"
+check "12d fence untouched" "yes" "$(grep -q 'flowchart LR' "$R/x.diagram.md" && echo yes || echo no)"
+
+# --- 10b: clean after bless -------------------------------------------------
+bash "$DOCS" diagram check "$R" >/dev/null 2>&1; check_rc "10b clean after bless" "0" "$?"
+
+# --- 10a/13: touch -> stale -> bless -> clean -------------------------------
+echo "changed" > "$R/code/a.ts"
+check "10a content change -> stale" "1" "$(stale_count "$R")"
+bash "$DOCS" diagram bless x "$R" >/dev/null 2>&1
+bash "$DOCS" diagram check "$R" >/dev/null 2>&1; check_rc "13 round trip ends clean" "0" "$?"
+
+# --- 14: rename with identical content --------------------------------------
+mv "$R/code/a.ts" "$R/code/b.ts"
+check "14 rename -> stale" "1" "$(stale_count "$R")"
+bash "$DOCS" diagram bless x "$R" >/dev/null 2>&1
+
+# --- 14b: deletion ----------------------------------------------------------
+rm -f "$R/code/b.ts"
+check "14b deletion -> stale" "1" "$(stale_count "$R")"
+
+# --- 19: the stamp must not depend on where the repo is checked out ---------
+# The stamp is COMMITTED and re-checked on other machines. If absolute paths entered
+# the digest, every contributor would compute a different stamp and every diagram
+# would read as permanently stale. Two identical trees at different paths must agree.
+mk_tree() { # mk_tree <root>
+    mkdir -p "$1/docs" "$1/src"
+    printf 'a\n' > "$1/src/one.ts"; printf 'b\n' > "$1/src/two.ts"
+    printf -- '---\ntitle: s\nwatch: [../src/]\n---\n\n```mermaid\na --> b\n```\n' > "$1/docs/x.diagram.md"
+}
+A="$TMP/loc-aaa"; B="$TMP/a-much-longer-location/bbb"
+mkdir -p "$A" "$B"; mk_tree "$A"; mk_tree "$B"
+bash "$DOCS" diagram bless x "$A/docs" >/dev/null 2>&1
+bash "$DOCS" diagram bless x "$B/docs" >/dev/null 2>&1
+check "19 stamp is checkout-location independent" "same" \
+  "$([ "$(grep '^stamp:' "$A/docs/x.diagram.md")" = "$(grep '^stamp:' "$B/docs/x.diagram.md")" ] && echo same || echo differ)"
+
+# --- 15: no watch: -> never stale -------------------------------------------
+R=$(fresh r15)
+src "$R/x.diagram.md" <<'EOF'
+```mermaid
+a --> b
+```
+EOF
+bash "$DOCS" diagram check "$R" >/dev/null 2>&1; check_rc "15a no watch -> never stale" "0" "$?"
+doc "$R/d.md" <<'EOF'
+<!-- DIAGRAM:x.diagram.md -->
+EOF
+bash "$DOCS" diagram index --write "$R" >/dev/null 2>&1
+check "15b no notice emitted" "0" "$(grep -c 'may be stale' "$R/d.md")"
+
+# --- 11: notice appears in EVERY embed --------------------------------------
+R=$(fresh r11); mkdir -p "$R/code"; : > "$R/code/a.ts"
+srcwatch "$R/x.diagram.md" "./code/"
+doc "$R/top.md" <<'EOF'
+<!-- DIAGRAM:x.diagram.md -->
+EOF
+doc "$R/deep/nested.md" <<'EOF'
+<!-- DIAGRAM:../x.diagram.md -->
+EOF
+bash "$DOCS" diagram index --write "$R" >/dev/null 2>&1
+check "11a notice in top embed" "1" "$(grep -c 'may be stale' "$R/top.md")"
+check "11b notice in nested embed" "1" "$(grep -c 'may be stale' "$R/deep/nested.md")"
+bash "$DOCS" diagram bless x "$R" >/dev/null 2>&1
+bash "$DOCS" diagram index --write "$R" >/dev/null 2>&1
+check "11c notice gone from top" "0" "$(grep -c 'may be stale' "$R/top.md")"
+check "11d notice gone from nested" "0" "$(grep -c 'may be stale' "$R/deep/nested.md")"
+
+# --- 12e: bless on an unknown name ------------------------------------------
+out=$(bash "$DOCS" diagram bless nosuchthing "$R" 2>&1); rc=$?
+check_rc "12e unknown name non-zero" "1" "$rc"
+check "12f names what was not found" "yes" "$(echo "$out" | grep -q 'nosuchthing' && echo yes || echo no)"
+
+# --- 16/17: the hook --------------------------------------------------------
+payload() { printf '{"tool_name":"Edit","tool_input":{"file_path":"%s"}}' "$1"; }
+
+R=$(fresh r16); mkdir -p "$R/docs/code"; : > "$R/docs/code/a.ts"
+srcwatch "$R/docs/x.diagram.md" "./code/"
+out=$(payload "$R/docs/code/a.ts" | CLAUDE_PROJECT_DIR="$R" bash "$HOOK" 2>&1); rc=$?
+check_rc "16a hook exits 0 on a match" "0" "$rc"
+check "16b hook warns" "yes" "$(echo "$out" | grep -q 'may now be wrong' && echo yes || echo no)"
+check "16c hook names the source" "yes" "$(echo "$out" | grep -q 'x.diagram.md' && echo yes || echo no)"
+
+out=$(payload "$R/docs/code/unrelated.ts" | CLAUDE_PROJECT_DIR="$R" bash "$HOOK" 2>&1); rc=$?
+check_rc "17a unrelated path exits 0" "0" "$rc"
+check "17b unrelated path is silent" "" "$out"
+
+R2=$(fresh r17); out=$(payload "$R2/whatever.ts" | CLAUDE_PROJECT_DIR="$R2" bash "$HOOK" 2>&1); rc=$?
+check_rc "17c no docs dir exits 0" "0" "$rc"
+check "17d no docs dir is silent" "" "$out"
+
+out=$(printf 'not json at all' | CLAUDE_PROJECT_DIR="$R" bash "$HOOK" 2>&1); rc=$?
+check_rc "17e malformed payload exits 0" "0" "$rc"
+
+echo "== optional render port =="
+
+# No real renderer is installed or pulled anywhere in these tests. The stubs below are
+# two-line shell scripts — that IS the point: the plugin depends on nothing.
+
+# --- 18: no render script is the common case, and must be silent ------------
+R=$(fresh r18r)
+doc "$R/d.md" <<'EOF'
+<!-- DIAGRAM:x.diagram.md -->
+EOF
+src "$R/x.diagram.md" <<'EOF'
+```mermaid
+a --> b
+```
+EOF
+bash "$DOCS" diagram render "$R" >/dev/null 2>&1; check_rc "18a no script -> render exits 0" "0" "$?"
+bash "$DOCS" diagram index --write "$R" >/dev/null 2>&1; check_rc "18b no script -> index exits 0" "0" "$?"
+check "18c no artifact link emitted" "0" "$(grep -c 'rendered diagram' "$R/d.md")"
+
+# --- 20: a stub that writes an artifact -------------------------------------
+R=$(fresh r20)
+src "$R/x.diagram.md" <<'EOF'
+```mermaid
+a --> b
+```
+EOF
+doc "$R/top.md" <<'EOF'
+<!-- DIAGRAM:x.diagram.md -->
+EOF
+doc "$R/deep/nested.md" <<'EOF'
+<!-- DIAGRAM:../x.diagram.md -->
+EOF
+cat > "$R/.docs-manager-render" <<'EOF'
+#!/bin/sh
+printf '<svg><!-- %s --></svg>\n' "$1" > "$2.svg"
+printf '%s|%s\n' "$1" "$2" >> "$(dirname "$2")/.argv-log"
+EOF
+chmod +x "$R/.docs-manager-render"
+bash "$DOCS" diagram render "$R" >/dev/null 2>&1; check_rc "20a render exits 0" "0" "$?"
+check "20b artifact written" "yes" "$([ -f "$R/x.svg" ] && echo yes || echo no)"
+bash "$DOCS" diagram index --write "$R" >/dev/null 2>&1
+check "20c linked from top embed" "yes" "$(grep -q '(x.svg)' "$R/top.md" && echo yes || echo no)"
+check "20d nested embed walks up" "yes" "$(grep -q '(../x.svg)' "$R/deep/nested.md" && echo yes || echo no)"
+
+# --- 22: the contract — argv is <source> <out-basename> ---------------------
+check "22a script got the source path" "yes" "$(grep -q 'x.diagram.md|' "$R/.argv-log" && echo yes || echo no)"
+check "22b out-basename has no extension" "yes" "$(grep -q '|.*/x$' "$R/.argv-log" && echo yes || echo no)"
+
+# --- 19: a failing renderer must not take the docs down ---------------------
+cat > "$R/.docs-manager-render" <<'EOF'
+#!/bin/sh
+exit 3
+EOF
+chmod +x "$R/.docs-manager-render"
+before=$(cat "$R/x.svg")
+out=$(bash "$DOCS" diagram render "$R" 2>&1); rc=$?
+check_rc "19a failing render is non-zero" "1" "$rc"
+check "19b names the source" "yes" "$(echo "$out" | grep -q 'RENDER FAILED' && echo yes || echo no)"
+check "19c prior artifact untouched" "same" "$([ "$before" = "$(cat "$R/x.svg")" ] && echo same || echo changed)"
+bash "$DOCS" diagram index --write "$R" >/dev/null 2>&1; check_rc "19d index still succeeds" "0" "$?"
+check "19e block still written" "yes" "$(grep -q 'a --> b' "$R/top.md" && echo yes || echo no)"
+
+# --- 21: present but not executable is reported, never skipped silently -----
+R=$(fresh r21)
+src "$R/x.diagram.md" <<'EOF'
+```mermaid
+a --> b
+```
+EOF
+printf '#!/bin/sh\ntrue\n' > "$R/.docs-manager-render"
+chmod -x "$R/.docs-manager-render"
+out=$(bash "$DOCS" diagram render "$R" 2>&1); rc=$?
+check_rc "21a non-executable is non-zero" "1" "$rc"
+check "21b says not executable" "yes" "$(echo "$out" | grep -q 'not executable' && echo yes || echo no)"
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

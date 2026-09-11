@@ -144,6 +144,7 @@ cmd_check() {
   [ -d "$root" ] || { echo "No such root: $root" >&2; return 1; }
   cmd_index --check "$root" || rc=1
   cmd_diagram_index --check "$root" || rc=1
+  cmd_diagram_check "$root" || rc=1
   cmd_links "$root" || rc=1
   [ "$rc" -eq 0 ] && echo "docs check: OK"
   return $rc
@@ -152,8 +153,11 @@ cmd_check() {
 cmd_diagram() {
   local op="${1:-index}"; shift || true
   case "$op" in
-    index) cmd_diagram_index "$@" ;;
-    *) echo "Usage: docs.sh diagram index [--write|--check] [root]" >&2; return 2 ;;
+    index)  cmd_diagram_index "$@" ;;
+    check)  cmd_diagram_check "$@" ;;
+    bless)  cmd_diagram_bless "$@" ;;
+    render) cmd_diagram_render "$@" ;;
+    *) echo "Usage: docs.sh diagram {index [--write|--check]|check|bless <name>|render} [root]" >&2; return 2 ;;
   esac
 }
 

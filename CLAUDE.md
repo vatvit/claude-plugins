@@ -57,7 +57,16 @@ constraints, not preferences — a plugin that breaks them breaks on someone's m
   touched; this is what makes the generators idempotent.
 - **Passing multi-line text to awk:** use a temp file read with `getline`, never
   `awk -v` (which cannot carry newlines).
-- **Hooks always `exit 0`** and never block the tool call that triggered them.
+- **Hooks always `exit 0`** and never block the tool call that triggered them. A hook that reports
+  something writes to stderr — so never wrap a hook body in `2>/dev/null`, which silences the one
+  thing it exists for.
+- **Never assert on `diff` output shape in tests.** busybox `diff` (Alpine, the usual container
+  target) defaults to *unified* format while BSD and GNU default to *normal* format, so a test
+  grepping `^>` or `^+` passes on one target and fails on the other. Use `diff -q` for exit status,
+  or compare content directly.
+- **Never bake an absolute path into a value that gets committed.** A digest, cache key or stamp
+  containing a checkout path computes differently on every machine, so it always mismatches and the
+  check it guards becomes noise people learn to ignore.
 
 When a map is needed, don't hold it in bash: have awk emit tab-separated typed
 records and read them with `while IFS=$'\t' read -r`.

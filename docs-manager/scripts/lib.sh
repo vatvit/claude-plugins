@@ -100,6 +100,35 @@ fm_map() {
   fm_parse "$1" | awk -F'\t' -v k="$2" '$1=="map" && $2==k { printf "%s\t%s\n", $3, $4 }'
 }
 
+# fm_set <file> <key> <value>
+#
+# Set one scalar frontmatter key in place, replacing it if present and appending it
+# to the end of the frontmatter if not. **Every other byte of the file is preserved**
+# — this writes a review record into someone's document, so it must not reformat,
+# reorder or reflow anything it does not own.
+#
+# Writes via temp file + mv: `sed -i` is not portable (BSD needs `-i ''`, GNU rejects
+# it) and the temp-file route is atomic besides.
+fm_set() {
+  local file="$1" key="$2" val="$3" tmp
+  tmp="$(mktemp)"
+  awk -v key="$key" -v val="$val" '
+    NR == 1 && $0 != "---" { print; nofm = 1; next }   # no frontmatter: leave alone
+    nofm { print; next }
+    NR == 1 { print; infm = 1; next }
+    infm && $0 == "---" {
+      if (!seen) print key ": " val                     # append before the closer
+      print; infm = 0; next
+    }
+    infm {
+      k = $0; sub(/[ \t]*:.*$/, "", k)
+      if (k == key) { print key ": " val; seen = 1; next }
+      print; next
+    }
+    { print }
+  ' "$file" > "$tmp" && mv "$tmp" "$file"
+}
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
