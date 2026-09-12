@@ -486,6 +486,35 @@ out=$(bash "$DOCS" diagram render "$R" 2>&1); rc=$?
 check_rc "21a non-executable is non-zero" "1" "$rc"
 check "21b says not executable" "yes" "$(echo "$out" | grep -q 'not executable' && echo yes || echo no)"
 
+# --- 27: an unmarked doc must not abort the run before a marked one --------
+# Regression: `doc_marker_source` is a grep pipeline, and grep exits 1 on a doc with
+# no DIAGRAM marker. Under `pipefail` + `set -e` that killed the whole run at the
+# first unmarked doc, so nothing printed and the rc was 1. Every other fixture here
+# carries a marker, which is exactly why 85 tests stayed green over a broken tree.
+# `_index.md` sorts first on purpose — the abort must be reachable.
+R=$(fresh r27)
+doc "$R/_index.md" <<'EOF'
+No marker at all.
+EOF
+doc "$R/plain.md" <<'EOF'
+Also no marker.
+EOF
+doc "$R/zz.md" <<'EOF'
+<!-- DIAGRAM:zz.diagram.md -->
+EOF
+src "$R/zz.diagram.md" <<'EOF'
+```mermaid
+a --> b
+```
+EOF
+out=$(bash "$DOCS" diagram index --write "$R" 2>&1); rc=$?
+check_rc "27a unmarked docs do not fail the run" "0" "$rc"
+check "27b marked doc past them is reached" "yes" "$(echo "$out" | grep -q 'UPDATED' && echo yes || echo no)"
+check "27c block generated" "yes" "$(grep -q 'a --> b' "$R/zz.md" && echo yes || echo no)"
+check "27d unmarked doc untouched" "yes" "$(grep -q 'AUTO-DIAGRAM' "$R/plain.md" && echo no || echo yes)"
+bash "$DOCS" diagram index --check "$R" >/dev/null 2>&1
+check_rc "27e check clean after write" "0" "$?"
+
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

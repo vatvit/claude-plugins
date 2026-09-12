@@ -335,8 +335,11 @@ cmd_diagram_bless() {
 
 # doc_marker_source <doc> -> the source filename named by the doc's DIAGRAM marker
 doc_marker_source() {
+  # A doc with no DIAGRAM marker is the normal case, but `grep` exits non-zero on no
+  # match and `pipefail` propagates that out of the assignment, which under `set -e`
+  # would abort the run on the first unmarked doc. An empty result is the answer.
   grep -o '<!-- *DIAGRAM:[^ ]* *-->' "$1" 2>/dev/null \
-    | head -1 | sed 's/.*DIAGRAM://; s/ *-->$//'
+    | head -1 | sed 's/.*DIAGRAM://; s/ *-->$//' || true
 }
 
 # cmd_diagram_index [--write|--check] [root]
