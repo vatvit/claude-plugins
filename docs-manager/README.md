@@ -15,6 +15,10 @@ small set of conventions that keep docs DRY and always reflecting the current st
   checked links and validated alongside every other cross-doc link.
 - **Diagram staleness** — a diagram declares what it depicts and flags itself as *suspect* when that
   changes, with a hook that says so the moment you edit a watched file.
+- **A how-to for ERDs** — entity-relationship diagrams are the one form no checker can validate, so
+  the skill ships [`how-to-erd.md`](skills/docs-manager/references/how-to-erd.md) and reads it before
+  drawing one: transcribe every declared prop, no empty boxes, every edge a join that could actually
+  happen, plus the `erDiagram` parse traps and a checklist to run before `bless`.
 - **Conventions** — docs reflect current state (history lives in tasks), single source of truth,
   cross-link instead of duplicate, frontmatter on every doc.
 
@@ -96,6 +100,9 @@ Node, no Docker and no install step.
 
 Diagram sources are excluded from `_index.md` listings — they are input to a generated block,
 not documents in their own right.
+
+Drawing an **ERD**? Read [`how-to-erd.md`](skills/docs-manager/references/how-to-erd.md) first —
+nothing in this tool can tell a correct ERD from a confident, well-formed, wrong one.
 
 ### References
 

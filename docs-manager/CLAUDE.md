@@ -20,7 +20,10 @@ docs-manager/
 ├── hooks/
 │   ├── hooks.json               ← PostToolUse registration
 │   └── diagram-watch-hook.sh    ← warns when an edited file is watched
-├── skills/docs-manager/SKILL.md ← when-to-use + commands + conventions
+├── skills/docs-manager/
+│   ├── SKILL.md                 ← when-to-use + commands + conventions
+│   └── references/
+│       └── how-to-erd.md        ← loaded on demand, only when an ERD is being drawn
 ├── README.md
 └── CLAUDE.md                    ← this file
 ```
@@ -137,6 +140,20 @@ plugin ships no renderer, pulls nothing, installs nothing.
 - **`set -e` trap:** a helper whose last command is a failing test (`[ -f … ]`) propagates non-zero
   out through `x="$(helper)"` and kills the run. `render_script` and `artifact_for` both end in an
   explicit `return 0` for this reason — "absent" is the normal case, not an error. This bit once.
+
+## skills/docs-manager/references/
+
+Long-form guidance that is only worth context when a specific job comes up. `SKILL.md` points at a
+reference and **states no rules of its own about it** — a summary good enough to act on is a second
+source of truth, and it is the copy that gets acted on, so it is the copy that drifts.
+
+- `how-to-erd.md` — how to draw an entity-relationship diagram. It exists because **no command here
+  can check an ERD**: a picture that invents a column, empties a box or draws an unjoinable edge
+  passes `diagram index --check`, `links` and `check` while lying to the reader. The rules are
+  scar tissue; do not trim one without knowing which picture taught it.
+
+Adding a reference means: the file, a pointer from `SKILL.md`, trigger phrases in the skill
+`description:` (or it is unreachable), and a row here.
 
 ## Testing
 

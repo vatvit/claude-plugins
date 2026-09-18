@@ -1,7 +1,7 @@
 ---
 name: docs-manager
-description: Use when creating or maintaining a markdown documentation set treated as a product — per-folder _index.md navigation, broken cross-doc link checks, the docs-as-product conventions (frontmatter, single source of truth, DRY via cross-links), and diagrams that live in text sources beside the docs they illustrate. Activate on "update the docs index", "regenerate _index.md", "check doc links", "are the docs consistent", or after adding/moving/removing docs. Also activate for diagrams in docs — "add a diagram to this doc", "draw the auth flow", "explain this with a picture", "update the diagram", "is the diagram still accurate", "bless the diagram" — and whenever a doc would be clearer as a picture than as prose.
-version: 1.1.0
+description: Use when creating or maintaining a markdown documentation set treated as a product — per-folder _index.md navigation, broken cross-doc link checks, the docs-as-product conventions (frontmatter, single source of truth, DRY via cross-links), and diagrams that live in text sources beside the docs they illustrate. Activate on "update the docs index", "regenerate _index.md", "check doc links", "are the docs consistent", or after adding/moving/removing docs. Also activate for diagrams in docs — "add a diagram to this doc", "draw the auth flow", "explain this with a picture", "update the diagram", "is the diagram still accurate", "bless the diagram" — and whenever a doc would be clearer as a picture than as prose. Also activate for entity-relationship diagrams specifically — "draw an ERD", "erDiagram", "diagram the data model", "diagram the schema", "picture of these entities/tables/types and how they relate", "is this ERD still right" — and before drawing or changing any ERD, whether it depicts tables, interfaces, structs or JSON schemas.
+version: 1.2.0
 ---
 
 # Docs Manager
@@ -116,10 +116,33 @@ looking is how a diagram becomes a lie the docs vouch for.
 Use the canonical terms verbatim when talking about this: *diagram source*, *fence*, *embed*,
 *generated block*, *ref*, *stamp*, *stale*.
 
+### ERDs
+
+An **ERD** (`erDiagram`) is the form for *what a model is made of* — tables, interfaces, structs or
+JSON schemas alike. Its rules are non-obvious, every one of them costs a rewrite when missed, and
+**none of them is checkable by any command here**: a wrong ERD passes `diagram index --check`,
+`links` and `check` while telling the reader something false.
+
+**So: read [`references/how-to-erd.md`](references/how-to-erd.md) in full before drawing or changing
+an ERD**, and work from that file — not from a recollection of it, and not from this paragraph, which
+deliberately lists no rules so there is nothing here to work from. It ends in a checklist; run the
+checklist before `diagram bless`, and `bless` before `diagram index --write`.
+
+Reading it is not optional for "a quick one" — a small ERD breaks the same rules as a large one, and
+a shipped picture is what the docs then vouch for.
+
 ## Workflow integration (optional)
 
 Projects using a task workflow benefit from two steps:
-- **context** (first step of every task) — walk the `_index.md` tree, read related docs, record what
-  was found before doing the work.
-- **publish/review** (docs work) — run `docs.sh index --write` and `docs.sh links`, and reconcile
-  related docs for consistency before completing.
+- **context** (first step of every task) — walk the `_index.md` tree, read related docs and the
+  diagrams they embed, and record what was found *in the task file* (a `## Context` section), so a
+  resumed session reads that instead of exploring the repo again. Reading a diagram counts: if it
+  turns out to be wrong, that is a finding, not a detour.
+- **publish/review** (docs work) — run `docs.sh index --write`, `docs.sh links` and `docs.sh check`,
+  and reconcile related docs for consistency before completing.
+
+Two ways the task workflow and diagrams are coupled, both easy to miss:
+- **A diagram marker naming a task id cannot be written before that id exists.** When a review raises
+  a question about a row, create the task in the same breath — otherwise the row reads as settled and
+  the finding is lost. See rule 3 of the ERD how-to.
+- **Editing a watched file mid-task is diagram work**, not a separate ticket: review, fix, `bless`.

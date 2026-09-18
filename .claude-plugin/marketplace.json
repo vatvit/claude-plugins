@@ -13,8 +13,8 @@
     {
       "name": "docs-manager",
       "source": "./docs-manager",
-      "description": "Treat docs as a product: auto-generated _index.md navigation, broken-link checks, text-source diagrams with typed refs and staleness tracking, and the docs-as-product conventions. No renderer, no runtime, no dependencies.",
-      "version": "1.1.1"
+      "description": "Treat docs as a product: auto-generated _index.md navigation, broken-link checks, text-source diagrams with typed refs and staleness tracking, a how-to for drawing ERDs that hold up, and the docs-as-product conventions. No renderer, no runtime, no dependencies.",
+      "version": "1.2.0"
     },
     {
       "name": "task-roadmap",
