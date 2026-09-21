@@ -340,23 +340,68 @@ reason it hides (only `exec` triggers it) rather than just the instruction.
   is not behaviour drift — it is the difference between the plugin working and not working on
   a supported target, which is exactly what R5 asked for.
 
+## Old repo disposition (decided 2026-09-22)
+
+`claude-skill-task` held three skills, not one. The other two are **retired**, not ported —
+decided by Vat on 2026-09-22:
+
+- **`skill-creator`** (`name: skill`, so `/skill`; 252-line SKILL.md, 3 examples, 1 reference).
+  Retired: Anthropic now ships `anthropic-skills:skill-creator`, which is strictly broader —
+  creation, editing, evals, variance analysis and description optimisation. Porting it would
+  add a plugin that duplicates a first-party skill.
+- **`refactoring-analyse`** (201-line SKILL.md, prose only, no scripts). Retired: already
+  `"off"` in `~/.claude/settings.json` `skillOverrides`, and its ground is covered by the
+  built-in `/simplify` and `/code-review` plus the `architecture-reviewer` agent. Porting it
+  would put it in trigger-phrase competition with both.
+
+Neither is ported to this marketplace and neither gets its own repo. With `task` now shipping
+as a plugin here, `claude-skill-task` has no remaining reason to exist and can be archived.
+
+Old repo state at decision time: `main` at `22ae049`, clean and pushed to
+`git@github.com:vatvit/claude-skill-task.git`; only stray is an untracked `Claude outputs/`
+directory.
+
 ## Current State
 
-**Build status:** plugin complete and green — 28 tests (11 + 17) passing on host *and* in
-`bash:5`. Output parity with source commit `4c5ca2d` verified byte-for-byte on the PLUG and
-PA task sets. Nothing committed in either repo.
+**Build status:** plugin complete and green — 28 tests (11 + 17) passing on host, re-verified
+2026-09-22. Output parity with source commit `4c5ca2d` verified byte-for-byte on the PLUG and
+PA task sets.
 
-**Known issues:** none in the plugin itself.
+**Known issues:** none.
 
-**Next actions (the cutover, not yet begun):**
-1. Commit `task/`, the marketplace entry and the CLAUDE.md changes in `claude-plugins`.
-2. `/plugin install task@vatvit-plugins`; remove the `~/.claude/skills/task` symlink.
-3. Migrate the ten registered projects — six with `.task-config.json` (PF, PE, PB, PC,
-   PA, PLUG) and four registered only in the global config (project-g, project-h, project-d,
-   project-a/src/sub-a).
-4. Clear 24 `claude-skill-task` allow-list entries across five `settings.local.json` files,
-   plus two inside `project-b/.claude/worktrees/`.
-5. Decide `skill-creator` and `refactoring-analyse` before archiving the old repo.
+**Cutover — complete, 2026-09-22.** All five actions are done:
+
+1. **Done.** `be6d3cc` ships `task/` + the marketplace entry; `1185124` the task files. Both
+   on `main`, pushed. The plugin is live in the marketplace.
+2. **Done.** `task@vatvit-plugins: true` in `~/.claude/settings.json` `enabledPlugins`;
+   installed at `~/.claude/plugins/cache/vatvit-plugins/task/1.0.0`. The
+   `~/.claude/skills/task` symlink is gone.
+3. **Done.** Projects migrated. Enablement is global, so there was no per-project install
+   step; the ten registered projects resolve the plugin from that one entry, and their
+   `.task-config.json` / global-config registrations were never touched by the move (D5).
+4. **Done.** Allow-lists cleared — no `claude-skill-task` hit remains in any live
+   `settings.local.json`. Two stale copies survive only under dead worktree state at
+   `project-b/.claude/worktrees/`, which nothing loads.
+5. **Done.** Both remaining skills retired (see `## Old repo disposition`) and the old repo
+   archived:
+   - `~/.claude/skills/skill-creator` and `~/.claude/skills/refactoring-analyse` removed —
+     `~/.claude/skills/` now holds no link into `claude-skill-task`
+   - the `skillOverrides` block (whose only key was `"refactoring-analyse": "off"`) dropped
+     from `~/.claude/settings.json`; JSON re-validated with `plutil`
+   - `claude-skill-task` README replaced with an archive notice pointing at `claude-plugins`
+     — commit `0c6709f`, pushed to `origin/main`
+   - `vatvit/claude-skill-task` archived on GitHub (`gh repo archive`, `isArchived: true`)
+
+Every line of `## Scope` and every bullet of `## Acceptance criteria` is now satisfied. The
+task is finished pending only the `status:` flip.
+
+**Leftovers, none blocking:** `~/.claude/settings.json.bak-plug008` (delete once happy); an
+untracked `Claude outputs/` directory in the archived repo, left alone; two dead
+`claude-skill-task` allow-list entries inside `project-b/.claude/worktrees/`, which
+nothing loads.
+
+**Next in the chain:** PLUG-009 → PLUG-010 (both edit `SKILL.md`, strictly ordered).
+PLUG-011 is independent and can run in a parallel session.
 
 ## Follow-up (raised, not this task)
 
