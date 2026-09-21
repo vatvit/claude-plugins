@@ -12,6 +12,7 @@ A multi-plugin collection for Claude Code. Each plugin lives in its own sub-dire
 claude-plugins/
 ├── .claude-plugin/
 │   └── marketplace.json      ← marketplace registry (name: vatvit-plugins)
+├── task/                    ← plugin: markdown task management (/task)
 ├── session-storage/           ← plugin: session-scoped key-value storage
 │   ├── .claude-plugin/
 │   │   └── plugin.json
@@ -38,6 +39,7 @@ marketplace, and treat `tasks` / `.tasks` as reserved directory names.
 
 | Plugin | Directory | Description |
 |--------|-----------|-------------|
+| task | `task/` | Markdown task files with an embedded workflow table, epics, and parallel-safe ID allocation |
 | session-storage | `session-storage/` | Session-scoped key-value storage with auto-cleanup |
 | docs-manager | `docs-manager/` | Docs-as-product: auto `_index.md` navigation, link checks, conventions |
 | task-roadmap | `task-roadmap/` | Abstract-Gantt roadmap from a markdown task set, auto-regenerated on task changes |
@@ -55,6 +57,12 @@ constraints, not preferences — a plugin that breaks them breaks on someone's m
   Write via temp file and `mv`, which is also what makes writes atomic.
 - **Diff-guard every write.** Compare before `mv` so an unchanged file is never
   touched; this is what makes the generators idempotent.
+- **Shebang is `#!/usr/bin/env bash`, never `#!/bin/bash`.** On Alpine — the usual
+  container target — bash is at `/usr/local/bin/bash` and `/bin/bash` does not exist, so a
+  hardcoded shebang fails with `bad interpreter`. It bites only when one script *execs*
+  another directly rather than being run as `bash script.sh`, which is why it can sit
+  unnoticed for a long time: found in the task plugin the first time its suite ran in the
+  container, where `allocate-id.sh` execs `resolve-config.sh`.
 - **Passing multi-line text to awk:** use a temp file read with `getline`, never
   `awk -v` (which cannot carry newlines).
 - **Hooks always `exit 0`** and never block the tool call that triggered them. A hook that reports

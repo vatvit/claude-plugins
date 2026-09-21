@@ -1,0 +1,83 @@
+# task
+
+Markdown task management for Claude Code. Tasks are plain `PREFIX-NNN.md` files in your
+repo (or wherever you point it) — greppable, diffable, reviewable in a PR, and readable
+without this plugin installed.
+
+Runtime-free: pure bash + awk, no dependencies, no network.
+
+## Install
+
+```
+/plugin install task@vatvit-plugins
+```
+
+## Commands
+
+```
+/task create <title>        Create a task (ID allocated atomically)
+/task list [filters]        List tasks — filter, group, sort; epic views collapse closed work
+/task show <id>             Full task content, with its epic's goal for context
+/task do <id>               Start work: loads context, runs the current workflow step
+/task finish [id]           Run every remaining workflow step to completion
+/task status <id> [status]  Show or change status (cascades to the parent epic)
+/task workflow              Show the project's workflow steps
+```
+
+IDs accept either form: `4`, `004` or `TASK-004`.
+
+## How it works
+
+- **The workflow table is the state.** Each task carries a `## Workflow` table; the plugin
+  reads it to know where the task got to, and updates it as steps complete. There is no
+  database and no sidecar file.
+- **Epics are documents, not labels.** A `type: epic` task holds the goal, scope, out-of-scope
+  and success criteria; sub-tasks reference it by `epic-name` and inherit that context. An
+  `_epic-index.json` gives O(1) epic lookups and is rebuilt, never hand-edited.
+- **ID allocation is safe across parallel sessions.** `allocate-id.sh` reserves the id and the
+  file together under a `mkdir` mutex, computes `max(nextId, highest existing + 1)` so a lost
+  counter can never cause a reuse, and creates files with `noclobber`.
+
+## Configuration
+
+Project-local `.task-config.json` (preferred):
+
+```json
+{ "tasksDir": "tasks", "prefix": "PA", "nextId": 1 }
+```
+
+Falls back to `~/.claude/project-tasks/config.json`, which maps several projects at once.
+`tasksDir` may be relative, absolute or `~`-prefixed. `nextId` is maintained by the plugin —
+never edit it by hand.
+
+The same `.task-config.json` is read by the `task-roadmap` plugin, which charts these task
+files as a Gantt roadmap. Neither plugin requires the other.
+
+## Optional: session-storage
+
+If the `session-storage` plugin is installed, the tasks you start are tracked per session, so
+active work survives a context reset. Without it every command behaves identically — the
+tracking is simply skipped, silently. Nothing here depends on that plugin being present.
+
+## Workflow definitions
+
+A project may define its own steps in `<tasksDir>/_workflow/WORKFLOW.md`, with optional
+per-step detail in `_workflow/steps/<name>.md`. Both fall back to
+`~/.claude/project-tasks/_workflow/`. `/task workflow init` seeds a project copy.
+
+## Testing
+
+```
+bash scripts/test/epic-dashboard.test.sh   # epic membership parsing
+bash scripts/test/port.test.sh             # packaging, independence, standalone copy
+```
+
+Run on the host *and* in a container (`docker run --rm -v "$PWD":/w -w /w bash:5 …`) — the
+two targets differ in `diff` output shape and in userland flags, and only running both catches
+it. The suite is also expected to pass from a copy of this directory placed outside the
+marketplace repo, with no sibling plugins present.
+
+## Provenance
+
+Previously developed at `vatvit/claude-skill-task` as a symlink-installed skill; this plugin
+is now the source of truth.
