@@ -213,7 +213,8 @@ want a rendered file — clickable nodes, print, offline — drop an **executabl
 .docs-manager-render  <source-path>  <out-basename>
 ```
 
-Write `<out-basename>.svg` (or `.png`, `.pdf`, `.webp`) and exit non-zero on failure. Then:
+Write `<out-basename>.svg` (or `.png`, `.pdf`, `.webp`, `.html`) and exit non-zero on failure.
+First match in that order wins, so do not write both an `.svg` and an `.html`. Then:
 
 ```bash
 docs.sh diagram render        # runs your script over every source

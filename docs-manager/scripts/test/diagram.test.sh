@@ -486,6 +486,74 @@ out=$(bash "$DOCS" diagram render "$R" 2>&1); rc=$?
 check_rc "21a non-executable is non-zero" "1" "$rc"
 check "21b says not executable" "yes" "$(echo "$out" | grep -q 'not executable' && echo yes || echo no)"
 
+# --- 29: an HTML artifact is first-class (PLUG-012) ------------------------
+# An interactive per-diagram page (D2, pan/zoom mermaid) is a legitimate artifact.
+# Before this, .html was written to disk, never found by artifact_for, never linked,
+# and `render` reported success with an EMPTY path after "RENDERED:".
+R=$(fresh r29)
+src "$R/x.diagram.md" <<'EOF'
+```mermaid
+a --> b
+```
+EOF
+doc "$R/top.md" <<'EOF'
+<!-- DIAGRAM:x.diagram.md -->
+EOF
+cat > "$R/.docs-manager-render" <<'EOF'
+#!/bin/sh
+printf '<html>%s</html>\n' "$1" > "$2.html"
+EOF
+chmod +x "$R/.docs-manager-render"
+out=$(bash "$DOCS" diagram render "$R" 2>&1); rc=$?
+check_rc "29a render exits 0" "0" "$rc"
+check "29b artifact written" "yes" "$([ -f "$R/x.html" ] && echo yes || echo no)"
+check "29c RENDERED names the path" "yes" "$(echo "$out" | grep -q 'RENDERED:.*x\.html' && echo yes || echo no)"
+bash "$DOCS" diagram index --write "$R" >/dev/null 2>&1
+check "29d linked from the embed" "yes" "$(grep -q '(x.html)' "$R/top.md" && echo yes || echo no)"
+
+# --- 30: precedence is stable — svg wins over html -------------------------
+# artifact_for returns the FIRST match in ARTIFACT_EXTS. html was appended last so
+# that adding it could not change which artifact an existing project links.
+R=$(fresh r30)
+src "$R/x.diagram.md" <<'EOF'
+```mermaid
+a --> b
+```
+EOF
+doc "$R/top.md" <<'EOF'
+<!-- DIAGRAM:x.diagram.md -->
+EOF
+cat > "$R/.docs-manager-render" <<'EOF'
+#!/bin/sh
+printf '<svg/>\n'   > "$2.svg"
+printf '<html></html>\n' > "$2.html"
+EOF
+chmod +x "$R/.docs-manager-render"
+bash "$DOCS" diagram render "$R" >/dev/null 2>&1
+bash "$DOCS" diagram index --write "$R" >/dev/null 2>&1
+check "30a svg linked, not html" "yes" "$(grep -q '(x.svg)' "$R/top.md" && echo yes || echo no)"
+check "30b html not linked" "yes" "$(grep -q '(x.html)' "$R/top.md" && echo no || echo yes)"
+
+# --- 31: script exits 0 but writes an unrecognised extension ---------------
+# Must say so rather than print "RENDERED:" with nothing after it. A warning, NOT a
+# failure: a script may legitimately skip a source and exit 0.
+R=$(fresh r31)
+src "$R/x.diagram.md" <<'EOF'
+```mermaid
+a --> b
+```
+EOF
+cat > "$R/.docs-manager-render" <<'EOF'
+#!/bin/sh
+printf 'nope\n' > "$2.jpeg"
+EOF
+chmod +x "$R/.docs-manager-render"
+out=$(bash "$DOCS" diagram render "$R" 2>&1); rc=$?
+check_rc "31a unrecognised extension is not a failure" "0" "$rc"
+check "31b reports no artifact" "yes" "$(echo "$out" | grep -q 'NO ARTIFACT' && echo yes || echo no)"
+check "31c never claims RENDERED" "yes" "$(echo "$out" | grep -q 'RENDERED:' && echo no || echo yes)"
+
+
 # --- 27: an unmarked doc must not abort the run before a marked one --------
 # Regression: `doc_marker_source` is a grep pipeline, and grep exits 1 on a doc with
 # no DIAGRAM marker. Under `pipefail` + `set -e` that killed the whole run at the

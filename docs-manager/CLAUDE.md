@@ -139,6 +139,14 @@ plugin ships no renderer, pulls nothing, installs nothing.
   on a routine run. It only links an artifact that already exists next to the source.
 - Absent script → success, silent. Non-executable → reported, non-zero (a silent skip is
   undebuggable). Failing script → reported, prior artifact untouched, `index` still writes the block.
+- **`ARTIFACT_EXTS` is ordered and the order is a contract.** `artifact_for` returns the *first*
+  match, so a source with both `x.svg` and `x.html` links the SVG. `html` was appended last (PLUG-012)
+  precisely so adding it could not change which artifact an existing project links — never reorder
+  this list to express a preference, and never prepend. Case 30 pins it.
+- **Script exits 0 having written nothing recognised → `NO ARTIFACT:` on stderr, rc unchanged.**
+  It was printing `RENDERED:` with an empty path, which read as success while `index` linked nothing
+  — the exact failure mode that made "why is my .html not showing up?" hard to answer. It is a
+  warning and not a failure because a script may legitimately skip a source; case 31 pins both halves.
 - **`set -e` trap:** a helper whose last command is a failing test (`[ -f … ]`) propagates non-zero
   out through `x="$(helper)"` and kills the run. `render_script` and `artifact_for` both end in an
   explicit `return 0` for this reason — "absent" is the normal case, not an error. This bit once.

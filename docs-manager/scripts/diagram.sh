@@ -188,7 +188,7 @@ stale_reason() {
 # security surface.
 #
 # Contract:  .docs-manager-render <source-path> <out-basename>
-#            writes <out-basename>.<svg|png|pdf|webp>, exits non-zero on failure.
+#            writes <out-basename>.<svg|png|pdf|webp|html>, exits non-zero on failure.
 #
 # The script gets the source path, so anything language-specific — which renderer,
 # click/link injection, theming — lives there. This file never learns what a node is,
@@ -196,7 +196,10 @@ stale_reason() {
 # ---------------------------------------------------------------------------
 
 RENDER_SCRIPT_NAME=".docs-manager-render"
-ARTIFACT_EXTS="svg png pdf webp"
+# Order matters: artifact_for returns the FIRST match, so a source with both f.svg and
+# f.html links the SVG. html is appended last on purpose — it arrived after the other
+# four and must not silently change which artifact an existing project links.
+ARTIFACT_EXTS="svg png pdf webp html"
 
 # render_script <root> — path to the project's render script, or empty if absent.
 #
@@ -254,7 +257,7 @@ build_diagram_block() {
 # a routine run. Rendering is also never on the critical path — a failure here leaves
 # any previous artifact alone and does not stop `index` from writing the block.
 cmd_diagram_render() {
-  local root="${1:-$ROOT_DEFAULT}" script rc=0 src base
+  local root="${1:-$ROOT_DEFAULT}" script rc=0 src base art
   [ -d "$root" ] || { echo "No such root: $root" >&2; return 1; }
 
   script="$(render_script "$root")"
@@ -272,7 +275,16 @@ cmd_diagram_render() {
     [ -n "$src" ] || continue
     base="$(out_basename "$src")"
     if "$script" "$src" "$base"; then
-      echo "RENDERED: $(artifact_for "$src")"
+      art="$(artifact_for "$src")"
+      if [ -n "$art" ]; then
+        echo "RENDERED: $art"
+      else
+        # The script succeeded but left nothing we recognise — almost always a wrong
+        # extension. Printing "RENDERED:" with an empty path here read as a win while
+        # index silently linked nothing, which is what made it hard to diagnose.
+        # A warning, not a failure: a script may legitimately skip a source and exit 0.
+        echo "NO ARTIFACT: $src — script exited 0 but wrote no $(echo "$ARTIFACT_EXTS" | tr ' ' '/') next to $base" >&2
+      fi
     else
       echo "RENDER FAILED: $src" >&2
       rc=1

@@ -4,8 +4,23 @@ docs-manager's default output is the **fence itself**, copied verbatim into the 
 the viewer — GitHub, VS Code, JetBrains, Obsidian all do it. That needs no toolchain and is the
 right answer almost always.
 
-Rendering produces an *additional* file (`.svg`, `.png`, `.pdf`, `.webp`) next to the source. It is
-opt-in, per project, and the project supplies the renderer.
+Rendering produces an *additional* file (`.svg`, `.png`, `.pdf`, `.webp`, `.html`) next to the
+source. It is opt-in, per project, and the project supplies the renderer.
+
+## HTML is not like the other four
+
+An HTML artifact — an interactive D2 page, a pan/zoom mermaid wrapper — is supported and linked
+like any other, but it behaves differently in two ways worth knowing before you choose it:
+
+- **It is not necessarily self-contained.** If your generator emits sibling CSS/JS, the plugin
+  knows nothing about those files: it links the `.html` and nothing else. Prefer a generator that
+  inlines its assets into the single file, or commit the siblings yourself.
+- **GitHub will not render it inline.** An SVG committed next to a doc displays in the GitHub UI;
+  an HTML file offers a download instead. If the docs are read mainly on GitHub, SVG is the better
+  artifact and HTML is for locally-served or published docs.
+
+The fence itself is still in the doc either way, so the diagram is never *only* reachable through
+the artifact.
 
 ## Why the plugin ships no renderer
 
@@ -32,9 +47,18 @@ An **executable** script at the docs root:
 ```
 
 - `<source-path>` — the `.diagram.md` source file, whole. Not the fence body.
-- `<out-basename>` — path with no extension. Write `<out-basename>.svg` (or `.png`, `.pdf`,
-  `.webp`).
+- `<out-basename>` — path with no extension. Write `<out-basename>.<ext>` where `<ext>` is one of
+  **`svg`, `png`, `pdf`, `webp`, `html`** — in that order of precedence.
 - Exit **non-zero** on failure.
+
+**Precedence, when more than one exists.** The first match in that list wins, so a source with both
+`x.svg` and `x.html` beside it links the SVG. If you want the HTML linked, do not also write an
+SVG. `html` sits last because it was added after the other four and must not change which artifact
+an existing project links.
+
+**A script that exits 0 having written none of those** is reported as `NO ARTIFACT: …` naming the
+extensions looked for. It is a warning, not a failure — a script may legitimately skip a source —
+but it almost always means a wrong extension, so do not ignore it.
 
 It receives the *path*, not the diagram body, precisely so the script can decide what to do with
 the file — some renderers parse the fence themselves, others need it stripped first. That decision
