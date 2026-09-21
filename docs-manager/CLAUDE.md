@@ -151,6 +151,11 @@ source of truth, and it is the copy that gets acted on, so it is the copy that d
   can check an ERD**: a picture that invents a column, empties a box or draws an unjoinable edge
   passes `diagram index --check`, `links` and `check` while lying to the reader. The rules are
   scar tissue; do not trim one without knowing which picture taught it.
+- `how-to-claude-md.md` — how to keep a project's agent instruction file (`CLAUDE.md`, `AGENTS.md`)
+  to instructions, by moving project knowledge into the docs this plugin maintains. It exists for the
+  same reason as the ERD how-to: **no command here can see the problem** — an instruction file that
+  has become a duplicate, drifting copy of the docs passes every check. Keep the residue-check command
+  in rule 6 runnable as written; it is what makes "nothing was lost" evidence rather than a claim.
 
 Adding a reference means: the file, a pointer from `SKILL.md`, trigger phrases in the skill
 `description:` (or it is unreachable), and a row here.

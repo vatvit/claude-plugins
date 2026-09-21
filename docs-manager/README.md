@@ -19,6 +19,11 @@ small set of conventions that keep docs DRY and always reflecting the current st
   the skill ships [`how-to-erd.md`](skills/docs-manager/references/how-to-erd.md) and reads it before
   drawing one: transcribe every declared prop, no empty boxes, every edge a join that could actually
   happen, plus the `erDiagram` parse traps and a checklist to run before `bless`.
+- **A method for the agent instruction file** — `CLAUDE.md` / `AGENTS.md` is read before every task, so
+  it fills up with the project's knowledge, which the docs should own. The skill ships
+  [`how-to-claude-md.md`](skills/docs-manager/references/how-to-claude-md.md): the instruction-vs-knowledge
+  test, where each kind of knowledge goes, the block-by-block extraction procedure, a mechanical check
+  that nothing was lost, and a checklist.
 - **Conventions** — docs reflect current state (history lives in tasks), single source of truth,
   cross-link instead of duplicate, frontmatter on every doc.
 
@@ -256,6 +261,33 @@ These are examples to adapt, not supported integrations. docs-manager does not k
 you use.
 </details>
 
+
+## The agent instruction file (CLAUDE.md / AGENTS.md)
+
+That file is read **in full, before every task**, which is both its value and the reason it decays:
+anything learned is easiest to put where it will certainly be read. Over a few months it stops being
+instructions and becomes a second, worse copy of the documentation — system descriptions, module names,
+invariants — condensed until nobody can tell whether a line is still true, and duplicated from docs that
+say it better.
+
+Nothing in this tool can detect that. `index`, `links` and `check` all pass on a thousand-line instruction
+file that contradicts the docs beside it.
+
+The split the skill applies:
+
+| | Belongs in |
+|---|---|
+| how to work — what to run, what never to do, when to ask, the task and git workflow | the instruction file |
+| anything true about the project — how a system works, why, what a module is called, what a test guards | `docs/`, in the doc that owns the subject |
+
+The instruction file then keeps **one pointer table**: subject → the doc that owns its rules. Docs get the
+knowledge in their own voice, usually in the doc's decision record, plus a **§Code anchors** section for
+the rule → module/test mapping that instruction files tend to be the only place holding.
+
+Full method — the test, the extraction procedure, the mechanical "nothing was lost" check and a
+checklist — is [`how-to-claude-md.md`](skills/docs-manager/references/how-to-claude-md.md). The skill
+reads it before touching such a file, including for a single *"where does this rule go?"* decision, since
+that decision repeated is how the large problem is built.
 
 ## Testing
 

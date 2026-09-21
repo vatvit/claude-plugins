@@ -125,8 +125,8 @@ forget because neither is exercised by any test.
 
 **Check trigger phrases against the other plugins' skill descriptions.** Two plugins
 competing for the same words is a coin flip at activation time. Today the vocabularies are
-disjoint: docs-manager owns *docs / index / links / diagram / picture*, task-roadmap owns
-*roadmap / gantt / timeline*, session-storage owns *storage / session data*.
+disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.md / AGENTS.md*,
+task-roadmap owns *roadmap / gantt / timeline*, session-storage owns *storage / session data*.
 
 ## Tasks
 

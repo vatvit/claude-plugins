@@ -80,6 +80,12 @@ that — the reader simply asks *"what does a box with only a name mean?"*.
 **The one exception is a call**, where neither side stores the other. Say so in the label, in capitals
 (`decide() RETURNS`, `evaluate() IS GIVEN`), so the exception is visibly an exception.
 
+**Containment is not scope, and readers will assume it is.** A box holding *a list of rules* and *a list
+of things* next to each other invites the reading that the rules apply to the things. They do not — what a
+record applies to is whatever its own column names. Wherever a picture puts two sibling collections in one
+container, say in the legend that membership means only *where a record is declared*. This is the single
+most common wrong inference drawn from an otherwise correct ERD.
+
 ## 5. Two kinds of relation, and the line says which
 
 Use ER's own semantics rather than inventing a convention:

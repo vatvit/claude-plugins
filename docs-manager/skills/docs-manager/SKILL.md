@@ -1,7 +1,7 @@
 ---
 name: docs-manager
-description: Use when creating or maintaining a markdown documentation set treated as a product — per-folder _index.md navigation, broken cross-doc link checks, the docs-as-product conventions (frontmatter, single source of truth, DRY via cross-links), and diagrams that live in text sources beside the docs they illustrate. Activate on "update the docs index", "regenerate _index.md", "check doc links", "are the docs consistent", or after adding/moving/removing docs. Also activate for diagrams in docs — "add a diagram to this doc", "draw the auth flow", "explain this with a picture", "update the diagram", "is the diagram still accurate", "bless the diagram" — and whenever a doc would be clearer as a picture than as prose. Also activate for entity-relationship diagrams specifically — "draw an ERD", "erDiagram", "diagram the data model", "diagram the schema", "picture of these entities/tables/types and how they relate", "is this ERD still right" — and before drawing or changing any ERD, whether it depicts tables, interfaces, structs or JSON schemas.
-version: 1.2.0
+description: Use when creating or maintaining a markdown documentation set treated as a product — per-folder _index.md navigation, broken cross-doc link checks, the docs-as-product conventions (frontmatter, single source of truth, DRY via cross-links), and diagrams that live in text sources beside the docs they illustrate. Activate on "update the docs index", "regenerate _index.md", "check doc links", "are the docs consistent", or after adding/moving/removing docs. Also activate for diagrams in docs — "add a diagram to this doc", "draw the auth flow", "explain this with a picture", "update the diagram", "is the diagram still accurate", "bless the diagram" — and whenever a doc would be clearer as a picture than as prose. Also activate for entity-relationship diagrams specifically — "draw an ERD", "erDiagram", "diagram the data model", "diagram the schema", "picture of these entities/tables/types and how they relate", "is this ERD still right" — and before drawing or changing any ERD, whether it depicts tables, interfaces, structs or JSON schemas. Also activate for the project's agent instruction file — "optimise CLAUDE.md", "CLAUDE.md is too long", "clean up AGENTS.md", "move this out of CLAUDE.md", "should this go in CLAUDE.md or the docs", "where does this rule belong" — and before adding anything to such a file.
+version: 1.3.0
 ---
 
 # Docs Manager
@@ -130,6 +130,25 @@ checklist before `diagram bless`, and `bless` before `diagram index --write`.
 
 Reading it is not optional for "a quick one" — a small ERD breaks the same rules as a large one, and
 a shipped picture is what the docs then vouch for.
+
+## The agent instruction file
+
+A project's `CLAUDE.md` (or `AGENTS.md`, `.cursorrules`, a repo-level system prompt) is read in full
+before every task, so everything anyone learns is tempting to put there. That is why it ends up holding
+the project's knowledge — system descriptions, module names, invariants — which is **this docs set's job**,
+stated once, in the doc that owns the subject, where the user and contributors can read it too.
+
+Nothing here can detect that: a thousand-line instruction file duplicating the docs passes `index`,
+`links` and `check`, and the duplicate is the copy that drifts.
+
+**So: read [`references/how-to-claude-md.md`](references/how-to-claude-md.md) in full before optimising
+such a file, before moving anything out of one, and before deciding that a newly-learned rule belongs in
+one.** Work from that file — not from a recollection of it, and not from this section, which deliberately
+states no rules so there is nothing here to work from. It ends in a checklist; run it before calling the
+job done.
+
+The same reading applies to the small case — *"where does this one rule go?"* — because the small case
+repeated is exactly how the large one is built.
 
 ## Workflow integration (optional)
 
