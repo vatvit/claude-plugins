@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # docs-manager PostToolUse hook — warn when an edited file is watched by a diagram.
 #

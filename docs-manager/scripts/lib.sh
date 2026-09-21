@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # lib.sh — shared helpers for docs-manager. Sourced, never executed.
 #
 # SCOPE: this file belongs to docs-manager and is sourced only by docs-manager's own

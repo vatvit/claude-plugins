@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # diagram.sh — diagram sources rendered into docs. Sourced by docs.sh.
 #
 # A diagram source is `<name>.diagram.md`: YAML frontmatter plus exactly one fenced

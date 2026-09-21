@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Tests for docs-manager: the existing index/links behaviour and the diagram feature.
 #
 # Dual-target on purpose. Run on the HOST (macOS: bash 3.2 + BSD userland) to catch
@@ -515,6 +515,26 @@ check "27d unmarked doc untouched" "yes" "$(grep -q 'AUTO-DIAGRAM' "$R/plain.md"
 bash "$DOCS" diagram index --check "$R" >/dev/null 2>&1
 check_rc "27e check clean after write" "0" "$?"
 
+
+echo
+echo "== packaging =="
+
+# --- 28: no hardcoded #!/bin/bash shebang (PLUG-011) ------------------------
+# On Alpine — the bash:5 image this suite's dual-target convention uses — bash
+# lives at /usr/local/bin/bash and /bin/bash does not exist, so a hardcoded
+# shebang dies with "bad interpreter" the moment a script is exec'd rather than
+# run as `bash script.sh`. It cost eight red tests in the task plugin's first
+# container run while all eight were green on macOS.
+#
+# The scan must exclude THIS FILE: a test that searches for the forbidden string
+# necessarily contains it, and without the exclusion the scan reports the test
+# itself as the violation.
+PLUGIN_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+hits=$(grep -rl '^#!/bin/bash' "$PLUGIN_ROOT" 2>/dev/null \
+        | grep -v -x "$SELF" \
+        | sed "s|^$PLUGIN_ROOT/||" | sort | tr '\n' ' ')
+check "28 no hardcoded #!/bin/bash shebang" "" "${hits% }"
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

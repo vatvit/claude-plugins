@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Tests for task-roadmap: config resolution, generation, and the hook.
 #
 # Written BEFORE extracting lib.sh, to pin behaviour that had no coverage at all.
@@ -125,6 +125,25 @@ printf 'not json at all' | CLAUDE_PROJECT_DIR="$R" bash "$HOOK" >/dev/null 2>&1
 check "9a malformed payload exits 0" "0" "$?"
 payload "$R/tasks/T-001.md" | CLAUDE_PROJECT_DIR="$R" bash "$HOOK" >/dev/null 2>&1
 check "9b missing tasks dir exits 0" "0" "$?"
+echo
+echo "== packaging =="
+
+# --- 10: no hardcoded #!/bin/bash shebang (PLUG-011) ------------------------
+# Alpine puts bash at /usr/local/bin/bash with no /bin/bash, so a hardcoded
+# shebang dies with "bad interpreter" as soon as a script is exec'd rather than
+# run as `bash script.sh`. Deliberately duplicated from docs-manager's suite:
+# per Plugin Independence a plugin never sources a sibling's file, so each one
+# carries its own copy of this guard.
+#
+# The scan must exclude THIS FILE, which necessarily contains the string it
+# searches for.
+PLUGIN_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+hits=$(grep -rl '^#!/bin/bash' "$PLUGIN_ROOT" 2>/dev/null \
+        | grep -v -x "$SELF" \
+        | sed "s|^$PLUGIN_ROOT/||" | sort | tr '\n' ' ')
+check "10 no hardcoded #!/bin/bash shebang" "" "${hits% }"
+
 
 echo
 echo "$pass passed, $fail failed"

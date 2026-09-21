@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # docs.sh — documentation maintenance helpers (no language runtime; pure shell + awk).
 #
 # Subcommands:
