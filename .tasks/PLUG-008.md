@@ -1,6 +1,6 @@
 ---
 title: Ship the task skill as a plugin, sourced from this repo
-status: in-progress
+status: completed
 type: feature
 priority: high
 ---
