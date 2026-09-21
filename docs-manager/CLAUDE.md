@@ -22,8 +22,10 @@ docs-manager/
 │   └── diagram-watch-hook.sh    ← warns when an edited file is watched
 ├── skills/docs-manager/
 │   ├── SKILL.md                 ← when-to-use + commands + conventions
-│   └── references/
-│       └── how-to-erd.md        ← loaded on demand, only when an ERD is being drawn
+│   └── references/              ← loaded on demand, only for the job each one covers
+│       ├── how-to-erd.md
+│       ├── how-to-claude-md.md
+│       └── how-to-render.md
 ├── README.md
 └── CLAUDE.md                    ← this file
 ```
@@ -156,6 +158,13 @@ source of truth, and it is the copy that gets acted on, so it is the copy that d
   same reason as the ERD how-to: **no command here can see the problem** — an instruction file that
   has become a duplicate, drifting copy of the docs passes every check. Keep the residue-check command
   in rule 6 runnable as written; it is what makes "nothing was lost" evidence rather than a claim.
+
+- `how-to-render.md` — how to supply the optional `.docs-manager-render` script: the argument
+  contract, the failure semantics, recipes for mermaid-cli, D2 and Kroki, and a setup checklist.
+  It exists because the render port was **knowledge with no route to it** — the recipes sat in
+  `README.md`, which an agent working in a consuming project never reads, so a session that hit
+  "needs a `.docs-manager-render` and there is none" had nothing to suggest. The recipes now live
+  here only; `README.md` links to this file rather than repeating them.
 
 Adding a reference means: the file, a pointer from `SKILL.md`, trigger phrases in the skill
 `description:` (or it is unreachable), and a row here.

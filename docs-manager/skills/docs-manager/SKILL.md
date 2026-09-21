@@ -1,7 +1,7 @@
 ---
 name: docs-manager
-description: Use when creating or maintaining a markdown documentation set treated as a product — per-folder _index.md navigation, broken cross-doc link checks, the docs-as-product conventions (frontmatter, single source of truth, DRY via cross-links), and diagrams that live in text sources beside the docs they illustrate. Activate on "update the docs index", "regenerate _index.md", "check doc links", "are the docs consistent", or after adding/moving/removing docs. Also activate for diagrams in docs — "add a diagram to this doc", "draw the auth flow", "explain this with a picture", "update the diagram", "is the diagram still accurate", "bless the diagram" — and whenever a doc would be clearer as a picture than as prose. Also activate for entity-relationship diagrams specifically — "draw an ERD", "erDiagram", "diagram the data model", "diagram the schema", "picture of these entities/tables/types and how they relate", "is this ERD still right" — and before drawing or changing any ERD, whether it depicts tables, interfaces, structs or JSON schemas. Also activate for the project's agent instruction file — "optimise CLAUDE.md", "CLAUDE.md is too long", "clean up AGENTS.md", "move this out of CLAUDE.md", "should this go in CLAUDE.md or the docs", "where does this rule belong" — and before adding anything to such a file.
-version: 1.3.0
+description: Use when creating or maintaining a markdown documentation set treated as a product — per-folder _index.md navigation, broken cross-doc link checks, the docs-as-product conventions (frontmatter, single source of truth, DRY via cross-links), and diagrams that live in text sources beside the docs they illustrate. Activate on "update the docs index", "regenerate _index.md", "check doc links", "are the docs consistent", or after adding/moving/removing docs. Also activate for diagrams in docs — "add a diagram to this doc", "draw the auth flow", "explain this with a picture", "update the diagram", "is the diagram still accurate", "bless the diagram" — and whenever a doc would be clearer as a picture than as prose. Also activate for rendering a diagram to a standalone image — "render the diagram", "export the diagram as SVG/PNG", "why is nothing rendered", ".docs-manager-render", "set up a diagram renderer". Also activate for entity-relationship diagrams specifically — "draw an ERD", "erDiagram", "diagram the data model", "diagram the schema", "picture of these entities/tables/types and how they relate", "is this ERD still right" — and before drawing or changing any ERD, whether it depicts tables, interfaces, structs or JSON schemas. Also activate for the project's agent instruction file — "optimise CLAUDE.md", "CLAUDE.md is too long", "clean up AGENTS.md", "move this out of CLAUDE.md", "should this go in CLAUDE.md or the docs", "where does this rule belong" — and before adding anything to such a file.
+version: 1.4.0
 ---
 
 # Docs Manager
@@ -88,6 +88,14 @@ Then `docs.sh diagram index --write` splices the fence in below it, between `AUT
 (GitHub, VS Code, JetBrains, Obsidian), so the fence is copied verbatim and never parsed — the
 language tag is the author's choice, and `mermaid`, `d2`, `dot` and `plantuml` all behave
 identically. Prefer `mermaid`: it has the widest free viewer support.
+
+A standalone artifact (`.svg`/`.png`/`.pdf`/`.webp`) is optional and comes from a render script the
+**project** supplies at `<root>/.docs-manager-render`. Its absence is a supported state, not a
+fault to diagnose — so "nothing is rendered" is never on its own a problem to fix.
+
+**So: read [`references/how-to-render.md`](references/how-to-render.md) in full before setting up,
+changing or diagnosing a render script**, and work from that file. This paragraph deliberately
+states no part of the contract, so there is nothing here to hand-write a script from.
 
 Two optional frontmatter keys make a diagram pull its weight:
 

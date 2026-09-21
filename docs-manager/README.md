@@ -232,34 +232,10 @@ If the script is absent, every command succeeds and nothing is rendered. If it f
 reported, any previous artifact is left alone, and `index` still writes the block — rendering is
 never on the critical path for a readable doc.
 
-<details>
-<summary>Recipes — knowledge, not dependencies. Copy one into your own script if you want it.</summary>
-
-```sh
-#!/bin/sh
-# Mermaid via mermaid-cli. Heavy (Node + Chromium); pin the digest.
-exec docker run --rm --user "$(id -u):$(id -g)" \
-  -v "$(dirname "$1")":/w minlag/mermaid-cli:<pinned> \
-  -i "/w/$(basename "$1")" -o "/w/$(basename "$2").svg"
-```
-
-```sh
-#!/bin/sh
-# D2. Single Go binary; links come from `link:` in the source.
-sed -n '/^```/,/^```$/p' "$1" | sed '1d;$d' > /tmp/d.d2
-exec d2 --layout elk /tmp/d.d2 "$2.svg"
-```
-
-```sh
-#!/bin/sh
-# Kroki, self-hosted. One container fronting many engines.
-sed -n '/^```/,/^```$/p' "$1" | sed '1d;$d' \
-  | curl -sf -X POST --data-binary @- http://localhost:8000/mermaid/svg > "$2.svg"
-```
-
-These are examples to adapt, not supported integrations. docs-manager does not know or care which
-you use.
-</details>
+Working recipes for mermaid-cli, D2 and self-hosted Kroki — plus the argument contract, the failure
+semantics and a setup checklist — are in
+[`skills/docs-manager/references/how-to-render.md`](skills/docs-manager/references/how-to-render.md).
+They are examples to adapt, not supported integrations.
 
 
 ## The agent instruction file (CLAUDE.md / AGENTS.md)
