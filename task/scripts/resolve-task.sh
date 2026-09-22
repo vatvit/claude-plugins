@@ -37,26 +37,11 @@ echo "id=$FULL_ID"
 echo "file=$FILE"
 
 # --- Extract frontmatter ---
-awk '
-/^---$/ {
-    if (in_fm) exit
-    in_fm = 1
-    next
-}
-in_fm && /:/ {
-    key = $0; val = $0
-    sub(/:.*/, "", key)
-    sub(/^[^:]*:[ \t]*/, "", val)
-    gsub(/^[ \t]+|[ \t]+$/, "", key)
-    gsub(/^[ \t]+|[ \t]+$/, "", val)
-    # Strip surrounding YAML quotes
-    if (substr(val,1,1) == "\"" && substr(val,length(val),1) == "\"") {
-        val = substr(val, 2, length(val)-2)
-    }
-    if (key != "" && val != "") print key "=" val
-}
-NR > 25 { exit }
-' "$FILE"
+# Parsing lives in read-tasks.sh; this script adds id resolution and the
+# workflow table on top. `id` is dropped because it was printed above.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+"$SCRIPT_DIR/read-tasks.sh" "$TASKS_DIR" "$PREFIX" --all --records --id="$FULL_ID" \
+  | awk -F'\t' '$2 != "id" { print $2 "=" $3 }'
 
 # --- Parse workflow table for current step ---
 # Only looks inside ## Workflow section. Current step = first row with status NOT done/skipped.

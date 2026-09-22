@@ -69,6 +69,8 @@ per-step detail in `_workflow/steps/<name>.md`. Both fall back to
 
 ```
 bash scripts/test/epic-dashboard.test.sh   # epic membership parsing
+bash scripts/test/list-tasks.test.sh       # every documented /task list shape
+bash scripts/test/status-session.test.sh   # status writes, epic cascade, active tasks
 bash scripts/test/port.test.sh             # packaging, independence, standalone copy
 ```
 

@@ -1,14 +1,8 @@
-# Workflow Guide
+# Workflow guide — writing and customising workflows
 
-Workflows define how tasks are processed from creation to completion.
-
-## Concept
-
-- **WORKFLOW.md** - Ordered list of steps (defines sequence)
-- **steps/<name>.md** - Detailed instructions for each step (optional)
-- **Resolution** - Project-specific overrides user's default
-
-**Design:** Step files use semantic names without numbers. WORKFLOW.md defines the order. This allows projects to reuse the same step definitions in different sequences.
+Where workflow files live, how a step is resolved and what WORKFLOW.md looks like is in
+`workflow-system.md`; this is the authoring side — writing a step definition and shaping a
+workflow for a particular kind of project.
 
 ## Creating Workflows
 
@@ -119,18 +113,8 @@ Order is defined in WORKFLOW.md, not filenames. This allows reusing steps in dif
 5. recommendations - Actionable conclusions
 ```
 
-## Resolution Logic
 
-When looking for step instructions:
+## Resolution
 
-```
-1. {tasksDir}/_workflow/steps/<name>.md  (project)
-2. ~/.claude/project-tasks/_workflow/steps/<name>.md  (user's default)
-3. One-liner from WORKFLOW.md  (fallback)
-```
-
-This allows:
-- Full project customization
-- Selective step overrides
-- User's default workflow as foundation
-- Same step definitions in different orders
+Project step file, then the global one, then the one-liner in WORKFLOW.md — spelled out in
+`workflow-system.md`. Writing the same rule here again is how the two drift apart.

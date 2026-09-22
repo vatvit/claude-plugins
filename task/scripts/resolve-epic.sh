@@ -86,42 +86,26 @@ else
     echo "WARN: _epic-index.json missing; falling back to scan" >&2
 fi
 
-for f in "$TASKS_DIR"/"$PREFIX"-*.md; do
-    [ -f "$f" ] || continue
+# Frontmatter parsing lives in read-tasks.sh — this only looks for the epic
+# whose epic-name matches. --all because a completed epic still owns its name.
+task_id=$("$SCRIPT_DIR/read-tasks.sh" "$TASKS_DIR" "$PREFIX" --all --records \
+  | awk -F'\t' -v target="$EPIC_REF" '
+    # No early exit: closing the pipe early would SIGPIPE read-tasks.sh, and
+    # pipefail turns that into a failure of this script.
+    function flush() { if (found == "" && cur != "" && type == "epic" && ename == target) { found = cur; print cur } }
+    { if ($1 != cur) { flush(); cur = $1; type = ""; ename = "" }
+      if ($2 == "type") type = $3
+      if ($2 == "epic-name") ename = $3 }
+    END { flush() }
+  ')
 
-    match=$(awk -v target="$EPIC_REF" '
-    /^---$/ {
-        if (in_fm) exit
-        in_fm = 1
-        next
-    }
-    in_fm && /:/ {
-        key = $0; val = $0
-        sub(/:.*/, "", key)
-        sub(/^[^:]*:[ \t]*/, "", val)
-        gsub(/^[ \t]+|[ \t]+$/, "", key)
-        gsub(/^[ \t]+|[ \t]+$/, "", val)
-        if (substr(val,1,1) == "\"" && substr(val,length(val),1) == "\"") {
-            val = substr(val, 2, length(val)-2)
-        }
-        if (key == "type") type = val
-        if (key == "epic-name") ename = val
-    }
-    NR > 20 { exit }
-    END {
-        if (type == "epic" && ename == target) print "yes"
-    }
-    ' "$f") || continue
+if [ -n "$task_id" ]; then
+    resolve_by_id "$task_id"
 
-    if [ "$match" = "yes" ]; then
-        task_id=$(basename "$f" .md)
-        resolve_by_id "$task_id"
-
-        # Rebuild index in background for next time
-        "$SCRIPT_DIR/update-epic-index.sh" "$TASKS_DIR" "$PREFIX" 2>/dev/null &
-        exit 0
-    fi
-done
+    # Rebuild index in background for next time
+    "$SCRIPT_DIR/update-epic-index.sh" "$TASKS_DIR" "$PREFIX" 2>/dev/null &
+    exit 0
+fi
 
 echo "ERROR: No epic found with name '$EPIC_REF'" >&2
 exit 1

@@ -20,44 +20,24 @@ TASKS_DIR="${1:?Usage: epic-dashboard.sh <tasksDir> <prefix> <epic-id>}"
 PREFIX="${2:?}"
 RAW_ID="${3:?}"
 
-# --- Resolve full ID ---
-if echo "$RAW_ID" | grep -qE '^[A-Z]+-[0-9]+$'; then
-    FULL_ID="$RAW_ID"
-else
-    NUM=$(echo "$RAW_ID" | sed 's/^0*//')
-    : "${NUM:=0}"
-    FULL_ID=$(printf "%s-%03d" "$PREFIX" "$NUM")
-fi
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-EPIC_FILE="$TASKS_DIR/$FULL_ID.md"
-if [ ! -f "$EPIC_FILE" ]; then
-    echo "ERROR: Epic file not found: $EPIC_FILE" >&2
-    exit 1
-fi
+# --- Resolve the epic, via the shared resolver ---
+epic_out=$("$SCRIPT_DIR/resolve-task.sh" "$TASKS_DIR" "$PREFIX" "$RAW_ID") || exit 1
 
-# --- Extract epic frontmatter ---
-epic_title="" epic_status="" epic_priority="" epic_type=""
+epic_title="" epic_status="" epic_priority="" epic_type="" FULL_ID="" EPIC_FILE=""
 while IFS='=' read -r key val; do
     case "$key" in
+        id) FULL_ID="$val" ;;
+        file) EPIC_FILE="$val" ;;
         title) epic_title="$val" ;;
         status) epic_status="$val" ;;
         priority) epic_priority="$val" ;;
         type) epic_type="$val" ;;
     esac
-done < <(awk '
-/^---$/ { if (in_fm) exit; in_fm=1; next }
-in_fm && /:/ {
-    key=$0; val=$0
-    sub(/:.*/, "", key); sub(/^[^:]*:[ \t]*/, "", val)
-    gsub(/^[ \t]+|[ \t]+$/, "", key); gsub(/^[ \t]+|[ \t]+$/, "", val)
-    # Strip surrounding YAML quotes
-    if (substr(val,1,1) == "\"" && substr(val,length(val),1) == "\"") {
-        val = substr(val, 2, length(val)-2)
-    }
-    if (key != "" && val != "") print key "=" val
-}
-NR > 20 { exit }
-' "$EPIC_FILE")
+done <<EOF
+$epic_out
+EOF
 
 if [ "$epic_type" != "epic" ]; then
     echo "ERROR: $FULL_ID is not an epic (type=${epic_type:-unset})" >&2
@@ -107,6 +87,9 @@ done < <(awk '
 ' "$EPIC_FILE")
 
 # --- Read each sub-task's frontmatter ---
+# JSON string escaping — one home for both the epic and its sub-tasks.
+json_escape() { printf %s "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+
 # Priority rank for recommendation sorting
 prio_rank() {
     case "$1" in
@@ -136,20 +119,10 @@ for sid in ${subtask_ids[@]+"${subtask_ids[@]}"}; do
             status) sstatus="$val" ;;
             priority) spriority="$val" ;;
         esac
-    done < <(awk '
-    /^---$/ { if (in_fm) exit; in_fm=1; next }
-    in_fm && /:/ {
-        key=$0; val=$0
-        sub(/:.*/, "", key); sub(/^[^:]*:[ \t]*/, "", val)
-        gsub(/^[ \t]+|[ \t]+$/, "", key); gsub(/^[ \t]+|[ \t]+$/, "", val)
-        if (substr(val,1,1) == "\"" && substr(val,length(val),1) == "\"") {
-            val = substr(val, 2, length(val)-2)
-        }
-        gsub(/\\/, "\\\\", val); gsub(/"/, "\\\"", val)
-        if (key != "" && val != "") print key "=" val
-    }
-    NR > 15 { exit }
-    ' "$sfile")
+    done <<EOF
+$("$SCRIPT_DIR/resolve-task.sh" "$TASKS_DIR" "$PREFIX" "$sid")
+EOF
+    stitle=$(json_escape "$stitle")
 
     [ -z "$sstatus" ] && sstatus="proposed"
 
@@ -207,8 +180,7 @@ elif [ "$all_done" = true ] && [ "$has_subtasks" = true ]; then
 fi
 
 # --- Output JSON ---
-# Escape epic_title for JSON
-esc_title=$(printf '%s' "$epic_title" | sed 's/\\/\\\\/g; s/"/\\"/g')
+esc_title=$(json_escape "$epic_title")
 
 printf '{"id":"%s","title":"%s","status":"%s"' "$FULL_ID" "$esc_title" "$epic_status"
 [ -n "$epic_priority" ] && printf ',"priority":"%s"' "$epic_priority"

@@ -3,57 +3,36 @@
 # Usage: update-epic-index.sh <tasksDir> <prefix>
 # Writes: {tasksDir}/_epic-index.json
 #   e.g. {"auth":"TASK-010","rigging":"TASK-320"}
-# Idempotent — full rebuild each time.
+# Idempotent — full rebuild each time, and diff-guarded so an unchanged index
+# keeps its mtime.
 # Pure bash + awk, no dependencies.
 set -euo pipefail
 
 TASKS_DIR="${1:?Usage: update-epic-index.sh <tasksDir> <prefix>}"
 PREFIX="${2:?Usage: update-epic-index.sh <tasksDir> <prefix>}"
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 INDEX_FILE="$TASKS_DIR/_epic-index.json"
+TMP="$INDEX_FILE.$$"
 
-# Scan all task files for type=epic + epic-name
-first=true
-printf '{' > "$INDEX_FILE"
-
-for f in "$TASKS_DIR"/"$PREFIX"-*.md; do
-    [ -f "$f" ] || continue
-
-    # Extract type and epic-name from frontmatter
-    pair=$(awk '
-    /^---$/ {
-        if (in_fm) exit
-        in_fm = 1
-        next
-    }
-    in_fm && /:/ {
-        key = $0; val = $0
-        sub(/:.*/, "", key)
-        sub(/^[^:]*:[ \t]*/, "", val)
-        gsub(/^[ \t]+|[ \t]+$/, "", key)
-        gsub(/^[ \t]+|[ \t]+$/, "", val)
-        if (substr(val,1,1) == "\"" && substr(val,length(val),1) == "\"") {
-            val = substr(val, 2, length(val)-2)
+# Frontmatter parsing lives in read-tasks.sh; this only picks the epics out.
+# --all matters: a completed epic still owns its name.
+"$SCRIPT_DIR/read-tasks.sh" "$TASKS_DIR" "$PREFIX" --all --records \
+  | awk -F'\t' '
+    { if ($1 != cur) { flush(); cur = $1; type = ""; ename = "" }
+      if ($2 == "type") type = $3
+      if ($2 == "epic-name") ename = $3 }
+    function flush() {
+        if (cur != "" && type == "epic" && ename != "") {
+            printf "%s\"%s\":\"%s\"", (n++ ? "," : ""), ename, cur
         }
-        if (key == "type") type = val
-        if (key == "epic-name") ename = val
     }
-    NR > 20 { exit }
-    END {
-        if (type == "epic" && ename != "") print ename
-    }
-    ' "$f") || continue
+    BEGIN { printf "{" }
+    END { flush(); printf "}\n" }
+  ' > "$TMP"
 
-    [ -z "$pair" ] && continue
-
-    id=$(basename "$f" .md)
-
-    if [ "$first" = true ]; then
-        first=false
-    else
-        printf ',' >> "$INDEX_FILE"
-    fi
-    printf '"%s":"%s"' "$pair" "$id" >> "$INDEX_FILE"
-done
-
-printf '}\n' >> "$INDEX_FILE"
+if [ -f "$INDEX_FILE" ] && cmp -s "$TMP" "$INDEX_FILE"; then
+    rm -f "$TMP"
+else
+    mv "$TMP" "$INDEX_FILE"
+fi

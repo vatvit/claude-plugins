@@ -9,22 +9,38 @@ independence, how to change a plugin) live in the repo root `CLAUDE.md` and appl
 task/
 ├── .claude-plugin/plugin.json
 ├── skills/task/
-│   ├── SKILL.md          ← the whole command surface
-│   ├── references/       ← workflow-guide.md
+│   ├── SKILL.md          ← router only: guardrails, config step, where to read next
+│   ├── commands/         ← one file per command, read on demand
+│   ├── references/       ← looked up, not followed: formats, config, scripts
 │   └── examples/         ← example task file
 └── scripts/              ← pure bash + awk, each standalone
     ├── resolve-config.sh     project → tasksDir / prefix
     ├── allocate-id.sh        the ONLY sanctioned way to get an id
     ├── resolve-task.sh       id → metadata + current workflow step
-    ├── read-tasks.sh         all frontmatter → compact JSON (used by /task list)
+    ├── read-tasks.sh         the one frontmatter parser: JSON or TSV records
+    ├── list-tasks.sh         the finished /task list output
+    ├── list-render.awk       its renderer — grouping, sorting, collapsing, columns
+    ├── set-status.sh         status write + epic cascade + active-tasks
+    ├── session-active.sh     the session's active-tasks list
     ├── resolve-epic.sh       epic-name or id → epic metadata
     ├── update-epic-index.sh  rebuilds _epic-index.json
     ├── epic-dashboard.sh     epic + sub-task statuses + recommendation
-    └── test/epic-dashboard.test.sh
+    └── test/*.test.sh
 ```
 
-Scripts are referenced from `SKILL.md` as `<PLUGIN_ROOT>/scripts/…`, and would be
+Scripts are referenced from the skill as `<PLUGIN_ROOT>/scripts/…`, and would be
 `${CLAUDE_PLUGIN_ROOT}` in a hook. **Never write an absolute path into this plugin.**
+
+**One parser.** Frontmatter is read in exactly one place — `read-tasks.sh`, JSON for
+consumers and `--records` TSV for scripts. `resolve-task.sh` adds id resolution and the
+workflow table on top of it, and everything else goes through one of those two. Five copies
+of that awk block is what this replaced; do not start a sixth.
+
+**Prose is for judgement, scripts are for work.** If a rule can be executed the same way
+every time — filtering, sorting, collapsing, a frontmatter write — it belongs in a script
+with a test. What stays in the skill is what needs the user: whether a status should change
+at all, whether to skip a step, append-or-switch when two tasks compete for a session.
+
 
 ## Don't regress
 
@@ -47,16 +63,18 @@ Scripts are referenced from `SKILL.md` as `<PLUGIN_ROOT>/scripts/…`, and would
 
 ```
 bash scripts/test/epic-dashboard.test.sh   # 11 cases — epic membership parsing
-bash scripts/test/port.test.sh             # 17 cases — packaging + standalone copy
+bash scripts/test/list-tasks.test.sh       # 41 cases — every documented list shape
+bash scripts/test/status-session.test.sh   # 26 cases — status writes, cascade, active-tasks
+bash scripts/test/port.test.sh             # 19 cases — packaging + standalone copy
 ```
 
 Dual-target (host + `bash:5` container) per the repo convention, and the suite must pass
-from a copy of `task/` outside this repo with no siblings present.
+from a copy of `task/` outside this repo with no siblings present. The container run is
+not optional: it is busybox awk, and `list-render.awk` is the largest awk program here.
 
 ## Known shape
 
-`SKILL.md` is large (~1000 lines) because it inlines procedures that are really programs —
-the `/task list` rendering above all. Two follow-up tasks address that: extracting the data
-work into scripts, then splitting `SKILL.md` into a router plus on-demand command files.
-Until those land, edits to the list/status sections are prose edits; afterwards they are
-script edits. Check the repo's `.tasks/` for the current state before restructuring.
+`SKILL.md` is a router (~110 lines). A command costs it plus one file from `commands/`;
+reference material is read only when a command file names it. Adding a rule means
+choosing its one home — a rule in two files is the failure mode this layout exists to
+prevent, and the older, larger `SKILL.md` had several.

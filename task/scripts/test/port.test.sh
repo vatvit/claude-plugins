@@ -101,11 +101,21 @@ check "epic index maps alpha" "TST-001" \
 check "dashboard sees sub-task" "1" \
   "$(bash "$SC/epic-dashboard.sh" "$PROJ/tasks" TST 1 2>/dev/null | grep -c '"id":"TST-002"' | tr -d ' ')"
 
+# T13b the renderer works from the isolated copy too — it is the one script
+#      that shells out to three others, so a broken path shows up here first.
+check "list renders from the isolated copy" "1" \
+  "$(bash "$SC/list-tasks.sh" "$PROJ/tasks" TST 1 2>/dev/null | grep -c '── epic: alpha' | tr -d ' ')"
+
 echo "-- session-storage absent (R3) --"
 
 # T14 no script may depend on the session-storage plugin. The skill detects it
 #     from context and skips silently; the scripts must not know it exists.
 check "no script calls storage.sh" "" "$(scan 'storage\.sh' scripts)"
+
+# T14b session-active.sh is handed a helper path by the caller. With none set
+#      it must say so and exit 0, never fail the command it is part of.
+check "active-tasks is a no-op with no helper" "status=unavailable" \
+  "$(env -u TASK_STORAGE_BIN -u TASK_SESSION_ID bash "$SC/session-active.sh" "$PROJ/tasks" TST get 2>&1)"
 
 # T15 every command above ran with no session-storage present anywhere, which
 #     is the assertion: R3 holds if nothing above failed.

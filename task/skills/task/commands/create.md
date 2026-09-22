@@ -1,0 +1,39 @@
+# /task create
+
+## The one atomic step
+
+Pipe the whole task body into `allocate-id.sh`, with `{{ID}}` wherever the id appears:
+
+```
+printf '%s' "$BODY" | <PLUGIN_ROOT>/scripts/allocate-id.sh <project-dir> --stdin
+```
+
+It prints `TASK-205=/abs/path/TASK-205.md`. Use exactly that id and that path from here on —
+it reserved the id under a lock, wrote the file and advanced `nextId` for you. Do not
+increment `nextId`, do not compute an id from it, do not write to a path you built yourself.
+(`--count N` reserves N empty files in one lock, for creating a batch of sub-tasks.)
+
+Then ask: "Add more details?"
+
+## The body
+
+Format and fields: `references/task-format.md`. The minimum is `title` and `status`.
+
+The workflow table goes in with **every step `—` (not started)**. Never pre-mark a step
+`done` or `skipped` at creation — steps are decided one at a time when the task is worked
+on. Take the step list from the project's WORKFLOW.md (`references/workflow-system.md`).
+
+## Creating an epic
+
+When the user says epic (`/task create EPIC: Auth system`, or asks for one outright):
+
+1. `type: epic` plus an `epic-name` — short kebab-case, e.g. `auth-system`.
+2. Ask for Goal, Scope, Out of scope, Success criteria and write them as sections; the
+   layout is in `references/epics.md`.
+3. Run `update-epic-index.sh <tasksDir> <prefix>` so the name resolves from now on.
+
+## Creating a sub-task
+
+Set `epic: <epic-name>` in the frontmatter, then add the new id to the epic file's
+`## Sub-tasks` list — a bullet or a table row, since that is what counts as membership
+(`references/epics.md`).
