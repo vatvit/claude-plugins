@@ -4,38 +4,40 @@ Load a task and work on it. This is the main entry point for execution.
 
 ## Start
 
+Invoking `/task do` *is* the go-ahead. Do not ask whether to start the task or whether to
+set it `in-progress` — just do it. The only question this section may ask is the
+`active_status=conflict` one in step 5.
+
 1. `resolve-task.sh <tasksDir> <prefix> <id>` — id, file, frontmatter, the current workflow
    step and its `step_file=` if one exists.
-2. `type=epic` → this is the **Epic flow** below, not a workflow run.
-3. `epic=<name>` → `resolve-epic.sh` and read the epic file. Goal, Scope, Out of Scope and
-   Success Criteria constrain every step that follows, architecture most of all.
-4. Read the project's CLAUDE.md.
-5. Show the summary:
-
-```
-TASK-012: Login / logout endpoints
-Epic: TASK-010 — User Authentication System
-Status: proposed → in-progress?
-Type: feature | Priority: high
-Current step: 30-assessment
-
-Ready to start assessment. Proceed?
-```
-
-6. On confirmation: `set-status.sh <tasksDir> <prefix> <id> in-progress`. It writes the
-   status, cascades to the parent epic and updates `active-tasks` in one call — report its
-   output as `commands/status.md` describes.
-7. If it prints `active_status=conflict`, the session is on an unrelated task. Ask, and do
+2. If the task's status is `rejected` or `completed`, do not start it: drop it from the
+   list with `session-active.sh <tasksDir> <prefix> remove <id>` and tell the user. Stop.
+3. `type=epic` → this is the **Epic flow** below, not a workflow run.
+4. `set-status.sh <tasksDir> <prefix> <id> in-progress` — without asking, and harmless if
+   it already is. It writes the status, cascades to the parent epic and updates
+   `active-tasks` in one call — report its output as `commands/status.md` describes.
+5. If it prints `active_status=conflict`, the session is on an unrelated task. Ask, and do
    exactly what the user picks:
    - **Append** — `session-active.sh <tasksDir> <prefix> add <id> --force`
    - **Switch** — `session-active.sh <tasksDir> <prefix> set <id>`: this becomes the only
      active task. It does **not** change the other tasks' status; if the user wants them
      parked as well, `blocked` is the status for it (`on-hold` is not a valid status).
-   - **Cancel** — stop here. Do not start the task.
+   - **Cancel** — stop here. Do not work the task; the status change stays, so say so and
+     offer to put it back.
    A sub-task whose parent epic is the active task is not a conflict; the script appends it
    silently and says `epic=`.
-8. If the task's status is `rejected` or `completed`, do not start it: drop it from the
-   list with `session-active.sh <tasksDir> <prefix> remove <id>` and tell the user.
+6. `epic=<name>` → `resolve-epic.sh` and read the epic file. Goal, Scope, Out of Scope and
+   Success Criteria constrain every step that follows, architecture most of all.
+7. Read the project's CLAUDE.md.
+8. Show the summary, then go straight on to **Work the step**:
+
+```
+TASK-012: Login / logout endpoints
+Epic: TASK-010 — User Authentication System
+Status: proposed → in-progress
+Type: feature | Priority: high
+Current step: 30-assessment
+```
 
 ## Work the step
 
