@@ -27,6 +27,12 @@
       "source": "./task-roadmap",
       "description": "Abstract-Gantt roadmap for a markdown task set: scheduled by dependencies and estimates, grouped by epic, critical path highlighted; self-contained HTML, auto-regenerated on task changes.",
       "version": "1.0.3"
+    },
+    {
+      "name": "delay",
+      "source": "./delay",
+      "description": "Delay long-running jobs, such as slow autotest suites, to the user's run window on a Mac: Claude queues an approved job by name only and reminds the user to start the runner; the user's sudo start.sh schedules a pmset wake and loads the runner, which runs the jobs in each project's own docker container with the screen locked, keeps the results, and unloads itself (no always-on daemon). Jobs, their sha256-pinned confinement and the window are set by a human with sudo. Runtime-free (bash + awk); macOS + launchd.",
+      "version": "1.0.0"
     }
   ]
 }

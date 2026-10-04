@@ -23,6 +23,7 @@ claude-plugins/
 │   └── README.md              ← plugin-specific docs
 ├── docs-manager/              ← plugin
 ├── task-roadmap/              ← plugin
+├── delay/                     ← plugin
 ├── .tasks/                    ← this repo's own task files (NOT a plugin)
 ├── .task-config.json          ← task skill config (tasksDir, prefix)
 ├── CLAUDE.md                  ← this file (repo-level)
@@ -43,6 +44,7 @@ marketplace, and treat `tasks` / `.tasks` as reserved directory names.
 | session-storage | `session-storage/` | Session-scoped key-value storage with auto-cleanup |
 | docs-manager | `docs-manager/` | Docs-as-product: auto `_index.md` navigation, link checks, conventions |
 | task-roadmap | `task-roadmap/` | Abstract-Gantt roadmap from a markdown task set, auto-regenerated on task changes |
+| delay | `delay/` | Queue approved per-project jobs (autotests) for the user's run window; user-started runner wakes the Mac, runs them in docker, unloads itself |
 
 ## Shell Conventions
 
@@ -72,6 +74,14 @@ constraints, not preferences — a plugin that breaks them breaks on someone's m
   target) defaults to *unified* format while BSD and GNU default to *normal* format, so a test
   grepping `^>` or `^+` passes on one target and fails on the other. Use `diff -q` for exit status,
   or compare content directly.
+- **Never `cmd | grep -q` under `pipefail` in tests.** `grep -q` exits on the first match, the
+  writer gets SIGPIPE, and `pipefail` turns the match into a failure, but only when the output is
+  big enough. Capture first (`out="$(cmd)"; echo "$out" | grep -q …`). Found in delay 1.0.0, where
+  two `list` checks failed on the host for exactly this reason.
+- **Dates: BSD `date -j -f FMT` fills every field missing from FMT with the *current* value**,
+  seconds included, so `-f "%Y-%m-%d %H:%M"` returns a different epoch each second. Always parse
+  with explicit seconds. Try BSD (`date -j -f`, `date -r <epoch>`) first, then fall back to
+  GNU/busybox (`date -d`, `date -d @<epoch>`), and keep both in one helper.
 - **Never bake an absolute path into a value that gets committed.** A digest, cache key or stamp
   containing a checkout path computes differently on every machine, so it always mismatches and the
   check it guards becomes noise people learn to ignore.
@@ -134,7 +144,8 @@ forget because neither is exercised by any test.
 **Check trigger phrases against the other plugins' skill descriptions.** Two plugins
 competing for the same words is a coin flip at activation time. Today the vocabularies are
 disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.md / AGENTS.md*,
-task-roadmap owns *roadmap / gantt / timeline*, session-storage owns *storage / session data*.
+task-roadmap owns *roadmap / gantt / timeline*, session-storage owns *storage / session data*,
+delay owns *delay / run later / run tonight / run at night / wake* and says *job*, never *task*.
 
 ## Tasks
 

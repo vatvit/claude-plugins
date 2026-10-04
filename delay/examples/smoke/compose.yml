@@ -1,0 +1,8 @@
+# delay smoke job — proves the whole path (wake → runner → docker → result) and changes nothing:
+# the only mount is this directory, read-only, and there is no network.
+services:
+  smoke:
+    image: bash:5
+    network_mode: none
+    volumes:
+      - .:/work:ro
