@@ -1,7 +1,7 @@
 ---
 name: kickoff
-description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (questions branch on earlier answers, each with pre-defined options and a default) and turn the answers into the project's charter. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "starting context for this project", "which dev port should this project use", "port registry", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
-version: 0.4.0
+description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (questions branch on earlier answers, each with pre-defined options and a default) and turn the answers into the project's charter. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "run kickoff on this existing project", "what is missing from this project's setup", "starting context for this project", "which dev port should this project use", "port registry", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
+version: 0.5.0
 ---
 
 # Kickoff
@@ -18,6 +18,12 @@ end up in files, not in chat history.
 `<PLUGIN_ROOT>` below is this plugin's directory. Resolve it relative to this file.
 
 ## The loop
+
+0. **An existing project first** (the directory already has files): run
+   `bash <PLUGIN_ROOT>/scripts/inspect.sh <project>`. Each row is `id · proposed answer · evidence`. It
+   is read from the project and covers only unanswered questions. Show the rows as one table, the
+   evidence included, and ask the user to *confirm all* or *change some*. Record only what is
+   confirmed. An inference is never an answer until then. inspect.sh writes nothing.
 
 1. **See what to ask now:**
    `bash <PLUGIN_ROOT>/scripts/plan.sh <project> --next`. Each row is
@@ -49,11 +55,13 @@ end up in files, not in chat history.
    that a later answer made irrelevant. It is kept, and it is not written.
 5. **Write the charter:** `bash <PLUGIN_ROOT>/scripts/charter.sh <project>`. It prints `created`,
    `unchanged`, or `refused` (exit 3) when an existing charter differs. Then show the difference
-   (`charter.sh <project> --stdout`) and ask before `--force`, because the charter may have been
+   (`charter.sh <project> --diff`) and ask before `--force`, because the charter may have been
    edited by hand since kickoff.
 6. **Set the project up:** `bash <PLUGIN_ROOT>/scripts/scaffold.sh <project>`. From sections R and K it
    writes the `docs/` skeleton, the task config and workflow, and the project CLAUDE.md, one line per file.
-   A refused CLAUDE.md is handled like a refused charter. Then:
+   A refused CLAUDE.md is handled like a refused charter: `scaffold.sh <project> --diff` shows the change
+   and writes nothing, and `--force` applies it once the user agrees. Seeded files (`_index.md`, task
+   config, workflow) that already exist are never touched. Then:
    - if docs-manager is installed, regenerate the indexes (`docs.sh index --write`) and fill in any
      `description: TODO` it leaves;
    - create the first tasks that the output names with `/task create`, if the task plugin is installed.

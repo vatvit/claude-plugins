@@ -17,6 +17,7 @@ kickoff/
 │   ├── answer.sh                 ← the only writer of .kickoff-answers
 │   ├── charter.awk / charter.sh  ← docs/project/charter.md from the answers
 │   ├── scaffold.sh               ← docs/ skeleton, CLAUDE.md (claude.awk), task config + workflow
+│   ├── inspect.sh / infer.awk    ← existing project: proposed answers with evidence (writes nothing)
 │   ├── get.awk                   ← settled answers for shell scripts
 │   ├── defaults.sh               ← the user layer: per-account defaults (kickoff.json)
 │   ├── json.awk                  ← json_q(), the one JSON string writer (defaults-write.awk, registry-insert.awk)
@@ -54,6 +55,12 @@ real file, so a broken edit fails them.
   inserted into the existing file, keeping the other projects (4d, 4l).
 - **The user layer is per account** (follows `CLAUDE_CONFIG_DIR`, 3b/3c); the port registry is per
   machine. Precedence: answer > user default > `(★ if …)` > ★.
+- **inspect.sh proposes, never records.** It writes nothing (2l), skips answered questions (2m), and
+  maps each hint to the questionnaire's option text via infer.awk, so no option wording lives in the
+  shell script. It reads `.git` as files: no git binary, so it runs in a bare container.
+- **`starts_ci` lowercases whole strings.** macOS awk cuts `substr` by bytes but `tolower` rejects
+  a broken UTF-8 sequence, so `tolower(substr(…))` aborted with "illegal byte sequence" whenever a prefix
+  cut through `—`. Only the host target sees it (existing test 2c–2j).
 - **JSON strings go through `json_q()`** in json.awk, a character loop. busybox treats the backslashes
   in a `gsub` replacement differently from gawk and BSD awk (defaults test 4a/4b).
 - **Generators write only settled answers** (`settled()` in lib.awk): a pending, stale, undecided or

@@ -7,13 +7,20 @@
 #   task config        R6–R8: .task-config.json in the repo, or, for tasks outside the repo, an
 #                      entry in the task skill's per-account registry, plus the task workflow
 #
-# One line per file: created | exists | unchanged | refused <path>. Files that only seed a
+# One line per file: created | exists | unchanged | updated | refused <path>. Files that only seed a
 # folder are written once and then left alone. CLAUDE.md is regenerated, but a version edited
-# since is refused (exit 3). Refuses to run while questions are still open.
+# since is refused (exit 3) unless --force. Refuses to run while questions are still open.
+#
+#   --diff    write nothing: report what would happen, and show how CLAUDE.md would change (diff -u)
+#   --force   replace a CLAUDE.md that was edited since (after the user has seen --diff)
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
-root="${1:-}"; root="$(project_root "$root")"
+root="" dry=0 force=0
+for a in "$@"; do
+    case "$a" in --diff) dry=1 ;; --force) force=1 ;; -*) echo "scaffold.sh: unknown option $a" >&2; exit 2 ;; *) root="$a" ;; esac
+done
+root="$(project_root "$root")"
 [ -f "$(answers_file "$root")" ] || { echo "scaffold.sh: no answers yet" >&2; exit 1; }
 open="$(bash "$KICKOFF_SCRIPTS/plan.sh" "$root" --next)"
 [ -z "$open" ] || { echo "scaffold.sh: questions are still open — see plan.sh --next" >&2; exit 1; }
@@ -29,11 +36,18 @@ report() { printf '%-9s %s\n' "$1" "${2#"$root"/}"; }
 # once <dest> <tmp> — seed a file that is the user's from then on.
 once() {
     if [ -e "$1" ]; then rm -f "$2"; report exists "$1"; return; fi
+    if [ "$dry" = 1 ]; then rm -f "$2"; report would-create "$1"; return; fi
     mkdir -p "$(dirname "$1")"; mv "$2" "$1"; report created "$1"
 }
 # guarded <dest> <tmp> — a generated file: rewritten when unchanged since, refused when edited.
 guarded() {
-    local r; r="$(write_if_changed "$1" "$2")" || rc=3; report "$r" "$1"
+    local r
+    if [ "$dry" = 1 ]; then
+        if [ ! -f "$1" ]; then r=would-create; elif cmp -s "$1" "$2"; then r=unchanged
+        else r=differs; diff -u "$1" "$2" | sed "s|$2|(proposed)|" || true; fi
+        rm -f "$2"; report "$r" "$1"; return
+    fi
+    r="$(write_if_changed "$1" "$2" "$force")" || rc=3; report "$r" "$1"
 }
 index_md() { # index_md <folder> <title> <description>
     local t; t="$(mktemp)"
@@ -64,8 +78,9 @@ if [ -n "$R6" ]; then
             G="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/project-tasks"; tdir="$G/$slug"; reg="$G/config.json"
             # Not a path: a client's repo must not carry the user's home directory (identity rule).
             tasks_where="outside the repo (the task skill finds them through its registry)"
-            mkdir -p "$G"
+            [ "$dry" = 1 ] || mkdir -p "$G"
             if [ -f "$reg" ] && grep -qF "\"$root\":" "$reg"; then report exists "$reg"
+            elif [ "$dry" = 1 ]; then report would-update "$reg"
             else
                 t="$(mktemp)"
                 in=/dev/null; [ -f "$reg" ] && in="$reg"

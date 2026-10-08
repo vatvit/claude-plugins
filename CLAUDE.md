@@ -76,6 +76,8 @@ constraints, not preferences — a plugin that breaks them breaks on someone's m
   in its own statement. And a non-ASCII character (`★ ≠ · §`) is one char in gawk but several bytes
   in busybox/mawk, so strip it with a pattern, never a `substr` offset. And a backslash in a `gsub`
   *replacement* is read differently by busybox than by gawk and BSD awk, so escape with a character loop.
+  And macOS awk cuts `substr` by bytes while its `tolower` rejects broken UTF-8: `tolower(substr(s, 1, n))`
+  aborts when the cut lands inside a multibyte character. Lowercase whole strings and compare with `index`.
 - **Hooks always `exit 0`** and never block the tool call that triggered them, with one deliberate
   exception: crew's guard hooks deny (a JSON `permissionDecision`, still exit 0), because a warning
   arrives after `git add -A` has already staged a peer's files; `hookMode=warn` turns them off. A hook that reports

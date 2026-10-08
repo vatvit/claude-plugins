@@ -17,8 +17,10 @@
 
 function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
 
-# Case-insensitive "s starts with p".
-function starts_ci(s, p) { return tolower(substr(s, 1, length(p))) == tolower(p) }
+# Case-insensitive "s starts with p". Lowercase the whole strings, then compare with index():
+# macOS awk cuts substr() by bytes but tolower() rejects a broken UTF-8 sequence, so
+# tolower(substr(s, 1, n)) aborts ("illegal byte sequence") when the cut lands inside — or ★.
+function starts_ci(s, p) { return index(tolower(s), tolower(p)) == 1 }
 
 function load(   id, v, n, c, i) {
     if (FILENAME == ARGV[1]) {                       # the answers file
@@ -72,7 +74,9 @@ function cond(c,   parts, n, i, p, r, id, val, judge, pend, st) {
 
 # option_text(o) — an option without its ★ markers.
 function option_text(o) {
-    o = trim(o); sub(/^★ /, "", o); sub(/ *\(★ if [^)]*\)$/, "", o); return o
+    o = trim(o); sub(/^★ /, "", o); sub(/ *\(★ if [^)]*\)$/, "", o)
+    if (o ~ /^".*"$/) o = substr(o, 2, length(o) - 2)   # a quoted option is a sentence to use as is
+    return o
 }
 
 # clean_options(opts) — every option without markers, joined by " · ".

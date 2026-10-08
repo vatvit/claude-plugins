@@ -24,7 +24,8 @@ The scripts can also be run directly:
 bash kickoff/scripts/plan.sh  [project] [--next | --review]   # what to ask now, with defaults
 bash kickoff/scripts/answer.sh --root <project> [--add|--clear] <ID> "<value>"
 bash kickoff/scripts/charter.sh [project] [--force | --stdout]
-bash kickoff/scripts/scaffold.sh [project]                    # docs/ skeleton, CLAUDE.md, task config
+bash kickoff/scripts/scaffold.sh [project] [--diff | --force]   # docs/ skeleton, CLAUDE.md, task config
+bash kickoff/scripts/inspect.sh [project]                     # existing project: proposed answers + evidence
 bash kickoff/scripts/ports.sh next | allocate <name> | set <name> <port> | release <name> | list [--all]
 bash kickoff/scripts/defaults.sh list | set <ID> <value> | unset <ID>   # your own defaults
 ```
@@ -37,6 +38,14 @@ entry point, crew, tasks, approvals, exceptions to the global rules), and the ta
 workflow. In your own project the tasks are in the repo. In a client's they are kept outside it, in the
 task skill's registry, so the client's repo carries neither your tasks nor your home path.
 Seeded files are never overwritten; a hand-edited CLAUDE.md is refused rather than replaced.
+
+## An existing project
+
+kickoff also works on a project that already has code or a partial setup. `inspect.sh` reads what is
+there (the git remote and branches, the task config, the compose services and ports, the docs folders, the
+entry-point script) and proposes answers with their evidence; nothing is recorded until you confirm.
+A project kicked off before is asked nothing and changed in nothing. A file edited since is shown as a
+diff (`--diff`) and replaced only when you agree (`--force`).
 
 ## Your defaults
 

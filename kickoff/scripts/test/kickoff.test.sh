@@ -29,7 +29,7 @@ check "1h options shown without markers" "no" "$(has '★' "$(bash "$S/plan.sh" 
 P=$(fresh poc); a A3 "PoC / experiment"
 check "2a A3 = PoC opens X1" "ask" "$(state X1)"
 check "2b conditional default applies (C1)" "Minimal code, simplest UI, but functional end to end" "$(value C1)"
-check "2c conditional default applies (B1)" '"Try to solve the problem for real, and show a valuable result"' "$(value B1)"
+check "2c conditional default applies (B1), without its quotes" "Try to solve the problem for real, and show a valuable result" "$(value B1)"
 check "2d R1 keeps the plain default" "Trunk — one branch, no feature branches" "$(value R1)"
 
 P=$(fresh lib); a A3 "Library / plugin / tool"

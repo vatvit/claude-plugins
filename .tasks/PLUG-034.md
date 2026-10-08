@@ -104,4 +104,11 @@ Chain: 1 → {2, 4} → 5. Slice 3 is independent of all of them. The hot spots 
 
 ## Current State
 
-Questionnaire agreed; sub-tasks PLUG-035..039 created (proposed). PLUG-035 and PLUG-037 can start in parallel sessions.
+All five sub-tasks are completed (PLUG-035..039). kickoff 0.5.0 ships the interview, the charter, the setup scaffold, the port registry, per-account defaults and existing-project mode, with 172 checks green on both test targets.
+
+Deviations from the epic text, each recorded in its task:
+- The compose scan always runs (PLUG-037).
+- The first tasks are created through /task, not by kickoff (PLUG-036).
+- sample-poc D1 is a global rule, so it is never asked (PLUG-035).
+
+Not yet done: a live kickoff run by Claude through the skill. The scripts are tested end to end; the SKILL.md loop is not.
