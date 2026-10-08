@@ -6,6 +6,7 @@ D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 cmd="${1:-help}"; [ $# -gt 0 ] && shift
 case "$cmd" in
     hold|release|chain|who|drop) exec bash "$D/holds.sh" "$cmd" "$@" ;;
+    apply) exec bash "$D/copy.sh" apply "$@" ;;
     help|-h|--help)
         echo "usage: CREW_AS=<name> bash $D/crew.sh <command> [args]"
         for f in "$D"/*.sh; do sed -n 's/^# help: /  /p' "$f"; done

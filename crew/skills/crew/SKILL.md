@@ -74,6 +74,7 @@ Read only the reference for the area you are working in:
 | Config keys and layers | `references/config.md` |
 | Hot spots and holds | `references/holds.md` |
 | Slots: machine time | `references/slots.md` |
+| Copy, rebase, apply | `references/copy-apply.md` |
 
 ## When a hook says no
 
