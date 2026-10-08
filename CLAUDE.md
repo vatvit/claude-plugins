@@ -125,8 +125,17 @@ ships as its own directory and cannot assume a sibling is installed.
 No plugin requires a config file. Where one is supported it is a flat JSON object at the
 project root named for the plugin (`.task-roadmap.json`), read with the plugin's own
 `json_str`, and every key is optional with a working default. A plugin may add a **user layer**
-(`~/.claude/<plugin>.json`) resolved per key, project first: crew does, and keeps the keys that
+(`${CLAUDE_CONFIG_DIR:-~/.claude}/<plugin>.json`) resolved per key, project first: crew does, and keeps the keys that
 only make sense per project (branch names, paths) out of it.
+
+**Per account or per machine — decide which, per file.** The user runs several Claude accounts on one
+machine; Claude Code sets `CLAUDE_CONFIG_DIR` for a non-default one.
+- **Per-account** data (the user's preferences, the user layer above) lives in
+  `${CLAUDE_CONFIG_DIR:-~/.claude}`, so each account keeps its own. `task` resolves it this way.
+- **Machine-wide** state (anything that guards a resource of the machine — ports, Docker, the
+  session-name registry, the run window) lives in `~/.claude/<plugin>/` and deliberately ignores
+  `CLAUDE_CONFIG_DIR`, because two accounts sharing one Docker must see each other. crew's name
+  registry and delay's home are this kind.
 
 **Beware `set -euo pipefail` when reading config.** `grep` exits non-zero when it matches
 nothing, and with `pipefail` that status propagates out of `v="$(json_str …)"` and kills
