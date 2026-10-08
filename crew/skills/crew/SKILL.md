@@ -73,6 +73,7 @@ Read only the reference for the area you are working in:
 | Full playbook: the why behind each rule, push checks, bulk syncs, messages, hard stops | `references/playbook.md` |
 | Config keys and layers | `references/config.md` |
 | Hot spots and holds | `references/holds.md` |
+| Slots: machine time | `references/slots.md` |
 
 ## When a hook says no
 

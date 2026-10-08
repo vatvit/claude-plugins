@@ -137,6 +137,12 @@ shared_branch() {
 }
 
 # --- locking ---------------------------------------------------------------------------------
+# One EXIT trap for every crew script: drop a lock held by a dying process, then run the
+# script's own cleanup (CREW_ON_EXIT, e.g. `slot run` releasing its slot). Nothing else sets traps.
+CREW_HELD_LOCK=""; CREW_ON_EXIT=""
+crew_on_exit() { [ -n "$CREW_HELD_LOCK" ] && rm -rf "$CREW_HELD_LOCK"; CREW_HELD_LOCK=""; [ -n "$CREW_ON_EXIT" ] && eval "$CREW_ON_EXIT"; return 0; }
+trap crew_on_exit EXIT
+
 # with_lock <name> <cmd...> — mkdir mutex; a lock older than 30 s is a crashed holder's.
 with_lock() {
     local l="$STATE/.lock-$1" i=0 age rc; shift
@@ -150,9 +156,9 @@ with_lock() {
         [ "$i" -gt 600 ] && die "could not take lock $l"
         sleep 0.1
     done
-    CREW_HELD_LOCK="$l"; trap 'rm -rf "$CREW_HELD_LOCK"' EXIT
+    CREW_HELD_LOCK="$l"
     "$@" && rc=0 || rc=$?
-    rm -rf "$l"; CREW_HELD_LOCK=""; trap - EXIT
+    rm -rf "$l"; CREW_HELD_LOCK=""
     return $rc
 }
 

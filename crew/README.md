@@ -42,6 +42,7 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 | `msg <kind>` | a ready-to-send message: `handoff` (paths + commit message + test-first proof), `decision`, `stop` |
 | `config` | effective settings, each with the layer it came from |
 | `hold <path...>` / `release <path...> --sha SHA` / `chain <path>` / `who` / `drop` | hot-spot holds; the pre-edit hook denies edits to a file another session holds |
+| `slot run <cpu\|exclusive\|quiet> <min> -- <cmd>` / `slot request\|start\|done\|list\|clear` | the queue for machine time: classes, priority, ETAs, stale slots |
 | `help` | every command |
 
 ## Config

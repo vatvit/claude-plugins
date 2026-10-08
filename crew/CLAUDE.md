@@ -52,6 +52,9 @@ crew/
   arrives after `git add -A` has already staged a peer's files. They still always exit 0: the
   denial is a JSON `permissionDecision`, never an exit code. `hookMode=warn` turns them into
   warnings.
+- **lib.sh owns the one EXIT trap.** It drops a lock left by a dying process and then runs
+  `CREW_ON_EXIT` (for example, `slot run` releasing its slot). A script that sets its own `trap … EXIT`
+  silently disables both, so it sets `CREW_ON_EXIT` instead. That includes tests that source `lib.sh`.
 - **Claims are advisory.** The pre-edit hook records which session touched which path. A path
   written another way (Bash, a generator) shows as *unclaimed* in `status`, which is the point:
   `status` surfaces it instead of guessing.

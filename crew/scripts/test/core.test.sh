@@ -100,7 +100,7 @@ out="$(bash "$C" help)"
 check "help lists whoami" yes "$(contains "whoami <name>" "$out")"
 out="$(bash "$C" nope 2>&1)"; rc=$?
 check "unknown command fails" 1 "$rc"
-. "$S/lib.sh"
+. "$S/lib.sh"; CREW_ON_EXIT='rm -rf "$TMP"'   # lib owns the EXIT trap
 check "payload_str unescapes" 'echo "a b" \x' "$(printf '%s' '{"command":"echo \"a b\" \\x"}' | payload_str command)"
 check "payload_str: missing key empty" "" "$(printf '%s' '{"x":"y"}' | payload_str command)"
 
