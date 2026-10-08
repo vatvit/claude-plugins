@@ -11,7 +11,7 @@ from there, update the row as you go.
 ## Where definitions live
 
 1. `{tasksDir}/_workflow/` — the project's, and it wins
-2. `~/.claude/project-tasks/_workflow/` — the global default
+2. `<global>/_workflow/` — the global default (`<global>`: see `configuration.md`)
 
 ```
 _workflow/
@@ -53,7 +53,7 @@ for, or add its own — read the project's file rather than assuming this list.
 Resolution order for step `<name>`:
 
 1. `{tasksDir}/_workflow/steps/<name>.md`
-2. `~/.claude/project-tasks/_workflow/steps/<name>.md`
+2. `<global>/_workflow/steps/<name>.md`
 3. the one-liner in WORKFLOW.md — which is then the whole instruction
 
 A step definition owns its procedure. When one exists, follow it rather than improvising a

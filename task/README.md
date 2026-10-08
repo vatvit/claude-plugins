@@ -46,7 +46,8 @@ Project-local `.task-config.json` (preferred):
 { "tasksDir": "tasks", "prefix": "PA", "nextId": 1 }
 ```
 
-Falls back to `~/.claude/project-tasks/config.json`, which maps several projects at once.
+Falls back to a global `project-tasks/config.json`, which maps several projects at once —
+looked up in `$CLAUDE_CONFIG_DIR` when set (a second Claude account), then in `~/.claude`.
 `tasksDir` may be relative, absolute or `~`-prefixed. `nextId` is maintained by the plugin —
 never edit it by hand.
 
@@ -63,7 +64,7 @@ tracking is simply skipped, silently. Nothing here depends on that plugin being 
 
 A project may define its own steps in `<tasksDir>/_workflow/WORKFLOW.md`, with optional
 per-step detail in `_workflow/steps/<name>.md`. Both fall back to
-`~/.claude/project-tasks/_workflow/`. `/task workflow init` seeds a project copy.
+the global `project-tasks/_workflow/` (same lookup). `/task workflow init` seeds a project copy.
 
 ## Testing
 

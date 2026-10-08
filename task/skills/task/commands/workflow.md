@@ -1,7 +1,7 @@
 # /task workflow
 
 The workflow definition lives in `{tasksDir}/_workflow/WORKFLOW.md`, falling back to
-`~/.claude/project-tasks/_workflow/WORKFLOW.md`. Full detail — the file format, step
+`<global>/_workflow/WORKFLOW.md` (`<global>` per `references/configuration.md`). Full detail — the file format, step
 definition files and their resolution order — is in `references/workflow-system.md`.
 
 - `/task workflow` — read WORKFLOW.md and show the steps as a table, then mention which

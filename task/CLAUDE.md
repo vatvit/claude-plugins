@@ -25,6 +25,7 @@ task/
     ├── resolve-epic.sh       epic-name or id → epic metadata
     ├── update-epic-index.sh  rebuilds _epic-index.json
     ├── epic-dashboard.sh     epic + sub-task statuses + recommendation
+    ├── lib.sh                global roots: $CLAUDE_CONFIG_DIR, then ~/.claude
     └── test/*.test.sh
 ```
 
@@ -66,6 +67,7 @@ bash scripts/test/epic-dashboard.test.sh   # 11 cases — epic membership parsin
 bash scripts/test/list-tasks.test.sh       # 41 cases — every documented list shape
 bash scripts/test/status-session.test.sh   # 26 cases — status writes, cascade, active-tasks
 bash scripts/test/port.test.sh             # 19 cases — packaging + standalone copy
+bash scripts/test/config.test.sh           # 13 cases — global registry + step lookup, CLAUDE_CONFIG_DIR
 ```
 
 Dual-target (host + `bash:5` container) per the repo convention, and the suite must pass

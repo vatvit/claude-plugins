@@ -6,7 +6,12 @@ output needs interpreting or a config has to be created.
 Search order:
 
 1. `<project-root>/.task-config.json` — project-local, preferred
-2. `~/.claude/project-tasks/config.json` — global fallback, keyed by project path
+2. `<global>/config.json` — global fallback, keyed by project path
+
+`<global>` is `$CLAUDE_CONFIG_DIR/project-tasks` when Claude Code runs under a non-default
+account, then `~/.claude/project-tasks`. Both are searched, in that order, for the registry
+and for `_workflow/` files; the first registry that lists the project wins. A new registry
+belongs in the first. `resolve-config.sh` reports the one it used as `configFile`.
 
 ## Project-local
 

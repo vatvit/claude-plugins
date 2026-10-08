@@ -8,14 +8,20 @@
 #
 # Search order:
 #   1. <project-dir>/.task-config.json  (project-local, preferred)
-#   2. ~/.claude/project-tasks/config.json  (global, fallback)
+#   2. $CLAUDE_CONFIG_DIR/project-tasks/config.json  (global, if that var is set)
+#   3. ~/.claude/project-tasks/config.json  (global, fallback)
+#   The first global registry that lists the project wins.
 #
 # Exit 1 if config missing or project not found.
 set -euo pipefail
 
 PROJECT_DIR="${1:-$(pwd)}"
 LOCAL_CONFIG="$PROJECT_DIR/.task-config.json"
-GLOBAL_CONFIG="$HOME/.claude/project-tasks/config.json"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+. "$SCRIPT_DIR/lib.sh"
+# Where a new registry belongs: the active account's root.
+PRIMARY_CONFIG="$(task_global_roots | head -n 1)/config.json"
 
 # --- Try project-local config first ---
 if [ -f "$LOCAL_CONFIG" ] && [ -s "$LOCAL_CONFIG" ]; then
@@ -60,13 +66,10 @@ if [ -f "$LOCAL_CONFIG" ] && [ -s "$LOCAL_CONFIG" ]; then
     exit 0
 fi
 
-# --- Fallback to global config ---
-if [ ! -f "$GLOBAL_CONFIG" ] || [ ! -s "$GLOBAL_CONFIG" ]; then
-    echo "ERROR: No config found. Create .task-config.json in project root or add project to $GLOBAL_CONFIG" >&2
-    exit 1
-fi
-
-result=$(awk -v proj="$PROJECT_DIR" '
+# --- Fallback to the global registries, first that lists the project wins ---
+# lookup_global <config-file> -> key=value lines for PROJECT_DIR; exit 1 if absent.
+lookup_global() {
+    awk -v proj="$PROJECT_DIR" '
 BEGIN { found = 0; in_block = 0 }
 {
     if (!found && index($0, "\"" proj "\"") > 0) {
@@ -101,11 +104,32 @@ BEGIN { found = 0; in_block = 0 }
     }
 }
 END { if (!found) exit 1 }
-' "$GLOBAL_CONFIG" 2>/dev/null) || {
-    echo "ERROR: Project not found in config: $PROJECT_DIR" >&2
-    echo "Create .task-config.json in project root or add project to $GLOBAL_CONFIG" >&2
-    exit 1
+' "$1" 2>/dev/null
 }
+
+GLOBAL_CONFIG=""
+searched=""
+while IFS= read -r root; do
+    candidate="$root/config.json"
+    [ -s "$candidate" ] || continue
+    searched="$searched $candidate"
+    if result=$(lookup_global "$candidate"); then
+        GLOBAL_CONFIG="$candidate"
+        break
+    fi
+done <<EOR
+$(task_global_roots)
+EOR
+
+if [ -z "$GLOBAL_CONFIG" ]; then
+    if [ -z "$searched" ]; then
+        echo "ERROR: No config found. Create .task-config.json in project root or add project to $PRIMARY_CONFIG" >&2
+    else
+        echo "ERROR: Project not found in config:$searched: $PROJECT_DIR" >&2
+        echo "Create .task-config.json in project root or add project to $PRIMARY_CONFIG" >&2
+    fi
+    exit 1
+fi
 
 # Expand ~ in values and output
 echo "$result" | while IFS='=' read -r key val; do

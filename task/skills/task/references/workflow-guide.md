@@ -8,10 +8,10 @@ workflow for a particular kind of project.
 
 ### Global Default
 
-Create at `~/.claude/project-tasks/_workflow/`:
+Create at `<global>/_workflow/` (`<global>` per `configuration.md`):
 
 ```bash
-mkdir -p ~/.claude/project-tasks/_workflow/steps
+mkdir -p "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/project-tasks/_workflow/steps"
 ```
 
 This applies to all projects without their own workflow.

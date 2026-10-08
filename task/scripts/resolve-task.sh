@@ -40,6 +40,8 @@ echo "file=$FILE"
 # Parsing lives in read-tasks.sh; this script adds id resolution and the
 # workflow table on top. `id` is dropped because it was printed above.
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib.sh
+. "$SCRIPT_DIR/lib.sh"
 "$SCRIPT_DIR/read-tasks.sh" "$TASKS_DIR" "$PREFIX" --all --records --id="$FULL_ID" \
   | awk -F'\t' '$2 != "id" { print $2 "=" $3 }'
 
@@ -77,10 +79,10 @@ if [ -n "$step_info" ]; then
     step_key=$(echo "$step_info" | grep '^current_step_key=' | cut -d= -f2)
     if [ -n "$step_key" ]; then
         project_step="$TASKS_DIR/_workflow/steps/${step_key}.md"
-        global_step="$HOME/.claude/project-tasks/_workflow/steps/${step_key}.md"
+        global_step=$(task_global_file "_workflow/steps/${step_key}.md")
         if [ -f "$project_step" ]; then
             echo "step_file=$project_step"
-        elif [ -f "$global_step" ]; then
+        elif [ -n "$global_step" ]; then
             echo "step_file=$global_step"
         fi
     fi
