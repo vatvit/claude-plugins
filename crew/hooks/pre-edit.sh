@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# crew PreToolUse hook for Edit/Write/MultiEdit/NotebookEdit, in this order:
+#   1. holds guard — deny an edit to a file another session holds (or an unheld hot spot)
+#   2. snapshot    — save the file's current content, so an overwrite can be recovered
+#   3. claim       — record that this session touched the path (status, handoff, land read it)
+# Each step comes from its area script and is skipped when that script is absent.
+# Always exits 0; a denial is a JSON decision on stdout, not an exit code.
+(
+    . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts" && pwd -P)/lib.sh"
+    hook_init || exit 0
+    crew_active || exit 0
+    fp="$(printf '%s' "$PAYLOAD" | payload_str file_path)"
+    [ -n "$fp" ] || fp="$(printf '%s' "$PAYLOAD" | payload_str notebook_path)"
+    [ -n "$fp" ] || exit 0
+    case "$fp" in /*) : ;; *) fp="$CREW_PROJECT_DIR/$fp" ;; esac
+    rel="$(rel_path "$fp")"
+    case "$rel" in /*) exit 0 ;; esac          # outside the work tree: not crew's business
+    load_area holds;    declare -F holds_guard  >/dev/null && holds_guard "$NAME" "$rel"
+    load_area snapshot; declare -F snapshot_save >/dev/null && snapshot_save "${NAME:-?}" "$rel"
+    [ -n "$NAME" ] && claim_add "$NAME" "$rel"
+    exit 0
+)
+exit 0

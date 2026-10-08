@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Session identity. A crew name is the identity (holds, slots and claims are by name); the Claude
+# session id only maps a hook payload to that name. The PreToolUse Bash hook sees the session id of
+# the `whoami <name>` call and leaves it in $STATE/pending/<name>, so nobody has to type an id.
+# help: whoami <name> [worker|coordinator] [--take] [--sid ID] — join the crew as <name>
+# help: whoami — show the crew
+# help: whoami --leave <name> — remove a session from the crew
+set -euo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
+crew_init
+
+if [ $# -eq 0 ]; then
+    need_active
+    echo "crew: $(crew_line)"
+    exit 0
+fi
+if [ "$1" = --leave ]; then
+    need_active; n="${2:-}"; valid_name "$n" && [ -f "$STATE/sessions/$n" ] || die "no session '$n'"
+    rm -f "$STATE/sessions/$n"; echo "crew: $n left"; exit 0
+fi
+
+name="$1"; shift; role=worker; take=0; sid=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        worker|coordinator) role="$1" ;;
+        --take) take=1 ;;
+        --sid) sid="${2:-}"; shift ;;
+        *) die "unknown argument: $1" ;;
+    esac
+    shift
+done
+valid_name "$name" || die "a crew name is letters, digits, '.', '_' or '-': '$name'"
+mkdir -p "$STATE/sessions" "$STATE/pending"
+if [ -z "$sid" ] && [ -f "$STATE/pending/$name" ]; then sid="$(cat "$STATE/pending/$name")"; fi
+rm -f "$STATE/pending/$name"
+[ -n "$sid" ] || die "cannot see this session's id — run whoami through the Bash tool with the crew plugin enabled, or pass --sid <session id>"
+
+bind() {
+    local old cur c
+    old="$(sess_get "$name" sid)"
+    if [ -n "$old" ] && [ "$old" != "$sid" ] && [ "$take" -eq 0 ]; then
+        die "'$name' belongs to another session (since $(hhmm "$(sess_get "$name" since)")) — add --take if that session is gone"
+    fi
+    cur="$(name_of_sid "$sid")"
+    [ -n "$cur" ] && [ "$cur" != "$name" ] && rm -f "$STATE/sessions/$cur" && note "renamed $cur → $name (holds and claims stay under $cur until released)"
+    if [ "$role" = coordinator ]; then
+        c="$(coordinator)"
+        if [ -n "$c" ] && [ "$c" != "$name" ]; then
+            [ "$take" -eq 1 ] || die "$c is the coordinator — add --take to replace it"
+            sed 's/^role=.*/role=worker/' "$STATE/sessions/$c" | replace_file "$STATE/sessions/$c"
+            note "$c is now a worker"
+        fi
+    fi
+    printf 'sid=%s\nrole=%s\nsince=%s\n' "$sid" "$role" "$(now)" | replace_file "$STATE/sessions/$name"
+}
+with_lock sessions bind
+echo "crew: you are $name ($role). Prefix every crew call with: $(prefix_for "$name")"
+echo "crew: $(crew_line)"

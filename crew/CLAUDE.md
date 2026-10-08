@@ -1,0 +1,72 @@
+# CLAUDE.md — crew plugin
+
+Guidance for working on this plugin. The repo-wide rules (shell conventions, plugin
+independence, how to change a plugin) live in the repo root `CLAUDE.md` and apply here.
+
+## Layout
+
+```
+crew/
+├── .claude-plugin/plugin.json
+├── hooks/
+│   ├── hooks.json          SessionStart + PreToolUse(Edit|Write|MultiEdit|NotebookEdit) + PreToolUse(Bash)
+│   ├── session-start.sh    ~2 lines of context; silent in a repo without a crew
+│   ├── pre-edit.sh         holds guard → snapshot → claim (each from its area script, if present)
+│   └── pre-bash.sh         whoami id pick-up → git guard (land area)
+├── skills/crew/
+│   ├── SKILL.md            roles + non-negotiables + pointer table (keep it under ~120 lines)
+│   └── references/         one file per area, read only when that area is in play
+└── scripts/
+    ├── crew.sh             the one entry point; `help` is built from each script's `# help:` lines
+    ├── lib.sh              the ONE place for project/state, config layers, identity, claims, locks, hook decisions
+    ├── whoami.sh config.sh status.sh msg.sh
+    ├── status.d/  msg.d/   per-area parts, so adding an area never edits status.sh / msg.sh
+    └── test/               helpers.sh, run.sh, <area>.test.sh, Dockerfile (bash:5 + git)
+```
+
+## Design rules (don't regress these)
+
+- **No crew, no cost.** Every hook exits early unless `<git-common-dir>/crew/` exists. In a repo
+  without a crew the plugin prints nothing and adds no tokens. A crew starts with the first
+  `whoami`.
+- **State lives in `<git-common-dir>/crew/`.** Every session on the tree shares it, it is never
+  committed, and it needs no `.gitignore` entry. Every mutation goes through `with_lock` and
+  `replace_file` (temp + `mv`).
+- **A crew name is the identity.** Holds, slots and claims are all keyed by name. The Claude
+  session id only maps a hook payload to a name (`sessions/<name>`: `sid= role= since=`).
+  Scripts learn the caller from the `CREW_AS=<name>` prefix, which SessionStart teaches (again
+  after `/compact`). No env var survives between Bash tool calls, so the prefix is the only
+  reliable channel.
+- **Nobody types a session id.** The pre-bash hook sees the session id of the
+  `crew.sh whoami <name>` call and leaves it in `pending/<name>` for `whoami.sh` to bind.
+  `--sid` is the fallback for when the hooks are not installed.
+- **Area scripts are dual-use.** `holds.sh`, `slot.sh` and the rest define functions when
+  sourced (by hooks and other scripts) and run their CLI when executed (`is_main`). Hooks load
+  them with `load_area`, so a missing area degrades instead of failing.
+- **Guard hooks deny, which is the plugin's exception to "hooks never block".** A warning
+  arrives after `git add -A` has already staged a peer's files. They still always exit 0: the
+  denial is a JSON `permissionDecision`, never an exit code. `hookMode=warn` turns them into
+  warnings.
+- **Claims are advisory.** The pre-edit hook records which session touched which path. A path
+  written another way (Bash, a generator) shows as *unclaimed* in `status`, which is the point:
+  `status` surfaces it instead of guessing.
+- **Scripts do the mechanics, the skill does judgement.** Before adding prose to the skill,
+  check whether a script could print the answer instead. That is how `status`, `msg` and the
+  denial texts came about.
+
+## Testing
+
+```bash
+bash crew/scripts/test/run.sh                                   # host: bash 3.2 + BSD userland
+docker build -t crew-test crew/scripts/test                     # once: bash:5 (Alpine/busybox) + git
+docker run --rm -v "$PWD":/w -w /w crew-test bash crew/scripts/test/run.sh
+```
+
+**Run both.** The plain `bash:5` image has no git, and every crew script needs it, hence the
+Dockerfile. Hooks are tested by piping a JSON payload into them (`helpers.sh: payload, hook`).
+`join` goes through the real path, so the hook leaves the id and `whoami` binds it. The suites
+never read the real `~/.claude/crew.json` (`CREW_USER_CONFIG` points into the fixture).
+
+What the suites cannot prove: that Claude Code honours the `permissionDecision: deny` JSON and
+injects SessionStart stdout. Both are documented hook contracts. Check them by hand once per
+Claude Code upgrade: join a crew in a scratch repo and try `git add -A`.

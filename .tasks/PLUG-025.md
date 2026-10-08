@@ -1,6 +1,6 @@
 ---
 title: crew plugin — coordinate parallel Claude sessions on one working tree
-status: proposed
+status: in-progress
 type: epic
 epic-name: crew
 priority: high

@@ -24,6 +24,7 @@ claude-plugins/
 ├── docs-manager/              ← plugin
 ├── task-roadmap/              ← plugin
 ├── delay/                     ← plugin
+├── crew/                      ← plugin
 ├── .tasks/                    ← this repo's own task files (NOT a plugin)
 ├── .task-config.json          ← task skill config (tasksDir, prefix)
 ├── CLAUDE.md                  ← this file (repo-level)
@@ -45,6 +46,7 @@ marketplace, and treat `tasks` / `.tasks` as reserved directory names.
 | docs-manager | `docs-manager/` | Docs-as-product: auto `_index.md` navigation, link checks, conventions |
 | task-roadmap | `task-roadmap/` | Abstract-Gantt roadmap from a markdown task set, auto-regenerated on task changes |
 | delay | `delay/` | Queue approved per-project jobs (autotests) for the user's run window; user-started runner wakes the Mac, runs them in docker, unloads itself |
+| crew | `crew/` | Several Claude sessions on one working tree and branch: coordinator/worker playbook, identity, status by owner, hand-offs, guard hooks |
 
 ## Shell Conventions
 
@@ -67,7 +69,9 @@ constraints, not preferences — a plugin that breaks them breaks on someone's m
   container, where `allocate-id.sh` execs `resolve-config.sh`.
 - **Passing multi-line text to awk:** use a temp file read with `getline`, never
   `awk -v` (which cannot carry newlines).
-- **Hooks always `exit 0`** and never block the tool call that triggered them. A hook that reports
+- **Hooks always `exit 0`** and never block the tool call that triggered them, with one deliberate
+  exception: crew's guard hooks deny (a JSON `permissionDecision`, still exit 0), because a warning
+  arrives after `git add -A` has already staged a peer's files; `hookMode=warn` turns them off. A hook that reports
   something writes to stderr — so never wrap a hook body in `2>/dev/null`, which silences the one
   thing it exists for.
 - **Never assert on `diff` output shape in tests.** busybox `diff` (Alpine, the usual container
@@ -120,7 +124,9 @@ ships as its own directory and cannot assume a sibling is installed.
 
 No plugin requires a config file. Where one is supported it is a flat JSON object at the
 project root named for the plugin (`.task-roadmap.json`), read with the plugin's own
-`json_str`, and every key is optional with a working default.
+`json_str`, and every key is optional with a working default. A plugin may add a **user layer**
+(`~/.claude/<plugin>.json`) resolved per key, project first: crew does, and keeps the keys that
+only make sense per project (branch names, paths) out of it.
 
 **Beware `set -euo pipefail` when reading config.** `grep` exits non-zero when it matches
 nothing, and with `pipefail` that status propagates out of `v="$(json_str …)"` and kills
@@ -146,7 +152,9 @@ competing for the same words is a coin flip at activation time. Today the vocabu
 disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.md / AGENTS.md /
 external docs / catalogue / ingest / reference material*, task-roadmap owns *roadmap / gantt /
 timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
-tonight / run at night / wake* and says *job*, never *task*. Bare *pdf / word / excel / docx /
+tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
+hand off / hold / hot spot / slot / land / copy / snapshot* and says *slot*, never *job* or *queue* alone.
+Bare *pdf / word / excel / docx /
 xlsx* belong to Claude's built-in document skills — no plugin here claims them.
 
 ## Tasks

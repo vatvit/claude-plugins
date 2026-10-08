@@ -8,6 +8,7 @@ A collection of plugins for [Claude Code](https://claude.ai/code).
 |--------|-------------|
 | [session-storage](session-storage/) | Session-scoped key-value storage with automatic cleanup |
 | [docs-manager](docs-manager/) | Docs-as-product: auto-generated `_index.md` navigation, link checks, conventions |
+| [crew](crew/) | Several Claude Code sessions on one working tree and branch without lost edits |
 
 ## Installation
 
