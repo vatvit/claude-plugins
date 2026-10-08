@@ -1,6 +1,6 @@
 ---
 title: crew plugin — coordinate parallel Claude sessions on one working tree
-status: in-progress
+status: completed
 type: epic
 epic-name: crew
 priority: high
@@ -158,3 +158,35 @@ PLUG-031, all in parallel. Each owns its own scripts, its hook stub, its `status
 parts and its reference file, so they touch disjoint files. The shared hot spots are
 `plugin.json`, `marketplace.json` and the `SKILL.md` pointer table. Bump the version and edit
 the pointer table one landing at a time.
+
+## Outcome (2026-10-09)
+
+crew **1.0.x** shipped across PLUG-026…033, one commit per sub-task. All 8 sub-tasks are
+completed, and 261 checks pass on the host (bash 3.2 / BSD), in `crew-test` (bash 5 / Alpine
+busybox + git) and from a standalone copy of `crew/`.
+
+Success criteria, each covered by a suite:
+
+| Criterion | Proven by |
+|-----------|-----------|
+| A session cannot stage the whole index or edit a held file, and the denial names the holder | `land.test.sh` (30 deny / 17 allow cases), `holds.test.sh` |
+| Two exclusive slots never overlap, and a quiet slot waits for every other | `slots.test.sh` |
+| A stale copy applies as taken / merged / refused, and a conflict lands nothing (byte-identical tree) | `copy.test.sh` |
+| An overwritten edit is restored from a snapshot | `snapshots.test.sh` |
+| `land` refuses a path list that does not match `git status` | `land.test.sh` |
+
+Added during the epic, at the user's request:
+- PLUG-032: cross-crew isolation.
+- PLUG-033: per-account config, filed by the kickoff session.
+- The token economy:
+  - `status`, `msg`, denial texts that name the next command, and a SessionStart of two lines;
+  - a short `SKILL.md` with per-area references;
+  - zero cost in a repo without a crew: the hooks take ~3 ms and print nothing.
+
+**Not proven here: the Claude Code side of the hook contracts.** That is a deny JSON blocking
+the call, and SessionStart output reaching context. It needs crew installed in a live session,
+which needs the user's go-ahead. Filed as **PLUG-040** (standalone follow-up, not a sub-task).
+
+**Ran as a crew itself:** a parallel session building `kickoff/` shared `marketplace.json`, the
+repo `CLAUDE.md` and this file. Each was claimed and released by message, and every commit used
+an explicit path list, which is the playbook working in practice.
