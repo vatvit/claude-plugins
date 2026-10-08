@@ -1,6 +1,6 @@
 ---
 title: delay plugin — wake the laptop and run approved per-project jobs in docker
-status: in-progress
+status: completed
 type: feature
 priority: medium
 ---
@@ -627,7 +627,66 @@ re-install. Seen at the same time: two unrelated `caffeinate`s from other Claude
 (Apple's own from 09/29 appeared the same way). Our `state/wakes` still records it, and the next
 `start.sh` cancels it, so it is harmless.
 
+## Real test 2 result — night of 2026-10-04 → 05 (checked 2026-10-05 07:18): did not test the wake
+
+Armed at 12:43 with `start.sh --no-awake` (verified: runner active, no awake flag, wake
+10/05 03:00:30). **The job did not run**; `smoke` is still queued. Two independent causes:
+1. **The Mac rebooted at 2026-10-04 19:08** (`kern.boottime`; powerd "Start" 19:08:38; the
+   shutdown cause was not logged). On-demand launchd jobs don't survive a reboot, so the runner
+   was gone. The pmset wake did survive and fired at 03:00:30 (`powerd … wakeschedule`), with
+   nothing loaded to act on it.
+2. **The Mac never slept**: no Sleep/Wake events 19:08 → 07:00. Other Claude sessions' `caffeinate
+   -i` holds ran all night, and the lid stayed open. So the dark-wake path is **still unproven**.
+
+What worked: after the reboot the client still reports the truth. `runner_armed` checks
+`launchctl print` and not just the stale `armed` file, so `list` shows `smoke` queued plus
+`ACTION: start.sh` again. Nothing ran outside the window and nothing failed silently.
+
+**Design gap found:** a reboot between `start.sh` and the window silently cancels the night.
+Proposed fix: `start.sh` also copies the runner plist into `~/Library/LaunchAgents`, so launchd
+reloads it at the next login, and the runner deletes that copy when it unloads. It exists only
+while armed, so there is still no always-on job. This is the fallback idea noted in Design
+change 2.
+
+## Real test 3 result — night of 2026-10-05 → 06 (checked 2026-10-06 09:56)
+
+`smoke` **passed**: started 03:00:12, finished 03:00:38, exit 0. No reboot (boot time is still
+2026-10-04 19:08); the runner unloaded itself; the error log is empty. It started 18 s
+**before** our 03:00:30 wake, because **the Mac never slept**. No Sleep/Wake events overnight;
+`pmset -g` reports `sleep prevented by caffeinate ×6, sharingd, powerd`. On this setup there are
+three independent reasons:
+- `displaysleep 0`
+- an external 1080p display on the USB-C AV adapter (lid close → clamshell)
+- Claude sessions' `caffeinate` holds
+
+Side note: the `bash:5` image had been removed and was re-pulled at 03:00, which worked only
+because the network was up.
+
+## Closing — 2026-10-08
+
+Vat: "let's assume it works. somewhen later will check". Three nights proved:
+- install, approve by ID, the run window
+- the on-demand runner and its self-unload
+- the `--awake` hold and its release
+- the real docker run and results
+- reboot detection (the reminder comes back)
+
+Two follow-ups were split out:
+- **PLUG-014:** verify wake from real sleep (a 15-minute daytime recipe is in the task).
+- **PLUG-015:** make the timing-based test cases deterministic (the unidentified flake).
+
+The reboot-survival idea (a temporary plist in `~/Library/LaunchAgents` while armed) was not
+taken up: Vat's reboot was a one-off "dead screen".
+
 ## Current State
+
+2026-10-08: **completed.** Shipped as delay 1.0.0 (commit 41121ca). Follow-ups: PLUG-014 (wake from real
+sleep), PLUG-015 (test flake). Nothing open here.
+
+
+2026-10-05: night 2 did not exercise the wake (reboot at 19:08 + the Mac never slept); see ## Real
+test 2 result. Open: the reboot-survival fix (pending Vat), then a night with the lid closed.
+
 
 2026-10-04: **night test passed** (see ## Real test result). Remaining before completed: optionally one
 `--no-awake` night to prove wake-from-sleep, the known test flake, and a commit (Vat decides).
