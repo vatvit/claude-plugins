@@ -52,6 +52,10 @@ crew/
   arrives after `git add -A` has already staged a peer's files. They still always exit 0: the
   denial is a JSON `permissionDecision`, never an exit code. `hookMode=warn` turns them into
   warnings.
+- **Config is parsed once per process.** `crew_try_init` runs one `git rev-parse` (it needs git
+  2.31 or later for `--path-format=absolute`) and one awk pass over both config files into `CREW_CFG`.
+  After that, `cfg` forks nothing. The pre-edit hook reads config several times per edit, and this
+  took it from ~95 ms to ~50 ms. Never read a config file directly anywhere else.
 - **lib.sh owns the one EXIT trap.** It drops a lock left by a dying process and then runs
   `CREW_ON_EXIT` (for example, `slot run` releasing its slot). A script that sets its own `trap … EXIT`
   silently disables both, so it sets `CREW_ON_EXIT` instead. That includes tests that source `lib.sh`.

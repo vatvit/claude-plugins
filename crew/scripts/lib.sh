@@ -26,11 +26,11 @@ hhmm() { fmt_epoch "$1" %H:%M; }
 # --- project + state -----------------------------------------------------------------------
 # crew_init: sets ROOT (work tree top), STATE (<git-common-dir>/crew). Dies outside a repo.
 crew_try_init() { # same, but returns 1 instead of dying — for hooks, which must never fail
-    local start="${CREW_PROJECT_DIR:-$(pwd)}" gd
-    ROOT="$(git -C "$start" rev-parse --show-toplevel 2>/dev/null)" || return 1
-    gd="$(git -C "$ROOT" rev-parse --git-common-dir 2>/dev/null)" || return 1
-    case "$gd" in /*) : ;; *) gd="$ROOT/$gd" ;; esac
-    STATE="$(cd "$gd" && pwd -P)/crew"
+    local start="${CREW_PROJECT_DIR:-$(pwd)}" r
+    r="$(git -C "$start" rev-parse --path-format=absolute --show-toplevel --git-common-dir 2>/dev/null)" || return 1
+    ROOT="${r%%$'\n'*}"; STATE="${r#*$'\n'}/crew"
+    [ -n "$ROOT" ] && [ "$ROOT" != "$r" ] || return 1
+    cfg_load
 }
 crew_init() { crew_try_init || die "not inside a git work tree: ${CREW_PROJECT_DIR:-$(pwd)}"; }
 crew_active() { [ -d "$STATE" ]; }
@@ -47,24 +47,7 @@ rel_path() {
     printf '%s\n' "$p"
 }
 
-# --- JSON (flat config + hook payloads) ----------------------------------------------------
-# json_val <key> <file> -> a string value, an array's elements one per line, or a bare scalar.
-# Empty when absent. Config strings cannot contain a double quote (put such a command in a script).
-json_val() {
-    [ -f "$2" ] || return 0
-    local flat v
-    flat="$(tr '\n\t' '  ' < "$2")"
-    v="$(printf '%s' "$flat" | grep -o "\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 \
-        | sed 's/.*:[[:space:]]*"//; s/"$//' || true)"
-    [ -n "$v" ] && { printf '%s\n' "$v"; return 0; }
-    v="$(printf '%s' "$flat" | grep -o "\"$1\"[[:space:]]*:[[:space:]]*\[[^]]*\]" | head -1 \
-        | grep -o '"[^"]*"' | sed '1d; s/^"//; s/"$//' || true)"
-    [ -n "$v" ] && { printf '%s\n' "$v"; return 0; }
-    printf '%s' "$flat" | grep -o "\"$1\"[[:space:]]*:[[:space:]]*[-0-9A-Za-z.]*" | head -1 \
-        | sed 's/.*:[[:space:]]*//' || true
-    return 0
-}
-
+# --- hook payloads ---------------------------------------------------------------------------
 # payload_str <key> — first JSON string value of <key> in the hook payload on stdin, unescaped.
 payload_str() {
     awk -v key="$1" 'BEGIN { RS = "\001" }
@@ -87,6 +70,30 @@ payload_str() {
 }
 
 # --- config: project .crew.json > user ~/.claude/crew.json > default, per key ---------------
+# Both files are parsed ONCE per process (crew_try_init → cfg_load) into CREW_CFG: TSV lines of
+# layer, key, value (array elements joined by \037). Every cfg call after that forks nothing —
+# the pre-edit hook reads config several times per edit, so this is what keeps it fast.
+#
+# cfg_parse <layer> <file> — the top-level keys of a flat JSON object. Strings cannot contain a
+# double quote (put such a command in a script); an empty value counts as unset.
+cfg_parse() {
+    [ -f "$2" ] || return 0
+    awk -v layer="$1" 'BEGIN { RS = "\001" }
+    {   s = $0
+        while (match(s, /"[^"]*"[ \t\r\n]*:[ \t\r\n]*/)) {
+            k = substr(s, RSTART + 1); k = substr(k, 1, index(k, "\"") - 1)
+            s = substr(s, RSTART + RLENGTH); v = ""; c = substr(s, 1, 1)
+            if (c == "\"") { s = substr(s, 2); e = index(s, "\""); v = substr(s, 1, e - 1); s = substr(s, e + 1) }
+            else if (c == "[") {
+                e = index(s, "]"); a = substr(s, 2, e - 2); s = substr(s, e + 1)
+                while (match(a, /"[^"]*"/)) { v = v (v == "" ? "" : "\037") substr(a, RSTART + 1, RLENGTH - 2); a = substr(a, RSTART + RLENGTH) }
+            }
+            else if (match(s, /^[-0-9A-Za-z.]+/)) { v = substr(s, 1, RLENGTH); s = substr(s, RLENGTH + 1) }
+            if (v != "") printf "%s\t%s\t%s\n", layer, k, v
+        } }' "$2"
+}
+cfg_load() { CREW_CFG="$(cfg_parse project "$ROOT/.crew.json"; cfg_parse user "$CREW_USER_CONFIG")"; }
+
 cfg_default() {
     case "$1" in
         committer) echo coordinator ;; hookMode) echo deny ;;
@@ -96,18 +103,32 @@ cfg_default() {
 }
 cfg_project_only() { case "$1" in crewId|sharedBranch|hotSpots|landCheck) return 0 ;; esac; return 1; }
 
-# cfg_src <key> -> "project" | "user" | "default"
-cfg_src() {
-    [ -n "$(json_val "$1" "$ROOT/.crew.json")" ] && { echo project; return 0; }
-    if ! cfg_project_only "$1" && [ -n "$(json_val "$1" "$CREW_USER_CONFIG")" ]; then echo user; return 0; fi
-    echo default
+# cfg_layer <layer> <key> -> that layer's raw value, ignoring precedence (config.sh's notes use it)
+cfg_layer() {
+    local l k v
+    while IFS=$'\t' read -r l k v; do [ "$l" = "$1" ] && [ "$k" = "$2" ] && { printf '%s\n' "$v"; return 0; }; done <<EOF_CFG
+${CREW_CFG:-}
+EOF_CFG
+    return 0
 }
-cfg() {
-    case "$(cfg_src "$1")" in
-        project) json_val "$1" "$ROOT/.crew.json" ;;
-        user)    json_val "$1" "$CREW_USER_CONFIG" ;;
-        *)       cfg_default "$1" ;;
-    esac
+# cfg_resolve <key> — sets CFG_V (raw) and CFG_SRC (project | user | default) without forking
+cfg_resolve() {
+    local l k v
+    CFG_V=""; CFG_SRC=default
+    while IFS=$'\t' read -r l k v; do
+        [ "$k" = "$1" ] || continue
+        if [ "$l" = project ]; then CFG_V="$v"; CFG_SRC=project; return 0; fi
+        if [ "$l" = user ] && ! cfg_project_only "$1"; then CFG_V="$v"; CFG_SRC=user; fi
+    done <<EOF_CFG
+${CREW_CFG:-}
+EOF_CFG
+    [ "$CFG_SRC" = default ] && CFG_V="$(cfg_default "$1")"
+    return 0
+}
+cfg_src() { cfg_resolve "$1"; echo "$CFG_SRC"; }
+cfg() { # <key> -> value; an array prints one element per line
+    cfg_resolve "$1"
+    case "$CFG_V" in *$'\037'*) printf '%s\n' "$CFG_V" | tr '\037' '\n' ;; *) printf '%s\n' "$CFG_V" ;; esac
 }
 # crew_id: configured, else the repo folder name — tags every message so crews never cross
 crew_id() {

@@ -44,6 +44,7 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 | `hold <path...>` / `release <path...> --sha SHA` / `chain <path>` / `who` / `drop` | hot-spot holds; the pre-edit hook denies edits to a file another session holds |
 | `slot run <cpu\|exclusive\|quiet> <min> -- <cmd>` / `slot request\|start\|done\|list\|clear` | the queue for machine time: classes, priority, ETAs, stale slots |
 | `copy new\|status\|rebase <dir>` / `apply <dir> [path...]` | build in a copy; land with take / 3-way merge / refuse-all, plus an optional `landCheck` |
+| `snapshot log <path>` / `show\|diff\|restore <id>` / `prune` | every file is snapshotted before each edit; recover an overwrite |
 | `help` | every command |
 
 ## Config

@@ -1,7 +1,7 @@
 {
   "name": "crew",
-  "description": "Run several Claude Code sessions on one working tree and one branch without lost edits: a coordinator/worker playbook, session identity unique across crews on one machine, a one-screen status of every dirty path by owner, crew-tagged hand-off messages, hot-spot holds with an edit guard, a slot queue for machine time (cpu / exclusive / quiet), copies landed with a merge-or-refuse apply, and layered project/user config. Runtime-free (bash + awk + git).",
-  "version": "0.5.0",
+  "description": "Run several Claude Code sessions on one working tree and one branch without lost edits: a coordinator/worker playbook, session identity unique across crews on one machine, a one-screen status of every dirty path by owner, crew-tagged hand-off messages, hot-spot holds with an edit guard, a slot queue for machine time (cpu / exclusive / quiet), copies landed with a merge-or-refuse apply, a snapshot before every edit, and layered project/user config. Runtime-free (bash + awk + git).",
+  "version": "0.6.0",
   "author": {
     "name": "Vat",
     "url": "https://github.com/vatvit"

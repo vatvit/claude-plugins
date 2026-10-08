@@ -8,7 +8,7 @@ for k in $CREW_KEYS; do
     v="$(cfg "$k" | paste -sd, -)"; src="$(cfg_src "$k")"
     [ "$k" = sharedBranch ] && [ "$src" = default ] && v="$(shared_branch)" && src="default: the checked-out branch"
     printf '%s=%s (%s)\n' "$k" "$v" "$src"
-    if cfg_project_only "$k" && [ -n "$(json_val "$k" "$CREW_USER_CONFIG")" ]; then
+    if cfg_project_only "$k" && [ -n "$(cfg_layer user "$k")" ]; then
         echo "  note: $k in $CREW_USER_CONFIG is ignored — it only makes sense per project (.crew.json)"
     fi
 done

@@ -75,6 +75,7 @@ Read only the reference for the area you are working in:
 | Hot spots and holds | `references/holds.md` |
 | Slots: machine time | `references/slots.md` |
 | Copy, rebase, apply | `references/copy-apply.md` |
+| Snapshots: recover an overwritten edit | `references/snapshots.md` |
 
 ## When a hook says no
 
