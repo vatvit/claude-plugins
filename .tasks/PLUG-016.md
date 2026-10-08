@@ -24,12 +24,22 @@ priority: medium
 
 ## Goal
 
-Users drop external reference files (pdf, docx, xlsx, …) into `docs/` (or `docs/external/`).
+Users drop external reference files (pdf, docx, xlsx, …) into `docs/external/` (see Layout).
 docs-manager catalogues each one so Claude knows **what it contains, when to read it, and
 where exactly inside it to look** — and keeps project docs in sync with those sources.
 
 ## Design (agreed 2026-10-08)
 
+- **Layout (decided 2026-10-08):** externals live in their own tree, `docs/external/`,
+  apart from authored docs (authored = we edit; external = we replace, never edit).
+  - Drop zone: the top level of `docs/external/`. A file there is "new" by definition; the
+    ingest flow proposes a topic folder and files it as `docs/external/<topic>/`.
+  - Detection is still by extension anywhere under `docs/` — an external file dropped
+    elsewhere (e.g. `docs/architecture/`) is reported as new and ingest offers to move it
+    into `docs/external/`.
+  - Authored docs link *out* to cards (`../external/<topic>/x.pdf.md`); the binary is never
+    moved next to authored text.
+  - Root is one key in `.docs-manager.json` (e.g. `externalDir`), default `docs/external`.
 - **Card per external file:** `<file>.<ext>.md` beside it, frontmatter `title`,
   `description`, `source`, `digest` (sha256 of bytes — never a path), `read-when`,
   `relates-to`; body `## Where to look` (pages / sheets+columns / headings → topic).
@@ -55,7 +65,7 @@ Converting external files into native markdown docs; OCR of scanned PDFs; any ne
 
 ## Success criteria
 
-A mixed folder of pdf/docx/xlsx dropped into `docs/` ends up placed, carded, indexed, and
+A mixed folder of pdf/docx/xlsx dropped into `docs/external/` ends up placed, carded, indexed, and
 `docs.sh check` reports clean; changing one source flags its card and its related docs.
 
 ## Sub-tasks

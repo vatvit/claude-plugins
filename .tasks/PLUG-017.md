@@ -33,4 +33,7 @@ Format per the epic's Design section. Base for every other sub-task.
 2. A hand-written card for a sample pdf appears in the folder's `_index.md` with its
    `description`; the binary itself is not listed separately.
 3. `docs.sh links` resolves a link from a project doc to a card and to the binary.
-4. Test in `scripts/test/` covers 2–3; passes on host bash 3.2 and bash:5 container.
+4. Layout per the epic: externals under `docs/external/<topic>/`; the root is a single
+   optional `.docs-manager.json` key with default `docs/external`. `docs/external/_index.md`
+   lists topic folders like any other docs folder.
+5. Test in `scripts/test/` covers 2–4; passes on host bash 3.2 and bash:5 container.
