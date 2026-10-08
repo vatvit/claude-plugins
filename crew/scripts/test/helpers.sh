@@ -12,6 +12,7 @@ TMP="$(mktemp -d)"; TMP="$(cd "$TMP" && pwd -P)"             # macOS: /var -> /p
 trap 'rm -rf "$TMP"' EXIT
 pass=0 fail=0
 export CREW_USER_CONFIG="$TMP/user-crew.json"
+export CREW_HOME="$TMP/crew-home"                             # machine-wide name registry
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid
 export GIT_CONFIG_NOSYSTEM=1 HOME="$TMP/home"; mkdir -p "$HOME"
 

@@ -16,7 +16,7 @@ if [ $# -eq 0 ]; then
 fi
 if [ "$1" = --leave ]; then
     need_active; n="${2:-}"; valid_name "$n" && [ -f "$STATE/sessions/$n" ] || die "no session '$n'"
-    rm -f "$STATE/sessions/$n"; echo "crew: $n left"; exit 0
+    reg_drop "$n"; rm -f "$STATE/sessions/$n"; echo "crew: $n left"; exit 0
 fi
 
 name="$1"; shift; role=worker; take=0; sid=""
@@ -36,13 +36,17 @@ rm -f "$STATE/pending/$name"
 [ -n "$sid" ] || die "cannot see this session's id — run whoami through the Bash tool with the crew plugin enabled, or pass --sid <session id>"
 
 bind() {
-    local old cur c
+    local old cur c o
     old="$(sess_get "$name" sid)"
+    o="$(reg_other "$name")"
+    if [ -n "$o" ] && [ "$take" -eq 0 ]; then
+        die "'$name' is in use by crew $o — names must be unique on this machine, because SendMessage addresses are. Try $(crew_id)-$name, or add --take if that session is gone"
+    fi
     if [ -n "$old" ] && [ "$old" != "$sid" ] && [ "$take" -eq 0 ]; then
         die "'$name' belongs to another session (since $(hhmm "$(sess_get "$name" since)")) — add --take if that session is gone"
     fi
     cur="$(name_of_sid "$sid")"
-    [ -n "$cur" ] && [ "$cur" != "$name" ] && rm -f "$STATE/sessions/$cur" && note "renamed $cur → $name (holds and claims stay under $cur until released)"
+    [ -n "$cur" ] && [ "$cur" != "$name" ] && reg_drop "$cur" && rm -f "$STATE/sessions/$cur" && note "renamed $cur → $name (holds and claims stay under $cur until released)"
     if [ "$role" = coordinator ]; then
         c="$(coordinator)"
         if [ -n "$c" ] && [ "$c" != "$name" ]; then
@@ -52,7 +56,8 @@ bind() {
         fi
     fi
     printf 'sid=%s\nrole=%s\nsince=%s\n' "$sid" "$role" "$(now)" | replace_file "$STATE/sessions/$name"
+    reg_set "$name" "$sid"
 }
 with_lock sessions bind
-echo "crew: you are $name ($role). Prefix every crew call with: $(prefix_for "$name")"
+echo "crew $(crew_id): you are $name ($role). Prefix every crew call with: $(prefix_for "$name")"
 echo "crew: $(crew_line)"

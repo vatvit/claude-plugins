@@ -149,6 +149,7 @@ docker and from a standalone copy of `crew/`.
 - PLUG-029: work in a copy, land with merge-or-refuse apply
 - PLUG-030: snapshot before every write
 - PLUG-031: `land` path lists + git-index guard hook
+- PLUG-032: cross-crew isolation — crew id in messages, machine-wide unique names (user, 2026-10-08)
 
 Order: PLUG-026 first (the one shared dependency: lib, identity, config, hook stubs,
 `status.d` / `msg.d` extension points). Then PLUG-027 ‖ PLUG-028 ‖ PLUG-029 ‖ PLUG-030 ‖

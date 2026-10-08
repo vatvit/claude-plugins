@@ -37,6 +37,11 @@ crew/
   Scripts learn the caller from the `CREW_AS=<name>` prefix, which SessionStart teaches (again
   after `/compact`). No env var survives between Bash tool calls, so the prefix is the only
   reliable channel.
+- **Names are unique on the machine, not just in the crew.** SendMessage addresses sessions
+  machine-wide, and several crews (one per repo) can run at once. `whoami` checks
+  `~/.claude/crew/names/<name>` (`CREW_HOME`) and refuses a name a live session of another crew
+  holds. An entry is live while that crew's `sessions/<name>` still has the same sid; a stale one
+  is taken over silently. Every message and the SessionStart line carry `[<crewId>]`.
 - **Nobody types a session id.** The pre-bash hook sees the session id of the
   `crew.sh whoami <name>` call and leaves it in `pending/<name>` for `whoami.sh` to bind.
   `--sid` is the fallback for when the hooks are not installed.

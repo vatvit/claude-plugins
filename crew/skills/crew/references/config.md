@@ -10,6 +10,7 @@ You never need a config file. Each key is resolved separately, in this order:
 
 | Key | Layers | Default | Meaning |
 |-----|--------|---------|---------|
+| `crewId` | project | the repo folder name | tags every message and the SessionStart line, so crews on one machine never cross |
 | `sharedBranch` | project | the checked-out branch | the one branch the crew works on; switching away is denied |
 | `committer` | project, user | `coordinator` | `coordinator`: only the coordinator lands. `each-session`: a session lands its own paths. `human-approved`: `land` prints the command and stops |
 | `hookMode` | project, user | `deny` | `deny` blocks a guarded tool call. `warn` lets it through with the reason |
@@ -19,7 +20,7 @@ You never need a config file. Each key is resolved separately, in this order:
 | `snapshotMaxKB` | project, user | `1024` | larger files are not snapshotted |
 | `slotGraceMin` | project, user | `10` | minutes past its estimate before a running slot shows as stale |
 
-Project-only keys (`sharedBranch`, `hotSpots`, `landCheck`) mean nothing across projects. If
+Project-only keys (`crewId`, `sharedBranch`, `hotSpots`, `landCheck`) mean nothing across projects. If
 they appear in the user file, they are ignored and `config` says so.
 
 ```json

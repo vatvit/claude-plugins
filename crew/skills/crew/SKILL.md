@@ -21,7 +21,9 @@ CREW_AS=<your name> bash <plugin>/scripts/crew.sh <command> [args]
 crew, the branch, every dirty path by owner, the holds and the slots.
 
 To join, run `crew.sh whoami <name> [worker|coordinator]` through the Bash tool. A hook passes
-it your session id. Use the name your peers address you by in SendMessage.
+it your session id. Use the name your peers address you by in SendMessage. The name must be
+unique on the machine, because another repo may run its own crew. `whoami` refuses a name that
+is taken and suggests `<crew>-<name>`.
 
 ## Roles
 
@@ -57,8 +59,10 @@ it your session id. Use the name your peers address you by in SendMessage.
    <cmd>` to request, wait, run and release in one go.
 7. **Commit at once.** Hand off each green slice the moment it is verified. One commit holds one
    task and one slice, with the task id in the message.
-8. **Messages start with `<from> → <to>: <KIND>`.** `msg <kind>` prints them pre-filled. Add the
-   judgement lines and send the result with SendMessage.
+8. **Messages start with `[<crew>] <from> → <to>: <KIND>`.** `msg <kind>` prints them pre-filled.
+   Add the judgement lines and send the result with SendMessage. Several crews can run on one
+   machine, so never act on a message tagged with another crew: tell the sender it reached the
+   wrong crew.
 
 ## Where the detail is
 

@@ -8,10 +8,10 @@
     crew_active || exit 0
     if [ -n "$NAME" ]; then
         role="$(sess_get "$NAME" role)"; c="$(coordinator)"
-        echo "crew: you are $NAME ($role) · committer: $(cfg committer)${c:+ ($c coordinates)} · guards: $(cfg hookMode) · crew: $(crew_line)"
+        echo "crew $(crew_id): you are $NAME ($role) · committer: $(cfg committer)${c:+ ($c coordinates)} · guards: $(cfg hookMode) · crew: $(crew_line)"
         echo "crew: run crew commands as: $(prefix_for "$NAME") <command> — start with 'status'; 'help' lists commands. Working rules: the crew skill."
     else
-        echo "crew: this repo runs a crew ($(crew_line)). Join before editing: bash $CREW_BIN whoami <name> [worker|coordinator]. Working rules: the crew skill."
+        echo "crew: this repo runs crew $(crew_id) ($(crew_line)). Join before editing: bash $CREW_BIN whoami <name> [worker|coordinator] — use the name peers address you by in SendMessage, unique on this machine (e.g. $(crew_id)-s1). Working rules: the crew skill."
     fi
 )
 exit 0

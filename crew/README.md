@@ -15,7 +15,8 @@ It is runtime-free: bash, awk and git.
 
 ## Start a crew
 
-In each session, give it the name its peers use for it:
+In each session, give it the name its peers use for it in SendMessage. Names must be unique on
+the machine, because each repo can run its own crew, so prefer `<repo>-<name>` when several crews run:
 
 ```
 bash <plugin>/scripts/crew.sh whoami s1 coordinator     # the first session
@@ -26,7 +27,7 @@ From then on, SessionStart tells each session who it is and gives it the prefix 
 command:
 
 ```
-crew: you are s2 (worker) · committer: coordinator (s1 coordinates) · guards: deny · crew: s1 coordinator · s2 worker
+crew myrepo: you are s2 (worker) · committer: coordinator (s1 coordinates) · guards: deny · crew: s1 coordinator · s2 worker
 crew: run crew commands as: CREW_AS=s2 bash …/crew.sh <command> — start with 'status'; 'help' lists commands.
 ```
 
@@ -36,7 +37,7 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 
 | Command | What it does |
 |---------|--------------|
-| `whoami <name> [worker\|coordinator] [--take]` | join the crew; `whoami` alone lists it |
+| `whoami <name> [worker\|coordinator] [--take]` | join the crew (the name must be unique on this machine); `whoami` alone lists it |
 | `status` | the crew, the branch vs origin, every dirty path by owner (yours, a peer's, SHARED, unclaimed) |
 | `msg <kind>` | a ready-to-send message: `handoff` (paths + commit message + test-first proof), `decision`, `stop` |
 | `config` | effective settings, each with the layer it came from |

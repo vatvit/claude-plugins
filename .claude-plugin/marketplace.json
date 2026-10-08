@@ -37,8 +37,8 @@
     {
       "name": "crew",
       "source": "./crew",
-      "description": "Run several Claude Code sessions on one working tree and one branch without lost edits: a coordinator/worker playbook, session identity, a one-screen status of every dirty path by owner, pre-filled hand-off messages, hot-spot holds with an edit guard, and layered project/user config. Runtime-free (bash + awk + git).",
-      "version": "0.2.0"
+      "description": "Run several Claude Code sessions on one working tree and one branch without lost edits: a coordinator/worker playbook, session identity unique across crews on one machine, a one-screen status of every dirty path by owner, crew-tagged hand-off messages, hot-spot holds with an edit guard, and layered project/user config. Runtime-free (bash + awk + git).",
+      "version": "0.3.0"
     }
   ]
 }

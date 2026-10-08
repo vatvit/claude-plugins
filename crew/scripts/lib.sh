@@ -11,7 +11,8 @@ CREW_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CREW_PLUGIN_DIR="$(dirname "$CREW_LIB_DIR")"
 CREW_BIN="$CREW_LIB_DIR/crew.sh"
 CREW_USER_CONFIG="${CREW_USER_CONFIG:-$HOME/.claude/crew.json}"
-CREW_KEYS="sharedBranch committer hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin"
+CREW_HOME="${CREW_HOME:-$HOME/.claude/crew}"          # machine-wide: the name registry
+CREW_KEYS="crewId sharedBranch committer hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin"
 
 die()  { echo "crew: $*" >&2; exit 1; }
 note() { echo "crew: $*" >&2; }
@@ -93,7 +94,7 @@ cfg_default() {
     esac
     return 0
 }
-cfg_project_only() { case "$1" in sharedBranch|hotSpots|landCheck) return 0 ;; esac; return 1; }
+cfg_project_only() { case "$1" in crewId|sharedBranch|hotSpots|landCheck) return 0 ;; esac; return 1; }
 
 # cfg_src <key> -> "project" | "user" | "default"
 cfg_src() {
@@ -108,6 +109,26 @@ cfg() {
         *)       cfg_default "$1" ;;
     esac
 }
+# crew_id: configured, else the repo folder name — tags every message so crews never cross
+crew_id() {
+    local i; i="$(cfg crewId)"
+    [ -n "$i" ] || i="$(basename "$ROOT")"
+    printf '%s\n' "$i" | tr -c 'A-Za-z0-9_.\n-' '-'
+}
+
+# --- machine-wide name registry: $CREW_HOME/names/<name> holds state= crew= sid= ----------------
+# SendMessage addresses sessions across the whole machine, so a crew name must be unique there too.
+reg_set() { mkdir -p "$CREW_HOME/names" && printf 'state=%s\ncrew=%s\nsid=%s\n' "$STATE" "$(crew_id)" "$2" | replace_file "$CREW_HOME/names/$1"; }
+reg_get() { [ -f "$CREW_HOME/names/$1" ] && sed -n "s/^$2=//p" "$CREW_HOME/names/$1" | head -1; return 0; }
+# reg_other <name> -> "<crew> (<work tree>)" when a LIVE session of ANOTHER crew owns the name
+reg_other() {
+    local st sid
+    st="$(reg_get "$1" state)"; sid="$(reg_get "$1" sid)"
+    [ -n "$st" ] && [ "$st" != "$STATE" ] || return 0
+    [ -f "$st/sessions/$1" ] && grep -q -x "sid=$sid" "$st/sessions/$1" || return 0   # stale entry
+    printf '%s (%s)\n' "$(reg_get "$1" crew)" "$(dirname "$(dirname "$st")")"
+}
+reg_drop() { [ "$(reg_get "$1" state)" = "$STATE" ] && rm -f "$CREW_HOME/names/$1"; return 0; }
 # shared_branch: configured, else the branch checked out now
 shared_branch() {
     local b; b="$(cfg sharedBranch)"
