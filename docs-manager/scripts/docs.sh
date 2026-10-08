@@ -55,7 +55,7 @@ build_block() {
     while IFS= read -r sub; do
       name="$(basename "$sub")"; desc=""
       [ -f "$sub/_index.md" ] && desc="$(fm_field "$sub/_index.md" description)"
-      printf -- '- [`%s/`](%s/_index.md) — %s\n' "$name" "$name" "${desc:-_(no description)_}"
+      printf -- '- [`%s/`](%s) — %s\n' "$name" "$(md_dest "$name/_index.md")" "${desc:-_(no description)_}"
     done <<EOF
 $(list_subdirs "$dir")
 EOF
@@ -66,7 +66,7 @@ EOF
   else
     while IFS= read -r doc; do
       name="$(basename "$doc")"; desc="$(fm_field "$doc" description)"
-      printf -- '- [`%s`](%s) — %s\n' "$name" "$name" "${desc:-_(no description)_}"
+      printf -- '- [`%s`](%s) — %s\n' "$name" "$(md_dest "$name")" "${desc:-_(no description)_}"
     done <<EOF
 $(list_docs "$dir")
 EOF
@@ -79,9 +79,9 @@ EOF
       name="$(basename "$ext")"
       if [ -f "$ext.md" ]; then
         desc="$(fm_field "$ext.md" description)"
-        printf -- '- [`%s`](%s.md) — %s\n' "$name" "$name" "${desc:-_(no description)_}"
+        printf -- '- [`%s`](%s) — %s\n' "$name" "$(md_dest "$name.md")" "${desc:-_(no description)_}"
       else
-        printf -- '- [`%s`](%s) — _(no card yet)_\n' "$name" "$name"
+        printf -- '- [`%s`](%s) — _(no card yet)_\n' "$name" "$(md_dest "$name")"
       fi
     done <<EOF
 $(list_externals "$dir" 1)

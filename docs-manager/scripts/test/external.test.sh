@@ -75,6 +75,50 @@ rm "$R/external/vendor/spec.pdf"
 out=$(bash "$DOCS" links "$R" 2>&1)
 check "E4b link to a missing file reported" "yes" "$(has "$out" 'BROKEN LINK: '"$R"'/arch/pay.md -> ../external/vendor/spec.pdf')"
 
+echo "== link destinations =="
+
+# --- L1: spaces and parentheses in names — the index writes <…>, and links accepts it -----
+R=$(fresh l1)
+bin "$R/external/req/Requirements (1) EN.docx" "PK"
+doc "$R/external/req/Requirements (1) EN.docx.md" "Revised requirements" </dev/null
+bin "$R/external/req/raw notes.pdf"
+doc "$R/external/req/our notes.md" "Notes" </dev/null
+mkdir -p "$R/external/req/sub dir"; doc "$R/external/req/sub dir/_index.md" "Sub" </dev/null
+bash "$DOCS" index --write "$R" >/dev/null 2>&1
+idx=$(cat "$R/external/req/_index.md")
+check "L1a card link wrapped in <…>" "yes" \
+  "$(has "$idx" '- [`Requirements (1) EN.docx`](<Requirements (1) EN.docx.md>) — Revised requirements')"
+check "L1b uncarded file, doc and sub-folder wrapped" "yes:yes:yes" \
+  "$(has "$idx" '(<raw notes.pdf>)'):$(has "$idx" '(<our notes.md>)'):$(has "$idx" '(<sub dir/_index.md>)')"
+out=$(bash "$DOCS" links "$R" 2>&1); rc=$?
+check "L1c generated links all resolve" "0:" "$rc:$out"
+
+# --- L2: every CommonMark destination form resolves, %XX decoded ---------------------------
+R=$(fresh l2)
+doc "$R/a b.md" </dev/null; doc "$R/café.md" </dev/null; doc "$R/sub/(paren).md" </dev/null
+bin "$R/Spec (v2).docx"
+doc "$R/x.md" <<'EOF'
+[p](a%20b.md) [a](<a b.md>) [t](a%20b.md "Title") [e](Spec%20%28v2%29.docx#page=2)
+[u](caf%C3%A9.md) [n](sub/(paren).md) and (aside [q](<Spec (v2).docx>)).
+EOF
+out=$(bash "$DOCS" links "$R" 2>&1); rc=$?
+check "L2a %20, <…>, title, %28%29, UTF-8, balanced parens" "0:" "$rc:$out"
+doc "$R/y.md" <<'EOF'
+[b](<missing file.md>) [c](gone%20too.md)
+EOF
+out=$(bash "$DOCS" links "$R" 2>&1)
+check "L2b broken ones still reported, decoded" "yes:yes" \
+  "$(has "$out" "BROKEN LINK: $R/y.md -> missing file.md"):$(has "$out" "BROKEN LINK: $R/y.md -> gone too.md")"
+
+# --- L3: a back-link written with %20 still counts as a dependant ---------------------------
+R=$(fresh l3)
+bin "$R/external/Spec (v2).docx" "PK"; doc "$R/external/Spec (v2).docx.md" </dev/null
+doc "$R/arch/pay.md" <<'EOF'
+See [spec](../external/Spec%20%28v2%29.docx.md).
+EOF
+out=$(bash "$DOCS" external related "$R/external/Spec (v2).docx" "$R" 2>&1)
+check "L3 escaped back-link found" "$(printf 'links\t%s/arch/pay.md' "$R")" "$out"
+
 echo "== status / check / stamp =="
 
 # --- S1: the four states, and placement ---------------------------------------

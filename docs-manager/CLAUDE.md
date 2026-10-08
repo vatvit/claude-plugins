@@ -55,7 +55,16 @@ Sourced, never executed. Holds what more than one script in *this* plugin needs:
   via temp file + `mv`; never `sed -i`.
 - `doc_links <root>` — `file<TAB>link<TAB>target` for every relative markdown link, paths
   normalized. **The only markdown link parser** — `links` checks targets exist, `external related`
-  matches targets against a card; do not grep for `](` anywhere else.
+  matches targets against a card; do not grep for `](` anywhere else. Destinations come from
+  `md_link_dests` (CommonMark: `<…>`, balanced parens, `"title"` dropped) and `%XX` is decoded by
+  `url_decode` in the shell — awk's `%c` is multibyte-unsafe under gawk. It was a
+  `\]\([^)]+\)` regex, which failed every name containing `(` or an escaped space.
+- `md_dest <path>` — **every link this plugin writes goes through it.** Wraps in `<…>` only when the
+  name has a space or parenthesis, so ordinary names stay byte-identical (no DRIFT on upgrade) and
+  odd ones render as links on GitHub/GitLab.
+- **Never `exit` early in awk that reads a pipe under `pipefail`** — the writer can take SIGPIPE
+  and the caller dies with rc 141, intermittently. `fm_field` did this until the container suite
+  caught it; read to the end and keep the first match instead.
 
 A map is never held in bash: awk emits records, the shell reads them with
 `while IFS=$'\t' read -r`. That is what keeps this working on bash 3.2, which has no

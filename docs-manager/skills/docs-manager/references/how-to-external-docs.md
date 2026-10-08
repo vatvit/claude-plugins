@@ -31,6 +31,9 @@ docs/
   choice, not a defect, and `check` does not fail on it.
 - Authored docs **link out** to a card, never copy from the file:
   `see [payments spec, error codes pp. 31–38](../external/vendor-api/payments-spec-v3.pdf.md)`.
+  A name with spaces or parentheses goes in angle brackets — `[spec](<Spec (v2) EN.docx.md>)` —
+  or percent-encoded (`Spec%20%28v2%29%20EN.docx.md`); `links` accepts both, and `index` writes
+  the angle-bracket form.
 - A file the user placed in the project is committed as it is. Never gitignore, LFS-route or
   delete it, and never write anything but its card into the repo — extracted text and other
   scratch output go to a temp directory.

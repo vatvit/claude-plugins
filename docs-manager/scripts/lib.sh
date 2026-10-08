@@ -86,8 +86,12 @@ fm_parse() {
 }
 
 # fm_field <file> <key>  -> first scalar value for key (empty if absent)
+#
+# Reads to the end rather than `exit`ing on the match: an early exit can SIGPIPE fm_parse
+# while it is still writing, and under `pipefail` that kills the caller with rc 141 — only
+# sometimes, which is how it hid until the container suite caught it.
 fm_field() {
-  fm_parse "$1" | awk -F'\t' -v k="$2" '$1=="scalar" && $2==k { print $3; exit }'
+  fm_parse "$1" | awk -F'\t' -v k="$2" '!done && $1=="scalar" && $2==k { print $3; done = 1 }'
 }
 
 # fm_list <file> <key>   -> one item per line
@@ -146,16 +150,59 @@ normalize_path() {
     print out }'
 }
 
+# md_link_dests <file> -> the destination of every inline link `[text](dest)`, one per line
+#
+# CommonMark destinations: `<…>` may hold spaces and parentheses; a bare one ends at
+# whitespace or at the `)` that balances the opening one — so `a (1).docx` needs the `<…>`
+# form or `%20`, and `x.md "Title"` yields `x.md`. A regex stopping at the first `)` gets
+# both wrong.
+md_link_dests() {
+  awk '{
+    s = $0
+    while ((i = index(s, "](")) > 0) {
+      s = substr(s, i + 2); sub(/^[ \t]+/, "", s)
+      if (substr(s, 1, 1) == "<") {
+        j = index(s, ">"); if (!j) continue
+        print substr(s, 2, j - 2); s = substr(s, j + 1); continue
+      }
+      d = ""; depth = 0; n = length(s)
+      for (k = 1; k <= n; k++) {
+        c = substr(s, k, 1)
+        if (c == "(") depth++
+        else if (c == ")") { if (depth == 0) break; depth-- }
+        else if (c == " " || c == "\t") break
+        d = d c
+      }
+      s = substr(s, k)
+      if (d != "") print d
+    }
+  }' "$1" 2>/dev/null
+}
+
+# url_decode <s> -> <s> with %XX escapes decoded. In the shell, not awk: awk's `%c` emits a
+# multibyte character for values over 127 in a UTF-8 locale (gawk), so `%C3%A9` would not
+# come back as `é`. printf '%b' with \xHH writes raw bytes on bash 3.2 and 5 alike.
+url_decode() {
+  printf '%b' "$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')"
+}
+
+# md_dest <path> -> <path> as a link destination: wrapped in `<…>` when it holds a space or
+# a parenthesis (which a bare destination cannot carry), unchanged otherwise — so a link to
+# an ordinary name is written byte-identically to what earlier versions wrote.
+md_dest() {
+  case "$1" in *[\ \(\)]*) printf '<%s>' "$1" ;; *) printf '%s' "$1" ;; esac
+}
+
 # doc_links <root>
 #
 # Every relative markdown link in every .md under <root>, one record each:
 #
 #   file<TAB>link<TAB>target
 #
-# `link` is as written, minus any #fragment or ?query; `target` is the path it resolves to,
-# normalized, as are the file paths. The **only** markdown link parser in this plugin — the
-# broken-link check and the back-link search both read this stream, so they cannot disagree
-# about what a link is.
+# `link` is the destination minus any #fragment or ?query, with %XX escapes decoded; `target`
+# is the path it resolves to, normalized, as are the file paths. The **only** markdown link
+# parser in this plugin — the broken-link check and the back-link search both read this
+# stream, so they cannot disagree about what a link is.
 doc_links() {
   local file link base
   while IFS= read -r file; do
@@ -165,12 +212,13 @@ doc_links() {
       case "$link" in http://*|https://*|mailto:*|\#*|"") continue ;; esac
       link="${link%%#*}"; link="${link%%\?*}"
       [ -n "$link" ] || continue
+      case "$link" in *%*) link="$(url_decode "$link")" ;; esac
       case "$link" in
         /*) printf '%s\t%s\t%s\n' "$file" "$link" "$(normalize_path "$link")" ;;
         *)  printf '%s\t%s\t%s\n' "$file" "$link" "$(normalize_path "$base/$link")" ;;
       esac
     done <<EOF
-$(grep -oE '\]\([^)]+\)' "$file" 2>/dev/null | sed -E 's/^\]\(//; s/\)$//')
+$(md_link_dests "$file")
 EOF
   done <<EOF
 $(find "$1" -type f -name '*.md' | sort)

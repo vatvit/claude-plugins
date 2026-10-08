@@ -78,7 +78,7 @@ refs_line() {
     IFS=$'\t' read -r scheme path label <<EOF
 $(parse_ref "$val")
 EOF
-    href="$(ref_href "$src" "$doc" "$scheme" "$path")"
+    href="$(md_dest "$(ref_href "$src" "$doc" "$scheme" "$path")")"
     if [ -n "$label" ]; then
       out="$out[$label]($href) · "
     else
@@ -234,7 +234,7 @@ artifact_line() {
   local src="$1" doc="$2" art
   art="$(artifact_for "$src")"
   [ -n "$art" ] || return 0
-  printf '[Open the rendered diagram](%s)\n' "$(relpath "$(dirname "$doc")" "$art")"
+  printf '[Open the rendered diagram](%s)\n' "$(md_dest "$(relpath "$(dirname "$doc")" "$art")")"
 }
 
 build_diagram_block() {
