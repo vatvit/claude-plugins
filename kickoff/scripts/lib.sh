@@ -19,8 +19,33 @@ project_root() {
 # answers_file <root> — where the kickoff answers are kept, in the project.
 answers_file() { printf '%s/.kickoff-answers\n' "$1"; }
 
-# defaults_tsv — the user layer as `ID<TAB>value` lines, or nothing. Filled in by PLUG-038.
-defaults_tsv() { return 0; }
+# user_defaults_file — the user layer: the user's own defaults, overriding the questionnaire's ★.
+# PER ACCOUNT on purpose (repo CLAUDE.md, "Per account or per machine"): a work account and a
+# personal one answer "whose project?" differently, so it follows CLAUDE_CONFIG_DIR.
+user_defaults_file() { printf '%s/kickoff.json\n' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; }
+
+# defaults_tsv — the user layer as `ID<TAB>value` lines; nothing when the file is absent.
+# A flat JSON object of question ids to strings; \" and \\ escapes are decoded. Other keys are ignored.
+defaults_tsv() {
+    local f; f="$(user_defaults_file)"
+    [ -f "$f" ] || return 0
+    awk '
+        { s = s $0 "\n" }
+        END {
+            while (match(s, /"[A-Z][0-9]+"[ \t\n]*:[ \t\n]*"/)) {
+                k = substr(s, RSTART + 1, RLENGTH); sub(/".*/, "", k)
+                s = substr(s, RSTART + RLENGTH); v = ""
+                while (s != "") {
+                    c = substr(s, 1, 1)
+                    if (c == "\\") { v = v substr(s, 2, 1); s = substr(s, 3); continue }
+                    if (c == "\"") { s = substr(s, 2); break }
+                    v = v c; s = substr(s, 2)
+                }
+                print k "\t" v
+            }
+        }' "$f"
+    return 0
+}
 
 # kickoff_awk <program.awk> <root> [awk args...] — run a program over the model. The answers file
 # and the user layer are passed as files; an absent one becomes /dev/null.

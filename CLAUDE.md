@@ -74,7 +74,8 @@ constraints, not preferences — a plugin that breaks them breaks on someone's m
 - **awk portability traps** (found in kickoff 0.1.0, each by only one of the two test targets):
   `a[++n] = "x" n` evaluates the two sides in different orders on BSD awk and busybox, so increment
   in its own statement. And a non-ASCII character (`★ ≠ · §`) is one char in gawk but several bytes
-  in busybox/mawk, so strip it with a pattern, never a `substr` offset.
+  in busybox/mawk, so strip it with a pattern, never a `substr` offset. And a backslash in a `gsub`
+  *replacement* is read differently by busybox than by gawk and BSD awk, so escape with a character loop.
 - **Hooks always `exit 0`** and never block the tool call that triggered them, with one deliberate
   exception: crew's guard hooks deny (a JSON `permissionDecision`, still exit 0), because a warning
   arrives after `git add -A` has already staged a peer's files; `hookMode=warn` turns them off. A hook that reports

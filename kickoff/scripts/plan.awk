@@ -13,6 +13,7 @@ function row(i,   v) {
 }
 
 END {
+    for (id in udef) if (!(id in qidx)) printf "kickoff: your defaults name %s, which is not a question; ignored\n", id > "/dev/stderr"
     if (mode == "next") {
         sec = ""
         for (i = 1; i <= nq; i++) { s = state_of(i); if (s == "ask" || s == "judge") { sec = qsec[i]; break } }

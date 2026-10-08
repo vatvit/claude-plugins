@@ -43,8 +43,8 @@
     {
       "name": "kickoff",
       "source": "./kickoff",
-      "description": "Kick off a new project with one standard questionnaire: questions branch on earlier answers, each offers pre-defined options and a default, answers are recorded in the project, and a charter (overview, goal, scope, numbered decisions with their reasons, open questions) is generated from them. It then scaffolds the project: the docs/ skeleton, a small instructions-only CLAUDE.md, and the task config and workflow (in the repo, or outside it for a client project). A machine-wide dev-port registry, shared by every Claude account on the Mac and aware of ports already published in compose files, hands each project a free port. Runtime-free (bash + awk).",
-      "version": "0.3.0"
+      "description": "Kick off a new project with one standard questionnaire: questions branch on earlier answers, each offers pre-defined options and a default, answers are recorded in the project, and a charter (overview, goal, scope, numbered decisions with their reasons, open questions) is generated from them. It then scaffolds the project: the docs/ skeleton, a small instructions-only CLAUDE.md, and the task config and workflow (in the repo, or outside it for a client project). A machine-wide dev-port registry, shared by every Claude account on the Mac and aware of ports already published in compose files, hands each project a free port, and your own defaults, kept per Claude account, override the questionnaire's. Runtime-free (bash + awk).",
+      "version": "0.4.0"
     }
   ]
 }

@@ -1,7 +1,7 @@
 ---
 name: kickoff
 description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (questions branch on earlier answers, each with pre-defined options and a default) and turn the answers into the project's charter. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "starting context for this project", "which dev port should this project use", "port registry", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
-version: 0.3.0
+version: 0.4.0
 ---
 
 # Kickoff
@@ -67,5 +67,9 @@ end up in files, not in chat history.
   appear anywhere in it. Say so when A4 is answered.
 - **Resuming is free.** `plan.sh --next` starts from what `.kickoff-answers` already holds, so a
   kickoff interrupted by a context reset just continues.
+- **The user's own defaults.** When the user changes a default and says it should be their default from
+  now on, or changes the same default at a second kickoff, offer to save it:
+  `bash <PLUGIN_ROOT>/scripts/defaults.sh set <ID> "<value>"`. It is kept for this Claude account only, so a
+  work account and a personal one keep different defaults. `defaults.sh list` shows them.
 - **A changed answer** is recorded again with `answer.sh`: it replaces the old one, and the plan
   re-evaluates everything that depends on it.

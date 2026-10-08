@@ -26,6 +26,7 @@ bash kickoff/scripts/answer.sh --root <project> [--add|--clear] <ID> "<value>"
 bash kickoff/scripts/charter.sh [project] [--force | --stdout]
 bash kickoff/scripts/scaffold.sh [project]                    # docs/ skeleton, CLAUDE.md, task config
 bash kickoff/scripts/ports.sh next | allocate <name> | set <name> <port> | release <name> | list [--all]
+bash kickoff/scripts/defaults.sh list | set <ID> <value> | unset <ID>   # your own defaults
 ```
 
 ## Setup
@@ -36,6 +37,13 @@ entry point, crew, tasks, approvals, exceptions to the global rules), and the ta
 workflow. In your own project the tasks are in the repo. In a client's they are kept outside it, in the
 task skill's registry, so the client's repo carries neither your tasks nor your home path.
 Seeded files are never overwritten; a hand-edited CLAUDE.md is refused rather than replaced.
+
+## Your defaults
+
+The ★ defaults come from the questionnaire. Your own defaults win over them. They are kept per Claude
+account in `${CLAUDE_CONFIG_DIR:-~/.claude}/kickoff.json`, so a work account can default to *my
+employer's project* and a personal one to *mine*. Where your file says nothing, the questionnaire's
+defaults apply, including the ones that follow earlier answers.
 
 ## Dev ports
 

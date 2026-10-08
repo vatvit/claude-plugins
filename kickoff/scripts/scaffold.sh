@@ -69,20 +69,8 @@ if [ -n "$R6" ]; then
             else
                 t="$(mktemp)"
                 in=/dev/null; [ -f "$reg" ] && in="$reg"
-                KO_ROOT="$root" KO_DIR="$tdir" KO_PREFIX="$R7" awk '
-                    function q(s) { gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); return "\"" s "\"" }
-                    BEGIN { e = "    " q(ENVIRON["KO_ROOT"]) ": {\n      \"tasksDir\": " q(ENVIRON["KO_DIR"]) ",\n      \"prefix\": " q(ENVIRON["KO_PREFIX"]) ",\n      \"nextId\": 1\n    }" }
-                    { line[++n] = $0 }
-                    END {
-                        if (n == 0) { print "{\n  \"projects\": {\n" e "\n  }\n}"; exit }
-                        for (i = 1; i <= n; i++) {
-                            print line[i]
-                            if (!done && line[i] ~ /"projects"[ \t]*:[ \t]*\{[ \t]*$/) {
-                                print e ((line[i + 1] ~ /^[ \t]*\}/) ? "" : ","); done = 1
-                            }
-                        }
-                        if (!done) exit 3
-                    }' "$in" > "$t" || {
+                KO_ROOT="$root" KO_DIR="$tdir" KO_PREFIX="$R7" \
+                    awk -f "$KICKOFF_SCRIPTS/json.awk" -f "$KICKOFF_SCRIPTS/registry-insert.awk" "$in" > "$t" || {
                     rm -f "$t"; report refused "$reg"; rc=3; t=""; }
                 if [ -n "$t" ]; then [ -f "$reg" ] && r=updated || r=created; mv "$t" "$reg"; report "$r" "$reg"; fi
             fi ;;

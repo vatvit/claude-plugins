@@ -18,6 +18,8 @@ kickoff/
 │   ├── charter.awk / charter.sh  ← docs/project/charter.md from the answers
 │   ├── scaffold.sh               ← docs/ skeleton, CLAUDE.md (claude.awk), task config + workflow
 │   ├── get.awk                   ← settled answers for shell scripts
+│   ├── defaults.sh               ← the user layer: per-account defaults (kickoff.json)
+│   ├── json.awk                  ← json_q(), the one JSON string writer (defaults-write.awk, registry-insert.awk)
 │   ├── ports.sh                  ← the machine-wide dev-port registry (~/.claude/kickoff/ports.json)
 │   └── test/                     ← all.sh runs every *.test.sh; helpers.sh is shared by them
 ├── templates/                     ← the task workflows scaffold.sh seeds (profiles, minimal)
@@ -50,6 +52,10 @@ real file, so a broken edit fails them.
 - **A client's repo carries nothing of the user.** For tasks outside the repo, CLAUDE.md says so in prose
   and never prints the tasks path, which contains the home directory (4h). The task registry entry is
   inserted into the existing file, keeping the other projects (4d, 4l).
+- **The user layer is per account** (follows `CLAUDE_CONFIG_DIR`, 3b/3c); the port registry is per
+  machine. Precedence: answer > user default > `(★ if …)` > ★.
+- **JSON strings go through `json_q()`** in json.awk, a character loop. busybox treats the backslashes
+  in a `gsub` replacement differently from gawk and BSD awk (defaults test 4a/4b).
 - **Generators write only settled answers** (`settled()` in lib.awk): a pending, stale, undecided or
   `n/a` answer produces nothing.
 - **The port registry is machine-wide** and must never follow `CLAUDE_CONFIG_DIR`; test 3a/3b pins
