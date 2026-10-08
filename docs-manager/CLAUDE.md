@@ -14,9 +14,10 @@ docs-manager/
 ├── .claude-plugin/plugin.json   ← plugin manifest
 ├── scripts/
 │   ├── lib.sh                   ← shared helpers, sourced by the others
-│   ├── docs.sh                  ← CLI front-end: index / links / diagram / check
+│   ├── docs.sh                  ← CLI front-end: index / links / diagram / external / check
 │   ├── diagram.sh               ← diagram sources → generated blocks, staleness
-│   └── test/diagram.test.sh     ← the suite (no framework, no dependencies)
+│   ├── external.sh              ← external files (pdf, docx, …) and their cards
+│   └── test/*.test.sh           ← the suites (no framework, no dependencies)
 ├── hooks/
 │   ├── hooks.json               ← PostToolUse registration
 │   └── diagram-watch-hook.sh    ← warns when an edited file is watched
@@ -25,7 +26,8 @@ docs-manager/
 │   └── references/              ← loaded on demand, only for the job each one covers
 │       ├── how-to-erd.md
 │       ├── how-to-claude-md.md
-│       └── how-to-render.md
+│       ├── how-to-render.md
+│       └── how-to-external-docs.md
 ├── README.md
 └── CLAUDE.md                    ← this file
 ```
@@ -151,6 +153,30 @@ plugin ships no renderer, pulls nothing, installs nothing.
   out through `x="$(helper)"` and kills the run. `render_script` and `artifact_for` both end in an
   explicit `return 0` for this reason — "absent" is the normal case, not an error. This bit once.
 
+## scripts/external.sh
+
+An external file is one with an extension in `EXTERNAL_EXTS`; its card is `<file>.md` beside it.
+Sourced by `docs.sh`, like `diagram.sh`.
+
+Key behaviors (don't regress these):
+- **Convention, not config.** `<root>/external/` and `EXTERNAL_EXTS` are fixed, for the same reason
+  the render port is a convention — see `DOCS_MANAGER_ROOT` above. PLUG-016 originally specced a
+  `.docs-manager.json` with an `externalDir` key; it was dropped against that rule. Do not re-add it.
+- **The file name is the link.** A card has no `source:` key; `is_card` and `external_source` derive
+  one from the other. A second place recording the pairing is a second thing to drift.
+- **`stamp` is the only writer of `digest:`**, exactly as `bless` is for `stamp:`, and it is
+  diff-guarded. The digest is sha256 of the file's **bytes** — never a path (case S3).
+- **The `### External documents` section is emitted only when a folder has externals**, so every
+  existing `_index.md` regenerates byte-identical on upgrade. Case E2 pins it.
+- **A diagram's render artifact is not external.** `x.pdf` beside `x.diagram.md` is skipped (E3) —
+  without that every project rendering to PDF would fail `check`.
+- **`status` writes `-` for an empty field.** Tab is whitespace to `read`, so consecutive tabs
+  collapse and shift every field after them — an orphan's card path landed in the wrong variable
+  until this was fixed.
+- **Placement never fails `check`.** `outside` and `unfiled` are reported by `status` only; a carded
+  file kept beside the doc that uses it is a choice.
+- **`move` reports broken links, never rewrites them.**
+
 ## skills/docs-manager/references/
 
 Long-form guidance that is only worth context when a specific job comes up. `SKILL.md` points at a
@@ -174,14 +200,21 @@ source of truth, and it is the copy that gets acted on, so it is the copy that d
   "needs a `.docs-manager-render` and there is none" had nothing to suggest. The recipes now live
   here only; `README.md` links to this file rather than repeating them.
 
+- `how-to-external-docs.md` — the card format, the `docs/external/` layout and the cataloguing
+  procedure. It exists because **a card's value is in what no command can check**: whether the
+  `## Where to look` rows point at the right pages. `check` proves a card exists and is current, not
+  that it is true.
+
 Adding a reference means: the file, a pointer from `SKILL.md`, trigger phrases in the skill
 `description:` (or it is unreachable), and a row here.
 
 ## Testing
 
 ```bash
-bash scripts/test/diagram.test.sh                                            # host
-docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/diagram.test.sh  # container
+bash scripts/test/diagram.test.sh                                             # host
+docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/diagram.test.sh   # container
+bash scripts/test/external.test.sh                                            # host
+docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/external.test.sh  # container
 ```
 
 **Run both, always.** The host target (macOS bash 3.2 + BSD userland) catches `declare -A`,

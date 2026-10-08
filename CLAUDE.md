@@ -143,9 +143,11 @@ forget because neither is exercised by any test.
 
 **Check trigger phrases against the other plugins' skill descriptions.** Two plugins
 competing for the same words is a coin flip at activation time. Today the vocabularies are
-disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.md / AGENTS.md*,
-task-roadmap owns *roadmap / gantt / timeline*, session-storage owns *storage / session data*,
-delay owns *delay / run later / run tonight / run at night / wake* and says *job*, never *task*.
+disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.md / AGENTS.md /
+external docs / catalogue / ingest / reference material*, task-roadmap owns *roadmap / gantt /
+timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
+tonight / run at night / wake* and says *job*, never *task*. Bare *pdf / word / excel / docx /
+xlsx* belong to Claude's built-in document skills — no plugin here claims them.
 
 ## Tasks
 

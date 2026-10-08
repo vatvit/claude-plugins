@@ -4,7 +4,10 @@
 # Subcommands:
 #   index  [--write|--check] [root]   Regenerate (or verify) the AUTO-INDEX block in each _index.md
 #   links  [root]                     Report broken relative markdown links
-#   check  [root]                     Run index --check + links; non-zero exit on any issue
+#   external status|check [root]      External files (pdf, docx, …) and their cards; see external.sh
+#   external stamp <file>             Record a reviewed card's digest (the only writer of digest:)
+#   external move <file> <dir> [root] Move a file and its card together; report links it broke
+#   check  [root]                     Run every --check above + links; non-zero exit on any issue
 #
 # Default root is "docs". Conventions assumed:
 #   - Every doc and _index.md starts with YAML frontmatter containing `title:` and `description:`.
@@ -19,16 +22,27 @@ END="<!-- AUTO-INDEX:END -->"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
 . "$SCRIPT_DIR/lib.sh"
+# shellcheck source=external.sh
+. "$SCRIPT_DIR/external.sh"
 # shellcheck source=diagram.sh
 . "$SCRIPT_DIR/diagram.sh"
 
 list_subdirs() { find "$1" -mindepth 1 -maxdepth 1 -type d | sort; }
-# diagram sources are not documents — they are the input to a generated block
-list_docs()    { find "$1" -mindepth 1 -maxdepth 1 -type f -name '*.md' ! -name '_index.md' ! -name '*.diagram.md' | sort; }
+# Diagram sources and cards are not documents: a source is the input to a generated block,
+# and a card is listed under the external file it describes.
+list_docs() {
+  local f
+  while IFS= read -r f; do
+    [ -n "$f" ] && ! is_card "$f" && printf '%s\n' "$f"
+  done <<EOF
+$(find "$1" -mindepth 1 -maxdepth 1 -type f -name '*.md' ! -name '_index.md' ! -name '*.diagram.md' | sort)
+EOF
+  return 0
+}
 
 # Print the AUTO-INDEX block (markers included) for a directory to stdout.
 build_block() {
-  local dir="$1" sub doc desc name
+  local dir="$1" sub doc desc name ext
   printf '%s\n' "$START"
   printf '\n### Sub-folders\n'
   if [ -z "$(list_subdirs "$dir")" ]; then
@@ -51,6 +65,22 @@ EOF
       printf -- '- [`%s`](%s) — %s\n' "$name" "$name" "${desc:-_(no description)_}"
     done <<EOF
 $(list_docs "$dir")
+EOF
+  fi
+  # Only when there is something to list, so an index in a folder without externals is
+  # byte-identical to what earlier versions generated — no DRIFT on upgrade.
+  if [ -n "$(list_externals "$dir" 1)" ]; then
+    printf '\n### External documents\n'
+    while IFS= read -r ext; do
+      name="$(basename "$ext")"
+      if [ -f "$ext.md" ]; then
+        desc="$(fm_field "$ext.md" description)"
+        printf -- '- [`%s`](%s.md) — %s\n' "$name" "$name" "${desc:-_(no description)_}"
+      else
+        printf -- '- [`%s`](%s) — _(no card yet)_\n' "$name" "$name"
+      fi
+    done <<EOF
+$(list_externals "$dir" 1)
 EOF
   fi
   printf '%s\n' "$END"
@@ -145,6 +175,7 @@ cmd_check() {
   cmd_index --check "$root" || rc=1
   cmd_diagram_index --check "$root" || rc=1
   cmd_diagram_check "$root" || rc=1
+  cmd_external_check "$root" || rc=1
   cmd_links "$root" || rc=1
   [ "$rc" -eq 0 ] && echo "docs check: OK"
   return $rc
@@ -165,7 +196,8 @@ sub="${1:-check}"; shift || true
 case "$sub" in
   index)   cmd_index "$@" ;;
   links)   cmd_links "$@" ;;
-  diagram) cmd_diagram "$@" ;;
-  check)   cmd_check "$@" ;;
-  *) echo "Usage: docs.sh {index [--write|--check]|links|diagram index [--write|--check]|check} [root]" >&2; exit 2 ;;
+  diagram)  cmd_diagram "$@" ;;
+  external) cmd_external "$@" ;;
+  check)    cmd_check "$@" ;;
+  *) echo "Usage: docs.sh {index [--write|--check]|links|diagram index [--write|--check]|external {status|check|stamp|move}|check} [root]" >&2; exit 2 ;;
 esac

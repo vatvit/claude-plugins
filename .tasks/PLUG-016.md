@@ -1,6 +1,6 @@
 ---
 title: docs-manager — catalogue external docs (pdf, docx, xlsx) for Claude
-status: proposed
+status: in-progress
 type: epic
 epic-name: external-docs
 priority: medium
@@ -78,3 +78,12 @@ A mixed folder of pdf/docx/xlsx dropped into `docs/external/` ends up placed, ca
 
 Order: PLUG-017 first (defines the card); then PLUG-018 ‖ PLUG-019 in parallel (scripts vs skill text, disjoint
 files); PLUG-020 and PLUG-021 after PLUG-019 / PLUG-018 respectively, and independent of each other.
+
+## Current State (2026-10-08)
+
+- PLUG-017, PLUG-018, PLUG-019 completed in one session — docs-manager 1.6.0, not yet committed.
+- **Design change vs. the Design section above** (recorded in PLUG-017 Context): no
+  `.docs-manager.json` — `<root>/external/` and the extension list are fixed conventions, because
+  docs-manager's `CLAUDE.md` forbids a config file. The card has no `source:` key; its name is the link.
+- Remaining: PLUG-020 (docx/xlsx extraction), PLUG-021 (`relates-to` flagging). Independent of each
+  other; both build on `scripts/external.sh`.

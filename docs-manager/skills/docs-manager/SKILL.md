@@ -1,7 +1,7 @@
 ---
 name: docs-manager
-description: Use when creating or maintaining a markdown documentation set treated as a product — per-folder _index.md navigation, broken cross-doc link checks, the docs-as-product conventions (frontmatter, single source of truth, DRY via cross-links), and diagrams that live in text sources beside the docs they illustrate. Activate on "update the docs index", "regenerate _index.md", "check doc links", "are the docs consistent", or after adding/moving/removing docs. Also activate for diagrams in docs — "add a diagram to this doc", "draw the auth flow", "explain this with a picture", "update the diagram", "is the diagram still accurate", "bless the diagram" — and whenever a doc would be clearer as a picture than as prose. Also activate for rendering a diagram to a standalone image — "render the diagram", "export the diagram as SVG/PNG/HTML", "interactive diagram page", "why is nothing rendered", ".docs-manager-render", "set up a diagram renderer". Also activate for entity-relationship diagrams specifically — "draw an ERD", "erDiagram", "diagram the data model", "diagram the schema", "picture of these entities/tables/types and how they relate", "is this ERD still right" — and before drawing or changing any ERD, whether it depicts tables, interfaces, structs or JSON schemas. Also activate for the project's agent instruction file — "optimise CLAUDE.md", "CLAUDE.md is too long", "clean up AGENTS.md", "move this out of CLAUDE.md", "should this go in CLAUDE.md or the docs", "where does this rule belong" — and before adding anything to such a file.
-version: 1.5.0
+description: Use when creating or maintaining a markdown documentation set treated as a product — per-folder _index.md navigation, broken cross-doc link checks, the docs-as-product conventions (frontmatter, single source of truth, DRY via cross-links), and diagrams that live in text sources beside the docs they illustrate. Activate on "update the docs index", "regenerate _index.md", "check doc links", "are the docs consistent", or after adding/moving/removing docs. Also activate for diagrams in docs — "add a diagram to this doc", "draw the auth flow", "explain this with a picture", "update the diagram", "is the diagram still accurate", "bless the diagram" — and whenever a doc would be clearer as a picture than as prose. Also activate for rendering a diagram to a standalone image — "render the diagram", "export the diagram as SVG/PNG/HTML", "interactive diagram page", "why is nothing rendered", ".docs-manager-render", "set up a diagram renderer". Also activate for entity-relationship diagrams specifically — "draw an ERD", "erDiagram", "diagram the data model", "diagram the schema", "picture of these entities/tables/types and how they relate", "is this ERD still right" — and before drawing or changing any ERD, whether it depicts tables, interfaces, structs or JSON schemas. Also activate for external reference material — "catalogue the external docs", "ingest these documents", "I added files to docs/external", "index the reference material", "what is in the external docs", "card for this document", "NO CARD", "external stamp" — and before answering a question from a vendor spec, contract or spreadsheet kept under docs/. Also activate for the project's agent instruction file — "optimise CLAUDE.md", "CLAUDE.md is too long", "clean up AGENTS.md", "move this out of CLAUDE.md", "should this go in CLAUDE.md or the docs", "where does this rule belong" — and before adding anything to such a file.
+version: 1.6.0
 ---
 
 # Docs Manager
@@ -59,7 +59,7 @@ bash <PLUGIN_ROOT>/scripts/docs.sh diagram bless <name> [root]
 # Diagrams — run the project's own render script, if it has one
 bash <PLUGIN_ROOT>/scripts/docs.sh diagram render [root]
 
-# index --check + diagram index --check + diagram check + links combined
+# index --check + diagram index --check + diagram check + external check + links combined
 bash <PLUGIN_ROOT>/scripts/docs.sh check [root]
 ```
 
@@ -138,6 +138,17 @@ checklist before `diagram bless`, and `bless` before `diagram index --write`.
 
 Reading it is not optional for "a quick one" — a small ERD breaks the same rules as a large one, and
 a shipped picture is what the docs then vouch for.
+
+## External docs
+
+Reference material the project did not write — a vendor PDF, a contract in Word, a spreadsheet —
+lives under `<root>/external/`, and each file gets a **card**: a doc beside it saying what it
+holds, when to read it, and where inside it to look. `index` lists cards; `check` reports files
+with no card, cards gone stale, and cards whose file is gone.
+
+**So: read [`references/how-to-external-docs.md`](references/how-to-external-docs.md) in full
+before adding, cataloguing, moving or answering a question from an external file**, and work from
+that file. This section deliberately states neither the card format nor the procedure.
 
 ## The agent instruction file
 

@@ -24,6 +24,10 @@ small set of conventions that keep docs DRY and always reflecting the current st
   [`how-to-claude-md.md`](skills/docs-manager/references/how-to-claude-md.md): the instruction-vs-knowledge
   test, where each kind of knowledge goes, the block-by-block extraction procedure, a mechanical check
   that nothing was lost, and a checklist.
+- **External docs** — drop a vendor PDF, a Word contract or a spreadsheet into `docs/external/` and
+  it gets a **card**: a doc beside it saying what it holds, when to read it and where inside it to
+  look (pages, headings, sheets). Cards are indexed like any doc; `check` reports files with no
+  card, cards gone stale since the file changed, and cards whose file is gone.
 - **Conventions** — docs reflect current state (history lives in tasks), single source of truth,
   cross-link instead of duplicate, frontmatter on every doc.
 
@@ -52,6 +56,12 @@ bash scripts/docs.sh diagram bless auth-flow
 
 # Optional: run the project's own render script, if it has one
 bash scripts/docs.sh diagram render
+
+# External docs: which files need a card, record a reviewed card, file one away
+bash scripts/docs.sh external status
+bash scripts/docs.sh external check
+bash scripts/docs.sh external stamp docs/external/vendor/spec.pdf
+bash scripts/docs.sh external move docs/external/spec.pdf docs/external/vendor
 
 # All checks
 bash scripts/docs.sh check
@@ -239,6 +249,31 @@ semantics and a setup checklist — are in
 They are examples to adapt, not supported integrations.
 
 
+## External docs
+
+A PDF, a `.docx` or an `.xlsx` cannot be grepped and is expensive to read whole, so on its own it is
+close to invisible to an agent. Each one gets a card beside it — `spec.pdf` → `spec.pdf.md` — with a
+summary, `read-when:` situations, and a **Where to look** table mapping topics to pages, headings or
+sheets. A later session reads the card, then opens exactly pages 31–38.
+
+```
+docs/external/
+├── payments-spec.pdf          ← just dropped in: not yet filed
+└── vendor-api/
+    ├── payments-spec-v3.pdf
+    └── payments-spec-v3.pdf.md
+```
+
+- **`docs/external/` is a convention, not a setting.** Files dropped at its top level are filed into
+  a topic folder when catalogued; one found elsewhere under `docs/` is still detected.
+- **`digest:` makes staleness real.** `external stamp` records the sha256 of the file's bytes once the
+  card has been reviewed; replace the file and `check` reports the card as `CHANGED`.
+- **Recognised extensions:** `pdf doc docx xls xlsx ppt pptx odt ods odp rtf epub`. A `.pdf` rendered
+  from a diagram source beside it is output, not reference material, and is ignored.
+- Files you place in the project are committed as they are; the plugin only ever writes cards.
+
+Card format and the cataloguing procedure: [`how-to-external-docs.md`](skills/docs-manager/references/how-to-external-docs.md).
+
 ## The agent instruction file (CLAUDE.md / AGENTS.md)
 
 That file is read **in full, before every task**, which is both its value and the reason it decays:
@@ -271,6 +306,7 @@ that decision repeated is how the large problem is built.
 ```bash
 bash scripts/test/diagram.test.sh                                    # host
 docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/diagram.test.sh   # container
+# same two targets for scripts/test/external.test.sh
 ```
 
 Run both: the host target (macOS `bash` 3.2 + BSD userland) and the container target (bash 5 + GNU
