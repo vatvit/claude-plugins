@@ -25,6 +25,7 @@ claude-plugins/
 ├── task-roadmap/              ← plugin
 ├── delay/                     ← plugin
 ├── crew/                      ← plugin
+├── kickoff/                   ← plugin
 ├── .tasks/                    ← this repo's own task files (NOT a plugin)
 ├── .task-config.json          ← task skill config (tasksDir, prefix)
 ├── CLAUDE.md                  ← this file (repo-level)
@@ -47,6 +48,7 @@ marketplace, and treat `tasks` / `.tasks` as reserved directory names.
 | task-roadmap | `task-roadmap/` | Abstract-Gantt roadmap from a markdown task set, auto-regenerated on task changes |
 | delay | `delay/` | Queue approved per-project jobs (autotests) for the user's run window; user-started runner wakes the Mac, runs them in docker, unloads itself |
 | crew | `crew/` | Several Claude sessions on one working tree and branch: coordinator/worker playbook, identity, status by owner, hand-offs, guard hooks |
+| kickoff | `kickoff/` | New-project questionnaire: branching questions with options and defaults, answers recorded in the project, charter generated from them |
 
 ## Shell Conventions
 
@@ -69,6 +71,10 @@ constraints, not preferences — a plugin that breaks them breaks on someone's m
   container, where `allocate-id.sh` execs `resolve-config.sh`.
 - **Passing multi-line text to awk:** use a temp file read with `getline`, never
   `awk -v` (which cannot carry newlines).
+- **awk portability traps** (found in kickoff 0.1.0, each by only one of the two test targets):
+  `a[++n] = "x" n` evaluates the two sides in different orders on BSD awk and busybox, so increment
+  in its own statement. And a non-ASCII character (`★ ≠ · §`) is one char in gawk but several bytes
+  in busybox/mawk, so strip it with a pattern, never a `substr` offset.
 - **Hooks always `exit 0`** and never block the tool call that triggered them, with one deliberate
   exception: crew's guard hooks deny (a JSON `permissionDecision`, still exit 0), because a warning
   arrives after `git add -A` has already staged a peer's files; `hookMode=warn` turns them off. A hook that reports
@@ -162,7 +168,9 @@ disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.m
 external docs / catalogue / ingest / reference material*, task-roadmap owns *roadmap / gantt /
 timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
 tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
-hand off / hold / hot spot / slot / land / copy / snapshot* and says *slot*, never *job* or *queue* alone.
+hand off / hold / hot spot / slot / land / copy / snapshot* and says *slot*, never *job* or *queue* alone,
+kickoff owns *kickoff / kick off / new project / start a project / bootstrap / questionnaire / charter*
+and never says *init*, which is the built-in `/init`.
 Bare *pdf / word / excel / docx /
 xlsx* belong to Claude's built-in document skills — no plugin here claims them.
 

@@ -39,6 +39,12 @@
       "source": "./crew",
       "description": "Run several Claude Code sessions on one working tree and one branch without lost edits: a coordinator/worker playbook, identity unique across crews on one machine, a one-screen status of every dirty path by owner, crew-tagged hand-off messages, hot-spot holds, a slot queue for machine time (cpu / exclusive / quiet), copies landed with a merge-or-refuse apply, a snapshot before every edit, exact-path-list commits under one committer, and guard hooks that deny whole-index git commands. Layered project/user config; costs nothing in repos without a crew. Runtime-free (bash + awk + git).",
       "version": "1.0.1"
+    },
+    {
+      "name": "kickoff",
+      "source": "./kickoff",
+      "description": "Kick off a new project with one standard questionnaire: questions branch on earlier answers, each offers pre-defined options and a default, answers are recorded in the project, and a charter (overview, goal, scope, numbered decisions with their reasons, open questions) is generated from them. Runtime-free (bash + awk).",
+      "version": "0.1.0"
     }
   ]
 }
