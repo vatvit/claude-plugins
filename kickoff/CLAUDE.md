@@ -16,7 +16,8 @@ kickoff/
 │   ├── plan.awk / plan.sh        ← what to ask now (--next), the review table (--review)
 │   ├── answer.sh                 ← the only writer of .kickoff-answers
 │   ├── charter.awk / charter.sh  ← docs/project/charter.md from the answers
-│   └── test/kickoff.test.sh
+│   ├── ports.sh                  ← the machine-wide dev-port registry (~/.claude/kickoff/ports.json)
+│   └── test/                     ← all.sh runs every *.test.sh; helpers.sh is shared by them
 └── README.md
 ```
 
@@ -40,12 +41,16 @@ real file, so a broken edit fails them.
 - **`n/a` counts as answered** (so `--next` moves on) but never reaches the charter. It is how a
   *judge* question is retired.
 - **The charter refuses to overwrite** a differing file (exit 3). After kickoff it is edited by hand.
+- **The port registry is machine-wide** and must never follow `CLAUDE_CONFIG_DIR`; test 3a/3b pins
+  it. The compose scan runs on *every* allocation, not only for a new registry, so a port a project
+  took without kickoff is never handed out (2a). Writes happen under a `mkdir` lock whose pid file
+  lets a dead holder's lock be broken (4d).
 
 ## Testing
 
 ```bash
-bash kickoff/scripts/test/kickoff.test.sh                                            # host
-docker run --rm -v "$PWD":/w -w /w bash:5 bash kickoff/scripts/test/kickoff.test.sh  # container
+bash kickoff/scripts/test/all.sh                                            # host
+docker run --rm -v "$PWD":/w -w /w bash:5 bash kickoff/scripts/test/all.sh  # container
 ```
 
 Run both. Each target has already caught a bug the other missed (see above). The suite builds

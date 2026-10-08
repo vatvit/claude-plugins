@@ -8,18 +8,7 @@
 #   docker run --rm -v "$PWD":/w -w /w bash:5 bash kickoff/scripts/test/kickoff.test.sh
 set -uo pipefail
 
-S="$(cd "$(dirname "$0")/.." && pwd)"
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
-pass=0 fail=0
-
-check() { # check <name> <expected> <actual>
-    if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "  ok   $1"
-    else fail=$((fail+1)); echo "  FAIL $1"; echo "         expected: [$2]"; echo "         actual:   [$3]"; fi
-}
-has() { case "$2" in *"$1"*) echo yes ;; *) echo no ;; esac; }   # has <needle> <haystack>
-
-fresh() { rm -rf "$TMP/$1"; mkdir -p "$TMP/$1"; echo "$TMP/$1"; }
+. "$(dirname "$0")/helpers.sh"
 a() { bash "$S/answer.sh" --root "$P" "$@"; }                   # record an answer in $P
 field() { bash "$S/plan.sh" "$P" | awk -F'\t' -v id="$1" -v f="$2" '$2 == id { print $f }'; }
 state() { field "$1" 3; }
@@ -138,6 +127,4 @@ check "8c D4 external AI"      "yes" "$(has "**Uses an AI model?** Yes, via an A
 check "8d D5 quality bar"      "yes" "$(has "High for the core result" "$D")"
 check "8e D7 provider + why"   "yes" "$(has "OpenAI | Same API as Azure OpenAI" "$D")"
 
-echo
-echo "passed: $pass  failed: $fail"
-[ "$fail" -eq 0 ]
+summary

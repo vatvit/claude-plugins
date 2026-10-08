@@ -180,9 +180,10 @@ Never in a CLAUDE.md — that file holds instructions and stays small.
 | **Port registry** — every project's dev ports | machine-wide: all accounts share one Docker | `~/.claude/kickoff/ports.json` — deliberately ignores `CLAUDE_CONFIG_DIR`, or two accounts would hand out the same port |
 | **The user's defaults** — overrides of the ★ answers above | per account: a work account defaults to *employer's project*, *tasks outside the repo* | `${CLAUDE_CONFIG_DIR:-~/.claude}/kickoff.json` |
 
-Both files are optional; without them the ★ defaults above apply and I5 falls back to scanning the
-existing projects' compose files. The port registry starts out with the ports already in use
-(today listed in project-e's CLAUDE.md).
+Both files are optional; without them the ★ defaults above apply. A port is free only when neither
+the registry nor any compose file under `~/projects` publishes it, so a port that a project took
+without kickoff is never handed out. Ports used outside compose (today listed in project-e's
+CLAUDE.md) are recorded once with `scripts/ports.sh set <name> <port>`.
 
 ## Open questions about this questionnaire
 

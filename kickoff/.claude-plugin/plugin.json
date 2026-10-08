@@ -1,11 +1,11 @@
 {
   "name": "kickoff",
-  "description": "Kick off a new project with one standard questionnaire: questions branch on earlier answers, each offers pre-defined options and a default, answers are recorded in the project, and a charter (overview, goal, scope, numbered decisions with their reasons, open questions) is generated from them. Runtime-free (bash + awk).",
-  "version": "0.1.0",
+  "description": "Kick off a new project with one standard questionnaire: questions branch on earlier answers, each offers pre-defined options and a default, answers are recorded in the project, and a charter (overview, goal, scope, numbered decisions with their reasons, open questions) is generated from them. A machine-wide dev-port registry, shared by every Claude account on the Mac and aware of ports already published in compose files, hands each project a free port. Runtime-free (bash + awk).",
+  "version": "0.2.0",
   "author": {
     "name": "Vat",
     "url": "https://github.com/vatvit"
   },
   "license": "MIT",
-  "keywords": ["kickoff", "new-project", "questionnaire", "charter", "onboarding", "project-setup"]
+  "keywords": ["kickoff", "new-project", "questionnaire", "charter", "onboarding", "project-setup", "ports"]
 }

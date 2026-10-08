@@ -24,7 +24,16 @@ The scripts can also be run directly:
 bash kickoff/scripts/plan.sh  [project] [--next | --review]   # what to ask now, with defaults
 bash kickoff/scripts/answer.sh --root <project> [--add|--clear] <ID> "<value>"
 bash kickoff/scripts/charter.sh [project] [--force | --stdout]
+bash kickoff/scripts/ports.sh next | allocate <name> | set <name> <port> | release <name> | list [--all]
 ```
+
+## Dev ports
+
+`ports.sh` keeps one registry per machine, at `~/.claude/kickoff/ports.json`. It deliberately ignores
+`CLAUDE_CONFIG_DIR`: every Claude account on the Mac shares one Docker, so they must share one list.
+A port counts as taken when it is in the registry *or* published in any compose file under
+`~/projects` (`KICKOFF_PROJECTS_DIR`). Allocation starts at 3030 (`KICKOFF_PORT_BASE`) and is safe to
+run from parallel sessions.
 
 ## The questionnaire
 
