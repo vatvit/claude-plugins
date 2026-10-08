@@ -3,7 +3,8 @@
 You never need a config file. Each key is resolved separately, in this order:
 1. **project**: `.crew.json` at the repo root, a flat JSON object that is committed and shared
    by the crew;
-2. **user**: `~/.claude/crew.json`, your personal habits across projects;
+2. **user**: `${CLAUDE_CONFIG_DIR:-~/.claude}/crew.json`, your personal habits across projects. It is per
+   Claude account: a second account (`CLAUDE_CONFIG_DIR`) keeps its own;
 3. the built-in **default**.
 
 `crew.sh config` prints every effective value and the layer it came from.

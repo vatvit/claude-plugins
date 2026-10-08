@@ -39,6 +39,11 @@ crew/
   Scripts learn the caller from the `CREW_AS=<name>` prefix, which SessionStart teaches (again
   after `/compact`). No env var survives between Bash tool calls, so the prefix is the only
   reliable channel.
+- **Per account vs per machine** (the repo rule in the root `CLAUDE.md` Config convention):
+  - The user config `crew.json` is per account. It follows `${CLAUDE_CONFIG_DIR:-~/.claude}`.
+  - The name registry (`CREW_HOME`, `~/.claude/crew`) is per machine. It deliberately ignores
+    `CLAUDE_CONFIG_DIR`, because SendMessage spans accounts.
+  - `core.test.sh` asserts both.
 - **Names are unique on the machine, not just in the crew.** SendMessage addresses sessions
   machine-wide, and several crews (one per repo) can run at once. `whoami` checks
   `~/.claude/crew/names/<name>` (`CREW_HOME`) and refuses a name a live session of another crew

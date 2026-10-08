@@ -10,8 +10,12 @@
 CREW_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CREW_PLUGIN_DIR="$(dirname "$CREW_LIB_DIR")"
 CREW_BIN="$CREW_LIB_DIR/crew.sh"
-CREW_USER_CONFIG="${CREW_USER_CONFIG:-$HOME/.claude/crew.json}"
-CREW_HOME="${CREW_HOME:-$HOME/.claude/crew}"          # machine-wide: the name registry
+# Per ACCOUNT: the user's preferences follow the Claude account (Claude Code sets CLAUDE_CONFIG_DIR
+# for a non-default one), so each account keeps its own crew.json.
+CREW_USER_CONFIG="${CREW_USER_CONFIG:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/crew.json}"
+# Per MACHINE: the session-name registry deliberately ignores CLAUDE_CONFIG_DIR — SendMessage
+# addresses sessions of every account on this machine, so all accounts must see one registry.
+CREW_HOME="${CREW_HOME:-$HOME/.claude/crew}"
 CREW_KEYS="crewId sharedBranch committer hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin"
 
 die()  { echo "crew: $*" >&2; exit 1; }

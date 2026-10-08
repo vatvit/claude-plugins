@@ -61,6 +61,21 @@ check "project array" yes "$(contains "hotSpots=src/schema.ts,scenes/*.ts (proje
 check "partial project file: other keys still layer" yes "$(contains "snapshotKeep=5 (user)" "$out")"
 rm -f "$R/.crew.json" "$CREW_USER_CONFIG"
 
+echo "-- per account vs per machine"
+mkdir -p "$TMP/acct2" "$HOME/.claude"
+printf '{"committer":"each-session"}' > "$TMP/acct2/crew.json"
+printf '{"committer":"human-approved"}' > "$HOME/.claude/crew.json"
+out="$(cd "$R" && env -u CREW_USER_CONFIG CLAUDE_CONFIG_DIR="$TMP/acct2" bash "$C" config)"
+check "user layer follows CLAUDE_CONFIG_DIR" yes "$(contains "committer=each-session (user)" "$out")"
+out="$(cd "$R" && env -u CREW_USER_CONFIG -u CLAUDE_CONFIG_DIR bash "$C" config)"
+check "…unset: ~/.claude/crew.json" yes "$(contains "committer=human-approved (user)" "$out")"
+out="$(cd "$R" && CLAUDE_CONFIG_DIR="$TMP/acct2" bash "$C" config)"
+check "…an explicit CREW_USER_CONFIG still wins" yes "$(contains "committer=coordinator (default)" "$out")"
+# the name registry is per MACHINE: SendMessage spans accounts, so every account must see one registry
+out="$(cd "$R" && env -u CREW_HOME CLAUDE_CONFIG_DIR="$TMP/acct2" bash -c '. "$1"; echo "$CREW_HOME"' x "$S/lib.sh")"
+check "CREW_HOME ignores CLAUDE_CONFIG_DIR" "$HOME/.claude/crew" "$out"
+rm -f "$HOME/.claude/crew.json"
+
 echo "-- claims + status"
 edit "$R" s1 a.txt "s1 edit"
 edit "$R" s2 b.txt "s2 edit"

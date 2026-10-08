@@ -51,8 +51,14 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 ## Config
 
 Optional. Each key is resolved separately: the project's `.crew.json`, then your
-`~/.claude/crew.json`, then a default. See
+`${CLAUDE_CONFIG_DIR:-~/.claude}/crew.json`, then a default. See
 [skills/crew/references/config.md](skills/crew/references/config.md).
+
+**Per account or per machine:**
+- Your `crew.json` is **per Claude account**: it follows `CLAUDE_CONFIG_DIR`.
+- The session-name registry (`~/.claude/crew/names/`) is **per machine**: SendMessage reaches
+  every account's sessions, so every account checks names against one registry.
+- Crew state (holds, slots, snapshots) lives in the repo's `.git/crew/`.
 
 ## The rules
 
