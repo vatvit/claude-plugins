@@ -7,6 +7,8 @@
 #   external status|check [root]      External files (pdf, docx, …) and their cards; see external.sh
 #   external stamp <file>             Record a reviewed card's digest (the only writer of digest:)
 #   external move <file> <dir> [root] Move a file and its card together; report links it broke
+#   external related <file> [root]    Docs that depend on a file: its card's relates-to + back-links
+#   external outline|text <file>      docx/xlsx headings or sheets / plain text; see extract.sh
 #   check  [root]                     Run every --check above + links; non-zero exit on any issue
 #
 # Default root is "docs". Conventions assumed:
@@ -24,6 +26,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/lib.sh"
 # shellcheck source=external.sh
 . "$SCRIPT_DIR/external.sh"
+# shellcheck source=extract.sh
+. "$SCRIPT_DIR/extract.sh"
 # shellcheck source=diagram.sh
 . "$SCRIPT_DIR/diagram.sh"
 
@@ -124,21 +128,13 @@ EOF
 }
 
 cmd_links() {
-  local root="${1:-$ROOT_DEFAULT}" found=0 file link target base
+  local root="${1:-$ROOT_DEFAULT}" found=0 file link target
   [ -d "$root" ] || { echo "No such root: $root" >&2; return 1; }
-  while IFS= read -r file; do
-    base="$(dirname "$file")"
-    while IFS= read -r link; do
-      case "$link" in http://*|https://*|mailto:*|\#*|"") continue ;; esac
-      link="${link%%#*}"; link="${link%%\?*}"
-      [ -z "$link" ] && continue
-      case "$link" in /*) target="$link" ;; *) target="$(normalize_path "$base/$link")" ;; esac
-      [ -e "$target" ] || { echo "BROKEN LINK: $file -> $link"; found=1; }
-    done <<EOF
-$(grep -oE '\]\([^)]+\)' "$file" 2>/dev/null | sed -E 's/^\]\(//; s/\)$//')
-EOF
+  while IFS=$'\t' read -r file link target; do
+    [ -n "$file" ] || continue
+    [ -e "$target" ] || { echo "BROKEN LINK: $file -> $link"; found=1; }
   done <<EOF
-$(find "$root" -type f -name '*.md' | sort)
+$(doc_links "$root")
 EOF
 
   # Second pass: frontmatter refs in diagram sources. The markdown pass above already
@@ -162,6 +158,22 @@ $(fm_map "$srcfile" refs)
 EOF2
   done <<EOF
 $(find "$root" -type f -name '*.diagram.md' | sort)
+EOF
+
+  # Third pass: `relates-to:` in external cards, relative to the card. `external related`
+  # skips a missing entry silently because this is where it is reported.
+  local card
+  while IFS= read -r card; do
+    [ -n "$card" ] || continue
+    while IFS= read -r path; do
+      [ -n "$path" ] || continue
+      target="$(normalize_path "$(dirname "$card")/$path")"
+      [ -e "$target" ] || { echo "BROKEN REF: $card -> relates-to:$path"; found=1; }
+    done <<EOF2
+$(fm_list "$card" relates-to)
+EOF2
+  done <<EOF
+$(list_cards "$root")
 EOF
 
   return $found
@@ -199,5 +211,5 @@ case "$sub" in
   diagram)  cmd_diagram "$@" ;;
   external) cmd_external "$@" ;;
   check)    cmd_check "$@" ;;
-  *) echo "Usage: docs.sh {index [--write|--check]|links|diagram index [--write|--check]|external {status|check|stamp|move}|check} [root]" >&2; exit 2 ;;
+  *) echo "Usage: docs.sh {index [--write|--check]|links|diagram index [--write|--check]|external {status|check|stamp|move|related|outline|text}|check} [root]" >&2; exit 2 ;;
 esac

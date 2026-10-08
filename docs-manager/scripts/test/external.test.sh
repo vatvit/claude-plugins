@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for external files (pdf, docx, xlsx, …) and their cards: index listing,
-# status/check, stamp and move.
+# status/check, stamp, move, docx/xlsx extraction (outline/text) and related-doc flagging.
 #
 # Dual-target, like diagram.test.sh — run on the host (bash 3.2 + BSD) and in a container:
 #
@@ -179,6 +179,108 @@ check "M3a uncarded file moves, one MOVED line" "1" "$(echo "$out" | grep -c '^M
 bin "$R/external/c.pdf"; doc "$R/external/z/c.pdf.md" </dev/null
 bash "$DOCS" external move "$R/external/c.pdf" "$R/external/z" "$R" >/dev/null 2>&1; rc=$?
 check "M3b refuses to pair with an existing card" "1:yes" "$rc:$([ -f "$R/external/c.pdf" ] && echo yes || echo no)"
+
+echo "== outline / text =="
+# Fixtures are built by fixtures/build.sh from the XML under fixtures/src/ — read those to see
+# what each case is reaching for.
+FX="$(cd "$(dirname "$0")" && pwd)/fixtures"
+tab() { printf "$@" | tr "~" "\t"; }   # tab <fmt> [args] — "~" in the format becomes a tab
+
+# --- X1: docx outline — style names, outlineLvl, split runs, entities -----------------
+out=$(bash "$DOCS" external outline "$FX/report.docx" 2>&1); rc=$?
+check "X1a rc 0" "0" "$rc"
+check "X1b headings, levels and order" \
+  "$(tab 'heading~1~Payments contract\nheading~1~Fees & charges\nheading~2~Late payment\nheading~3~Interest\nheading~2~Termination')" "$out"
+out=$(bash "$DOCS" external outline "$FX/nostyles.docx" 2>&1)
+check "X1c no styles.xml: HeadingN style ids, any case" "$(tab 'heading~1~Alpha\nheading~3~Gamma')" "$out"
+
+# --- X2: docx text — headings marked, body kept, deleted text and empty paragraphs dropped ---
+out=$(bash "$DOCS" external text "$FX/report.docx" 2>&1)
+check "X2a heading marked" "yes" "$(has "$out" '## Late payment')"
+check "X2b body paragraph, tab and spaces collapsed" "yes" "$(has "$out" 'The fee is 2% per month.')"
+check "X2c table cell text" "yes" "$(has "$out" 'cell text')"
+check "X2d deleted text dropped" "no" "$(has "$out" 'deleted')"
+check "X2e outlineLvl 9 is body text" "yes" "$(echo "$out" | grep -qx 'Not a heading' && echo yes || echo no)"
+check "X2f nine lines, none empty" "9:0" "$(echo "$out" | wc -l | tr -d ' '):$(echo "$out" | grep -c '^$')"
+
+# --- X3: xlsx — workbook order, rels, shared/rich/inline strings, prefixes, sparse rows ---
+out=$(bash "$DOCS" external outline "$FX/book.xlsx" 2>&1)
+check "X3a sheets in tab order, header columns" \
+  "$(tab 'sheet~Rates & fees~A1:C3~A:region | B:rate | C:currency\nsheet~Q3~A1:B2~A:month | B:2026')" "$out"
+out=$(bash "$DOCS" external text "$FX/book.xlsx" 2>&1)
+check "X3b rows as TSV, sparse cell kept in its column" \
+  "$(tab '## Rates & fees (A1:C3)\n1~region~rate~currency\n2~EU~0.25~EUR\n3~US~~1\n## Q3 (A1:B2)\n1~month~2026\n2~Jul')" "$out"
+check "X3c phonetic run not read" "no" "$(has "$out" IGNORED)"
+
+# --- X4: fallback — every unreadable case is a `none` record and rc 0, never an error ---------
+R=$(fresh x4)
+bin "$R/a.pdf"; bin "$R/b.doc"; bin "$R/c.docx" "not a zip"; bin "$R/d.pptx"
+for f in a.pdf b.doc c.docx d.pptx; do
+  out=$(bash "$DOCS" external outline "$R/$f" 2>&1); rc=$?
+  check "X4 $f -> none, rc 0" "0:none" "$rc:$(echo "$out" | cut -f1)"
+done
+check "X4e pdf says read natively" "yes" "$(has "$(bash "$DOCS" external text "$R/a.pdf")" natively)"
+mkdir -p "$TMP/nounzip"
+for t in awk sed grep find sort tr dirname basename mktemp cat rm mv head cut; do
+  p="$(command -v "$t" 2>/dev/null)" && ln -s "$p" "$TMP/nounzip/$t"
+done
+out=$(PATH="$TMP/nounzip" "$(command -v bash)" "$DOCS" external outline "$FX/report.docx" 2>&1); rc=$?
+check "X4f no unzip -> none, rc 0" "0:yes" "$rc:$(has "$out" "$(tab 'none~unzip not available')")"
+cp "$FX/book.xlsx" "$R/e.xlsx"; doc "$R/e.xlsx.md" </dev/null
+out=$(bash "$DOCS" external outline "$R/e.xlsx.md" 2>&1)
+check "X4g given the card path" "yes" "$(has "$out" "$(tab 'sheet~Q3')")"
+bash "$DOCS" external outline "$R/missing.docx" >/dev/null 2>&1; check "X4h missing file is an error" "1" "$?"
+
+echo "== related =="
+
+# --- R1: a changed file names its relates-to docs and its back-links, each once ---------
+R=$(fresh r1)
+bin "$R/external/law/c.pdf" "version one"
+cat > "$R/external/law/c.pdf.md" <<'EOF'
+---
+title: Contract
+description: The contract
+relates-to: [../../arch/pay.md, ../../arch/gone.md]
+---
+EOF
+doc "$R/arch/pay.md" <<'EOF'
+Fees: [contract, p. 3](../external/law/c.pdf.md).
+EOF
+doc "$R/arch/guide.md" <<'EOF'
+See [the contract](../external/law/c.pdf#page=3).
+EOF
+doc "$R/arch/other.md" <<'EOF'
+Nothing to do with it. [pay](pay.md)
+EOF
+bash "$DOCS" index --write "$R" >/dev/null 2>&1
+out=$(bash "$DOCS" external related "$R/external/law/c.pdf" "$R" 2>&1); rc=$?
+check "R1a related records, relates-to first, each doc once" \
+  "0:$(tab 'relates-to~%s/arch/pay.md\nlinks~%s/arch/guide.md' "$R" "$R")" "$rc:$out"
+check "R1b generated _index.md is not a dependant" "no" "$(has "$out" _index.md)"
+out=$(bash "$DOCS" links "$R" 2>&1)
+check "R1c a missing relates-to doc is a broken ref" "yes" \
+  "$(has "$out" "BROKEN REF: $R/external/law/c.pdf.md -> relates-to:../../arch/gone.md")"
+# drop the missing entry, so what follows is about change only
+printf -- '---\ntitle: Contract\ndescription: The contract\nrelates-to: [../../arch/pay.md]\n---\n' > "$R/external/law/c.pdf.md"
+bash "$DOCS" external stamp "$R/external/law/c.pdf" >/dev/null 2>&1
+out=$(bash "$DOCS" check "$R" 2>&1); rc=$?
+check "R1d stamped and unchanged: check clean, no REVIEW" "0:no" "$rc:$(has "$out" REVIEW)"
+printf 'version two' > "$R/external/law/c.pdf"
+out=$(bash "$DOCS" check "$R" 2>&1); rc=$?
+check "R1e changed: check fails" "1" "$rc"
+check "R1f changed: relates-to doc to review" "yes" "$(has "$out" "  REVIEW: $R/arch/pay.md (relates-to)")"
+check "R1g changed: back-linking doc to review" "yes" "$(has "$out" "  REVIEW: $R/arch/guide.md (links)")"
+check "R1h unrelated doc not listed" "no" "$(has "$out" other.md)"
+check "R1i REVIEW lines follow their CHANGED line" "CHANGED" \
+  "$(echo "$out" | grep -B1 -m1 'REVIEW:' | head -1 | cut -d: -f1)"
+
+# --- R2: related with no dependants is empty; needs the file or its card ------------------
+R=$(fresh r2)
+bin "$R/external/x.pdf"; doc "$R/external/x.pdf.md" </dev/null
+out=$(bash "$DOCS" external related "$R/external/x.pdf.md" "$R" 2>&1); rc=$?
+check "R2a nothing depends on it" "0:" "$rc:$out"
+bash "$DOCS" external related "$R/external/none.pdf" "$R" >/dev/null 2>&1
+check "R2b neither file nor card is an error" "1" "$?"
 
 echo
 echo "passed: $pass   failed: $fail"

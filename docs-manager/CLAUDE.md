@@ -17,7 +17,10 @@ docs-manager/
 │   ├── docs.sh                  ← CLI front-end: index / links / diagram / external / check
 │   ├── diagram.sh               ← diagram sources → generated blocks, staleness
 │   ├── external.sh              ← external files (pdf, docx, …) and their cards
-│   └── test/*.test.sh           ← the suites (no framework, no dependencies)
+│   ├── extract.sh               ← docx/xlsx → outline / plain text (unzip + awk)
+│   └── test/
+│       ├── *.test.sh            ← the suites (no framework, no dependencies)
+│       └── fixtures/            ← built OOXML fixtures; XML sources in src/, rebuilt by build.sh
 ├── hooks/
 │   ├── hooks.json               ← PostToolUse registration
 │   └── diagram-watch-hook.sh    ← warns when an edited file is watched
@@ -50,6 +53,9 @@ Sourced, never executed. Holds what more than one script in *this* plugin needs:
 - `parse_ref <value>` — splits `scheme:path "optional label"` into three tab-separated fields.
 - `fm_set <file> <key> <value>` — set one frontmatter scalar, preserving every other byte. Writes
   via temp file + `mv`; never `sed -i`.
+- `doc_links <root>` — `file<TAB>link<TAB>target` for every relative markdown link, paths
+  normalized. **The only markdown link parser** — `links` checks targets exist, `external related`
+  matches targets against a card; do not grep for `](` anywhere else.
 
 A map is never held in bash: awk emits records, the shell reads them with
 `while IFS=$'\t' read -r`. That is what keeps this working on bash 3.2, which has no
@@ -57,7 +63,7 @@ associative arrays.
 
 ## scripts/docs.sh
 
-Subcommands: `index [--write|--check]`, `links`, `diagram index [--write|--check]`, `check`.
+Subcommands: `index [--write|--check]`, `links`, `diagram …`, `external …`, `check`.
 Default root `docs`.
 
 Key behaviors (don't regress these):
@@ -176,6 +182,28 @@ Key behaviors (don't regress these):
 - **Placement never fails `check`.** `outside` and `unfiled` are reported by `status` only; a carded
   file kept beside the doc that uses it is a choice.
 - **`move` reports broken links, never rewrites them.**
+- **A dependant is `relates-to:` or a link, never `_index.md`.** `external related` reads the card's
+  `relates-to:` (card-relative) plus `doc_links`, deduplicated. The generated index links every
+  card, so counting it would put a `REVIEW:` line under every change. `check` parses the tree's links
+  once however many files changed. A missing `relates-to:` target is reported by `links` as
+  `BROKEN REF`, not by `related` — one place per breakage.
+
+## scripts/extract.sh
+
+`external outline|text <file>`: docx and xlsx are zip packages of XML, read by `unzip -p` + awk
+with `RS = "<"` (one tag per record). Sourced by `docs.sh`.
+
+- **`extract_kind` is the one capability check.** Everything unreadable — pdf (read natively),
+  legacy binary, other formats, no `unzip`, a package that will not open — is a `none<TAB>reason`
+  record and exit 0. A missing *file* is the only error.
+- **"Empty" is the portable missing-member test.** Info-ZIP exits 11 on a missing member, busybox
+  exits 0 silently; `ooxml_part` swallows both.
+- **Two parts, one awk pass, joined by a sentinel record** (`<@@DOC@@>`). `FNR==NR` breaks when the
+  first input is empty, and `styles.xml` / `sharedStrings.xml` are optional.
+- **xlsx sheets come in workbook order** via `workbook.xml.rels`, never by file name; element names
+  compare without their namespace prefix (`x:row` exists in the wild). Sheet names reach awk through
+  `ENVIRON`, not `-v`, which would interpret backslashes.
+- Nothing here writes. Callers keeping output put it in a temp dir, never the repo.
 
 ## skills/docs-manager/references/
 
@@ -221,7 +249,10 @@ docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/external.test.sh  # 
 `globstar` and GNU-only flags; the container target (bash 5 + GNU coreutils) catches BSD-only
 constructs. Either alone passes green while the other target is broken.
 
-The suite builds throwaway fixtures under `mktemp -d` and never touches the real repo. It covers
+The suite builds throwaway fixtures under `mktemp -d` and never touches the real repo. The
+exception is the OOXML files in `scripts/test/fixtures/`: busybox has `unzip` but no `zip`, so
+they are built once from `fixtures/src/` by `fixtures/build.sh` and committed — edit the XML, rerun
+it, commit both. It covers
 the pre-existing `index`/`links` behaviour as well as diagrams — those cases are the guard that
 made the `lib.sh` extraction safe, so keep them.
 

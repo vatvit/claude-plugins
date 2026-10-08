@@ -96,12 +96,25 @@ bash <PLUGIN_ROOT>/scripts/docs.sh external status [root]   # one record per fil
 bash <PLUGIN_ROOT>/scripts/docs.sh external check  [root]   # NO CARD / UNSTAMPED / CHANGED / ORPHAN CARD
 bash <PLUGIN_ROOT>/scripts/docs.sh external stamp <file>    # record the reviewed digest
 bash <PLUGIN_ROOT>/scripts/docs.sh external move <file> <dest-dir> [root]   # file + card together
+bash <PLUGIN_ROOT>/scripts/docs.sh external related <file> [root]  # docs that depend on the file
+bash <PLUGIN_ROOT>/scripts/docs.sh external outline <file>  # docx headings / xlsx sheets + header row
+bash <PLUGIN_ROOT>/scripts/docs.sh external text <file>     # docx paragraphs / xlsx rows as TSV
 bash <PLUGIN_ROOT>/scripts/docs.sh index --write [root]     # lists cards under "External documents"
 ```
 
 `status` emits `state<TAB>place<TAB>file<TAB>card`, with `-` for an empty field.
 `state` is `ok | new | unstamped | changed | orphan`; `place` is `filed | unfiled | outside`.
-`docs.sh check` runs `external check` with everything else.
+`docs.sh check` runs `external check` with everything else; under each `CHANGED` file it prints a
+`REVIEW:` line per dependent doc.
+
+`related` emits `relates-to<TAB>doc` (named in the card's `relates-to:`) and `links<TAB>doc` (links
+to the card or the file), each doc once. Generated `_index.md` listings are not dependants.
+
+`outline` emits `heading<TAB>level<TAB>text` for a docx and
+`sheet<TAB>name<TAB>range<TAB>A:header | B:header …` for an xlsx. `text` emits a docx as one
+paragraph per line with headings as markdown `#`, and an xlsx as `## <sheet> (<range>)` followed by
+`row<TAB>A<TAB>B…`. Any other file — or no `unzip`, or a package that will not open — gives the
+single record `none<TAB>reason` and exit 0: it is the fallback, not an error.
 
 ## Cataloguing — the procedure
 
@@ -117,18 +130,25 @@ Run this when the user adds reference files, asks to catalogue or ingest them, o
    - **pdf:** read it natively in page ranges (at most 20 pages per read). Start with the first few
      pages and any table of contents, then read the sections the contents point at. Record page
      numbers *as you read them*; do not reconstruct them afterwards.
-   - **docx, xlsx, pptx and the other formats** cannot be read natively. If the user can give a PDF
-     export or a short description, use it. Otherwise write a minimal card — `title`,
-     `description`, `read-when` from what the user says, `## Where to look` holding the single row
-     `| (not yet read) | — |` — and **leave it unstamped**, so `check` keeps reporting it rather
-     than vouching for a card nobody checked.
+   - **docx, xlsx:** `external outline <file>` first — it is small and gives the location units
+     directly: the heading path for a docx, the sheet name, range and header columns for an xlsx.
+     Then `external text <file> > <tmpdir>/<name>.txt` and read that in parts for the summary; a
+     big workbook's rows do not belong in context, so for an xlsx the outline is often enough.
+     Every `Where to look` row still has to be something the output actually showed.
+   - **Anything else** — pptx, doc, xls, odt, … — or `outline` answering `none`: if the user can
+     give a PDF export or a short description, use it. Converting the file in a container (e.g.
+     LibreOffice headless) is an option **only with the user's explicit approval** — never install
+     anything. Otherwise write a minimal card — `title`, `description`, `read-when` from what the
+     user says, `## Where to look` holding the single row `| (not yet read) | — |` — and **leave it
+     unstamped**, so `check` keeps reporting it rather than vouching for a card nobody checked.
    - A large file (more than ~50 pages, or several files at once): delegate the reading to a
      sub-agent that returns the drafted card, so the file's content never fills this context.
    - Scratch output — extracted text, notes — goes to a temp directory, never into the repo.
 
 3. **Write the card** in the format above. For a `changed` file, re-check **every** `Where to look`
    row against the new version, not only the parts that look different — page numbers move when
-   anything earlier changes. Say in your reply what changed in substance.
+   anything earlier changes. Say in your reply what changed in substance, then refresh the docs
+   that depend on it — see *Refreshing docs from a changed source* below.
 
 4. **Propose placement** for each `unfiled` and `outside` file, as one list the user approves:
 
@@ -152,6 +172,23 @@ Run this when the user adds reference files, asks to catalogue or ingest them, o
    change; link them to the card (`relates-to:` on the card, a link in the doc) once the user agrees.
 
 Never gitignore, LFS-route, rename or delete a file the user placed. The plugin writes cards only.
+
+## Refreshing docs from a changed source
+
+A changed file can make an authored doc wrong without any link breaking: the doc still points at
+"pp. 31–38", which now hold something else. `check` lists those docs as `REVIEW:` lines under the
+`CHANGED` file; `external related <file>` gives the same list on its own.
+
+1. **Re-card first** (step 3 above), so you know what changed and the card's locations are current.
+2. **For each doc listed, find what it takes from the source** — every link to the card or the
+   file, and every claim beside one. Compare each against the new version.
+3. **Propose concrete edits, one doc at a time, and apply each only once the user approves it.**
+   Show the sentence as it is and as it would be. A doc that is still right needs no edit — say so.
+4. **Cite, do not copy.** A fixed doc points at the card with the new location
+   (`[payments spec v3, p. 36](../external/vendor-api/payments-spec-v3.pdf.md)`); it never pastes
+   the source's text, which would be a second copy to go stale next time.
+5. A doc that depends on the source but was not listed means a missing `relates-to:` entry — offer
+   to add it to the card. Then stamp, and `docs.sh check` must be clean.
 
 ## Answering from an external file
 

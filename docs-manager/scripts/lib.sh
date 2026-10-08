@@ -146,6 +146,38 @@ normalize_path() {
     print out }'
 }
 
+# doc_links <root>
+#
+# Every relative markdown link in every .md under <root>, one record each:
+#
+#   file<TAB>link<TAB>target
+#
+# `link` is as written, minus any #fragment or ?query; `target` is the path it resolves to,
+# normalized, as are the file paths. The **only** markdown link parser in this plugin — the
+# broken-link check and the back-link search both read this stream, so they cannot disagree
+# about what a link is.
+doc_links() {
+  local file link base
+  while IFS= read -r file; do
+    [ -n "$file" ] || continue
+    file="$(normalize_path "$file")"; base="$(dirname "$file")"
+    while IFS= read -r link; do
+      case "$link" in http://*|https://*|mailto:*|\#*|"") continue ;; esac
+      link="${link%%#*}"; link="${link%%\?*}"
+      [ -n "$link" ] || continue
+      case "$link" in
+        /*) printf '%s\t%s\t%s\n' "$file" "$link" "$(normalize_path "$link")" ;;
+        *)  printf '%s\t%s\t%s\n' "$file" "$link" "$(normalize_path "$base/$link")" ;;
+      esac
+    done <<EOF
+$(grep -oE '\]\([^)]+\)' "$file" 2>/dev/null | sed -E 's/^\]\(//; s/\)$//')
+EOF
+  done <<EOF
+$(find "$1" -type f -name '*.md' | sort)
+EOF
+  return 0
+}
+
 # relpath <from-dir> <to-path>
 #
 # The path to <to-path> as seen from <from-dir>. Purely lexical — no filesystem
