@@ -1,6 +1,6 @@
 ---
 title: docs-manager — catalogue external docs (pdf, docx, xlsx) for Claude
-status: in-progress
+status: completed
 type: epic
 epic-name: external-docs
 priority: medium
@@ -87,3 +87,12 @@ files); PLUG-020 and PLUG-021 after PLUG-019 / PLUG-018 respectively, and indepe
   docs-manager's `CLAUDE.md` forbids a config file. The card has no `source:` key; its name is the link.
 - Remaining: PLUG-020 (docx/xlsx extraction), PLUG-021 (`relates-to` flagging). Independent of each
   other; both build on `scripts/external.sh`.
+
+## Current State (2026-10-08, closing)
+
+- All sub-tasks completed. PLUG-020 (docx/xlsx `outline`/`text` via unzip + awk) and PLUG-021
+  (`REVIEW:` dependants under CHANGED, `external related`) shipped together as docs-manager 1.7.0.
+- Success criteria: a mixed folder can be placed, carded (pdf natively, docx/xlsx extracted, other
+  formats from a description), indexed and checked clean. A changed source flags its card and the
+  docs that depend on it. Covered by the external suite, 73/73 on host and in the container.
+- Follow-ups outside the epic: PLUG-023 (pptx/ODF extraction), PLUG-024 (real-file check).
