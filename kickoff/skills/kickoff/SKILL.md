@@ -1,7 +1,7 @@
 ---
 name: kickoff
-description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (questions branch on earlier answers, each with pre-defined options and a default) and turn the answers into the project's charter. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "starting context for this project", "which dev port should this project use", "port registry", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
-version: 0.2.0
+description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (questions branch on earlier answers, each with pre-defined options and a default) and turn the answers into the project's charter. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "starting context for this project", "which dev port should this project use", "port registry", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
+version: 0.3.0
 ---
 
 # Kickoff
@@ -51,6 +51,13 @@ end up in files, not in chat history.
    `unchanged`, or `refused` (exit 3) when an existing charter differs. Then show the difference
    (`charter.sh <project> --stdout`) and ask before `--force`, because the charter may have been
    edited by hand since kickoff.
+6. **Set the project up:** `bash <PLUGIN_ROOT>/scripts/scaffold.sh <project>`. From sections R and K it
+   writes the `docs/` skeleton, the task config and workflow, and the project CLAUDE.md, one line per file.
+   A refused CLAUDE.md is handled like a refused charter. Then:
+   - if docs-manager is installed, regenerate the indexes (`docs.sh index --write`) and fill in any
+     `description: TODO` it leaves;
+   - create the first tasks that the output names with `/task create`, if the task plugin is installed.
+     Their ids come from the task plugin, never from kickoff.
 
 ## Rules
 

@@ -16,8 +16,11 @@ kickoff/
 │   ├── plan.awk / plan.sh        ← what to ask now (--next), the review table (--review)
 │   ├── answer.sh                 ← the only writer of .kickoff-answers
 │   ├── charter.awk / charter.sh  ← docs/project/charter.md from the answers
+│   ├── scaffold.sh               ← docs/ skeleton, CLAUDE.md (claude.awk), task config + workflow
+│   ├── get.awk                   ← settled answers for shell scripts
 │   ├── ports.sh                  ← the machine-wide dev-port registry (~/.claude/kickoff/ports.json)
 │   └── test/                     ← all.sh runs every *.test.sh; helpers.sh is shared by them
+├── templates/                     ← the task workflows scaffold.sh seeds (profiles, minimal)
 └── README.md
 ```
 
@@ -41,6 +44,14 @@ real file, so a broken edit fails them.
 - **`n/a` counts as answered** (so `--next` moves on) but never reaches the charter. It is how a
   *judge* question is retired.
 - **The charter refuses to overwrite** a differing file (exit 3). After kickoff it is edited by hand.
+- **Two kinds of generated file.** Seeded files (`_index.md`, `.task-config.json`, WORKFLOW.md) are written
+  once and are the user's from then on. Regenerated files (charter, CLAUDE.md) are rewritten only while
+  unchanged, and refused once edited. Never let `scaffold.sh` overwrite a seeded file (3c).
+- **A client's repo carries nothing of the user.** For tasks outside the repo, CLAUDE.md says so in prose
+  and never prints the tasks path, which contains the home directory (4h). The task registry entry is
+  inserted into the existing file, keeping the other projects (4d, 4l).
+- **Generators write only settled answers** (`settled()` in lib.awk): a pending, stale, undecided or
+  `n/a` answer produces nothing.
 - **The port registry is machine-wide** and must never follow `CLAUDE_CONFIG_DIR`; test 3a/3b pins
   it. The compose scan runs on *every* allocation, not only for a new registry, so a port a project
   took without kickoff is never handed out (2a). Writes happen under a `mkdir` lock whose pid file

@@ -24,8 +24,18 @@ The scripts can also be run directly:
 bash kickoff/scripts/plan.sh  [project] [--next | --review]   # what to ask now, with defaults
 bash kickoff/scripts/answer.sh --root <project> [--add|--clear] <ID> "<value>"
 bash kickoff/scripts/charter.sh [project] [--force | --stdout]
+bash kickoff/scripts/scaffold.sh [project]                    # docs/ skeleton, CLAUDE.md, task config
 bash kickoff/scripts/ports.sh next | allocate <name> | set <name> <port> | release <name> | list [--all]
 ```
+
+## Setup
+
+After the charter, `scaffold.sh` sets the project up from the answers. It writes the `docs/` skeleton
+(one `_index.md` per folder), a small CLAUDE.md that holds only this project's instructions (git,
+entry point, crew, tasks, approvals, exceptions to the global rules), and the task config and
+workflow. In your own project the tasks are in the repo. In a client's they are kept outside it, in the
+task skill's registry, so the client's repo carries neither your tasks nor your home path.
+Seeded files are never overwritten; a hand-edited CLAUDE.md is refused rather than replaced.
 
 ## Dev ports
 

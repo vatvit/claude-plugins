@@ -115,3 +115,11 @@ function undecided(v) { return starts_ci(v, "not decided") }
 # not_applicable(v) — "n/a": Claude judged a question irrelevant here (a judgement condition, or
 # the user said so). It counts as answered, so the plan moves on, but nothing is generated from it.
 function not_applicable(v) { return tolower(v) == "n/a" }
+
+# settled(id) — the answer when it is given, applies, and is neither undecided nor n/a; else "".
+# What every generator writes from: a pending, stale or undecided answer produces nothing.
+function settled(id,   i) {
+    i = qidx[id]; if (!i) return ""
+    if (state_of(i) != "answered" || undecided(ans[id]) || not_applicable(ans[id])) return ""
+    return ans[id]
+}
