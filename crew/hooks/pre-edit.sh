@@ -5,6 +5,9 @@
 #   3. claim       — record that this session touched the path (status, handoff, land read it)
 # Each step comes from its area script and is skipped when that script is absent.
 # Always exits 0; a denial is a JSON decision on stdout, not an exit code.
+h="${BASH_SOURCE[0]%/*}"; [ "$h" != "${BASH_SOURCE[0]}" ] || h=.; . "$h/fast.sh"   # no fork
+crew_fast_read
+crew_fast_skip && exit 0
 (
     . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts" && pwd -P)/lib.sh"
     hook_init || exit 0

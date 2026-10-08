@@ -2,6 +2,9 @@
 # crew SessionStart hook — a few lines of context, and NOTHING in a repo without a crew, so the
 # plugin costs no tokens where it is not used. Runs again after /compact, which re-teaches the prefix.
 # Always exits 0.
+h="${BASH_SOURCE[0]%/*}"; [ "$h" != "${BASH_SOURCE[0]}" ] || h=.; . "$h/fast.sh"   # no fork
+crew_fast_read
+crew_fast_skip && exit 0
 (
     . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts" && pwd -P)/lib.sh"
     hook_init || exit 0

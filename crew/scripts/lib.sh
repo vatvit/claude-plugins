@@ -289,7 +289,7 @@ is_main() { [ "${BASH_SOURCE[1]}" = "$0" ]; }
 # hook_init — read the payload on stdin into PAYLOAD, then set ROOT, STATE, SID and NAME (empty
 # when the session has not joined). Returns 1 outside a git repo: the hook has nothing to do.
 hook_init() {
-    PAYLOAD="$(cat)"
+    [ -n "${PAYLOAD+set}" ] || PAYLOAD="$(cat)"   # the hooks read it already (fast.sh)
     CREW_PROJECT_DIR="$(printf '%s' "$PAYLOAD" | payload_str cwd)"
     [ -n "$CREW_PROJECT_DIR" ] || CREW_PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
     crew_try_init || return 1

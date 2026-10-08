@@ -76,6 +76,7 @@ Read only the reference for the area you are working in:
 | Slots: machine time | `references/slots.md` |
 | Copy, rebase, apply | `references/copy-apply.md` |
 | Snapshots: recover an overwritten edit | `references/snapshots.md` |
+| Land, the git guard, pushing | `references/land.md` |
 
 ## When a hook says no
 

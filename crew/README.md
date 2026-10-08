@@ -45,6 +45,7 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 | `slot run <cpu\|exclusive\|quiet> <min> -- <cmd>` / `slot request\|start\|done\|list\|clear` | the queue for machine time: classes, priority, ETAs, stale slots |
 | `copy new\|status\|rebase <dir>` / `apply <dir> [path...]` | build in a copy; land with take / 3-way merge / refuse-all, plus an optional `landCheck` |
 | `snapshot log <path>` / `show\|diff\|restore <id>` / `prune` | every file is snapshotted before each edit; recover an overwrite |
+| `land --msg-file F -- <path...>` / `land prepush` | commit an exact path list under the committer mode; check before pushing |
 | `help` | every command |
 
 ## Config

@@ -10,6 +10,7 @@ crew/
 ├── .claude-plugin/plugin.json
 ├── hooks/
 │   ├── hooks.json          SessionStart + PreToolUse(Edit|Write|MultiEdit|NotebookEdit) + PreToolUse(Bash)
+│   ├── fast.sh             builtins-only "is there a crew here?" — sourced first by every hook
 │   ├── session-start.sh    ~2 lines of context; silent in a repo without a crew
 │   ├── pre-edit.sh         holds guard → snapshot → claim (each from its area script, if present)
 │   └── pre-bash.sh         whoami id pick-up → git guard (land area)
@@ -20,6 +21,7 @@ crew/
     ├── crew.sh             the one entry point; `help` is built from each script's `# help:` lines
     ├── lib.sh              the ONE place for project/state, config layers, identity, claims, locks, hook decisions
     ├── whoami.sh config.sh status.sh msg.sh
+    ├── holds.sh slot.sh copy.sh snapshot.sh land.sh   one area each: functions when sourced, CLI when executed
     ├── status.d/  msg.d/   per-area parts, so adding an area never edits status.sh / msg.sh
     └── test/               helpers.sh, run.sh, <area>.test.sh, Dockerfile (bash:5 + git)
 ```
@@ -52,6 +54,11 @@ crew/
   arrives after `git add -A` has already staged a peer's files. They still always exit 0: the
   denial is a JSON `permissionDecision`, never an exit code. `hookMode=warn` turns them into
   warnings.
+- **Hooks pay nothing where there is nothing to do.** They run on every Bash call and every edit,
+  in every repo. `hooks/fast.sh` reads the payload with `read` and walks up to `.git` with pure bash.
+  With no `crew/` there, the hook exits without a single fork. pre-bash also exits early unless the
+  payload names a guarded git subcommand or `whoami`. Measured: 47 → 3 ms per Bash call. Keep any new
+  hook logic behind these checks.
 - **Config is parsed once per process.** `crew_try_init` runs one `git rev-parse` (it needs git
   2.31 or later for `--path-format=absolute`) and one awk pass over both config files into `CREW_CFG`.
   After that, `cfg` forks nothing. The pre-edit hook reads config several times per edit, and this
