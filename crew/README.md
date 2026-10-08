@@ -40,6 +40,7 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 | `status` | the crew, the branch vs origin, every dirty path by owner (yours, a peer's, SHARED, unclaimed) |
 | `msg <kind>` | a ready-to-send message: `handoff` (paths + commit message + test-first proof), `decision`, `stop` |
 | `config` | effective settings, each with the layer it came from |
+| `hold <path...>` / `release <path...> --sha SHA` / `chain <path>` / `who` / `drop` | hot-spot holds; the pre-edit hook denies edits to a file another session holds |
 | `help` | every command |
 
 ## Config
