@@ -46,7 +46,7 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 | `hold <path...>` / `release <path...> --sha SHA` / `chain <path>` / `who` / `drop` | hot-spot holds; the pre-edit hook denies edits to a file another session holds |
 | `hold import <file> [--dry-run]` | coordinator: take the holds of a hand-kept bullet list (`- <path> — <holder> (…)`) when adopting crew mid-project; see [adopt.md](skills/crew/references/adopt.md) |
 | `slot run <cpu\|exclusive\|quiet> <min> -- <cmd>` / `slot request\|start\|done\|list\|clear` | the queue for machine time: classes, priority, ETAs, stale slots |
-| `copy new\|status\|rebase <dir>` / `apply <dir> [path...]` | build in a copy; land with take / 3-way merge / refuse-all, plus an optional `landCheck` |
+| `copy new\|status\|rebase <dir> [--ours <path...>]` / `apply <dir> [path...]` | build in a copy; land with take / 3-way merge / refuse-all, plus an optional `landCheck`. `--ours` keeps a conflict you resolved in the copy |
 | `snapshot log <path>` / `show\|diff\|restore <id>` / `prune` | every file is snapshotted before each edit; recover an overwrite |
 | `land --msg-file F -- <path...>` / `land prepush` | commit an exact path list under the committer mode; check before pushing |
 | `help` | every command |

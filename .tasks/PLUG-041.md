@@ -1,6 +1,6 @@
 ---
 title: crew — field feedback from the first real night
-status: in-progress
+status: completed
 type: epic
 epic-name: crew-feedback
 priority: high
@@ -91,3 +91,34 @@ Order and parallelism:
 - **PLUG-045** uses the mailbox for its "unread too long" check through `load_area`, so it can
   ship before or after PLUG-044.
 - **Most urgent:** PLUG-044 + PLUG-045. They prevent a repeat of the 6.5 h stall.
+
+## Outcome (2026-10-09)
+
+All 7 sub-tasks completed, crew 1.0.2 → **1.5.1**, built by a crew of three on this repo: the
+coordinator (claude-plugins-ee, PLUG-042/043) and the workers PLUG-W1 (044/045) and PLUG-W2
+(046/047/048). It ran on the installed crew 1.0.1, with `.crew.json` hot spots. Every slice was
+built in a copy, red first, and verified through `slot run` on both targets. Each was landed by
+the coordinator after re-running the full suites on the tree. 13 suites, all green on the host
+and in `crew-test`.
+
+| Feedback | Landed |
+|----------|--------|
+| #1 display names, #4 auto-join | PLUG-042 `85c8f39` |
+| #3 role-aware advice, #6 `--dry-run` (and a cluster-flag hole: `add -Av`, `commit -am`) | PLUG-046 `5f5e951` |
+| #2a durable mailbox | PLUG-044 `c099bca` |
+| #4 adoption: `config set`, `hold import` | PLUG-047 `d60f793` |
+| #5 bare `crew`, no CREW_AS | PLUG-043 `1897d3e` |
+| #2b silence watchdog (idle-wake proven: a background `crew watch --wait` re-invokes an idle session) | PLUG-045 `4e5ed02` |
+| found while dogfooding: `copy rebase` blank path, `--ours` | PLUG-048 `1b2d1a0` |
+
+**Success criteria:**
+- **A dropped SendMessage is survivable:** the mailbox keeps a copy, and the coordinator is told
+  within `silenceMin`.
+- **Titled sessions:** they join by themselves and are addressed by display name.
+- **`crew` with no prefix:** depends on `CLAUDE_ENV_FILE` reaching a plugin hook, which is
+  unverified until the live check in **PLUG-040**. That check also covers Stop/PostToolUse and
+  auto-join. The fallback `CREW_AS=<name> crew` is short regardless.
+
+**Dogfood lessons**, recorded in the task files: holds and chains carried every hot-spot handover
+without a collision. The one rebase dead end became PLUG-048. Landing output repeating the long
+prefix was the noise PLUG-043 removed.
