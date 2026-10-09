@@ -13,7 +13,7 @@ echo "-- display names"
 out="$(cd "$R" && bash "$C" whoami "Max Coordinator" coordinator --sid sid-g)"
 check "a display name with a space is accepted" yes "$(contains "you are max-coordinator (coordinator)" "$out")"
 check "…display kept" "display=Max Coordinator" "$(grep '^display=' "$R/.git/crew/sessions/max-coordinator")"
-check "…prefix uses the slug" yes "$(contains "CREW_AS=max-coordinator bash" "$out")"
+check "…prefix uses the slug" yes "$(contains "CREW_AS=max-coordinator crew" "$out")"
 hook pre-bash.sh "$(payload sid-a "$R" Bash command "bash $C whoami \"Ann Worker\"")" >/dev/null
 out="$(cd "$R" && bash "$C" whoami "Ann Worker")"
 check "quoted display name joins through the hook (no --sid)" yes "$(contains "you are ann-worker (worker)" "$out")"

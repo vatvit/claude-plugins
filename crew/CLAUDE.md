@@ -8,6 +8,7 @@ independence, how to change a plugin) live in the repo root `CLAUDE.md` and appl
 ```
 crew/
 ├── .claude-plugin/plugin.json
+├── bin/crew                `crew` on the Bash tool's PATH (a plugin's bin/ is added while it is enabled)
 ├── hooks/
 │   ├── hooks.json          SessionStart + PreToolUse(Edit|Write|MultiEdit|NotebookEdit) + PreToolUse(Bash) + PostToolUse + Stop
 │   ├── fast.sh             builtins-only "is there a crew here?" — sourced first by every hook
@@ -42,10 +43,12 @@ crew/
   auto-joins a titled session (`session_title`) as a worker. It never takes a name already bound, and
   it never makes a coordinator.
 - **A crew name is the identity.** Holds, slots and claims are all keyed by name. The Claude
-  session id only maps a hook payload to a name (`sessions/<name>`: `sid= role= since=`).
-  Scripts learn the caller from the `CREW_AS=<name>` prefix, which SessionStart teaches (again
-  after `/compact`). No env var survives between Bash tool calls, so the prefix is the only
-  reliable channel.
+  session id only maps a hook payload to a name (`sessions/<name>`: `sid= role= since= display=`).
+  Scripts learn the caller via `caller_name`, which takes `CREW_AS` (a name or a display name) when it
+  is set, and otherwise `CREW_SID`. SessionStart exports `CREW_SID` through `CLAUDE_ENV_FILE`, the
+  preamble Claude Code runs before every Bash command. That mechanism is documented for SessionStart
+  hooks but not explicitly for plugin hooks, so when the file is absent SessionStart teaches the
+  `CREW_AS=<name> crew` form instead. The live check is PLUG-040. `bin/crew` puts the command on PATH.
 - **Per account vs per machine** (the repo rule in the root `CLAUDE.md` Config convention):
   - The user config `crew.json` is per account. It follows `${CLAUDE_CONFIG_DIR:-~/.claude}`.
   - The name registry (`CREW_HOME`, `~/.claude/crew`) is per machine. It deliberately ignores

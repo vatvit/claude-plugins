@@ -11,16 +11,18 @@ this file covers the judgement calls.
 
 ## Commands
 
-Every command goes through one script. The SessionStart line gives you the exact prefix:
+Every command is `crew <command> [args]`: the plugin puts `crew` on the Bash tool's PATH. SessionStart
+tells you whether the session already knows who you are. If it does not, prefix the command with
+`CREW_AS=<your name>`:
 
 ```
-CREW_AS=<your name> bash <plugin>/scripts/crew.sh <command> [args]
+crew <command> [args]            # or: CREW_AS=<your name> crew <command> [args]
 ```
 
 `help` lists the commands. Start every piece of work with `status`: one screen showing the
 crew, the branch, every dirty path by owner, the holds and the slots.
 
-To join, run `crew.sh whoami "<name>" [worker|coordinator]` through the Bash tool. A hook passes
+To join, run `crew whoami "<name>" [worker|coordinator]` through the Bash tool. A hook passes
 it your session id. Use the name your peers address you by in SendMessage. Spaces are fine
 (`"Max Coordinator"`): crew keeps that as your display name and derives a short crew name
 (`max-coordinator`) for `CREW_AS`. A session that has a title (`--name` or `/rename`) joins as a

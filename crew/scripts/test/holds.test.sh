@@ -17,7 +17,7 @@ edit "$R" s2 a.txt "s2 wants it"; rc=$?
 check "s2 edit of s1's hold is denied" 1 "$rc"
 check "…naming the holder" yes "$(contains "a.txt is held by s1 since" "$HOOK_OUT")"
 check "…with the task" yes "$(contains "(PLUG-9)" "$HOOK_OUT")"
-check "…and the chain command" yes "$(contains "CREW_AS=s2 bash" "$HOOK_OUT")"
+check "…and the chain command" yes "$(contains "CREW_AS=s2 crew" "$HOOK_OUT")"
 edit "$R" s1 a.txt "s1 edit"; rc=$?
 check "holder edits freely" 0 "$rc"
 

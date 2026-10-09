@@ -229,16 +229,20 @@ crew_line() { # "Max Coordinator coordinator · PLUG-W1 worker"
     for n in $(sess_names); do out="$out${out:+ · }$(display_of "$n") $(sess_get "$n" role)"; done
     printf '%s\n' "$out"
 }
-# me — the caller's crew name, from CREW_AS (the prefix SessionStart hands each session); the
-# display name is accepted too
+# caller_name — the caller's crew name, empty when unknown: CREW_AS (name or display name) wins,
+# else CREW_SID, which SessionStart exports for every later Bash command via CLAUDE_ENV_FILE
+caller_name() {
+    if [ -n "${CREW_AS:-}" ]; then name_for "$CREW_AS"; return 0; fi
+    [ -n "${CREW_SID:-}" ] && name_of_sid "$CREW_SID"
+    return 0
+}
 me() {
-    local n="${CREW_AS:-}"
-    [ -n "$n" ] || die "who is calling? prefix the command with CREW_AS=<your crew name>"
-    n="$(name_for "$n")"
-    [ -f "$STATE/sessions/$n" ] || die "'$n' is not in this crew — join with: crew.sh whoami $n [worker|coordinator]"
+    local n; n="$(caller_name)"
+    [ -n "$n" ] || die "who is calling? this session has no crew identity — join (crew whoami <name>) or prefix the command with CREW_AS=<your crew name>"
+    [ -f "$STATE/sessions/$n" ] || die "'$n' is not in this crew — join with: crew whoami $n [worker|coordinator]"
     printf '%s\n' "$n"
 }
-prefix_for() { echo "CREW_AS=$1 bash $CREW_BIN"; }
+prefix_for() { echo "CREW_AS=$1 crew"; }
 
 # --- claims: which session touched which dirty path ($STATE/claims: path<TAB>name<TAB>epoch) ---
 _claim_add() { # <name> <path...>

@@ -8,7 +8,7 @@ case "$cmd" in
     hold|release|chain|who|drop) exec bash "$D/holds.sh" "$cmd" "$@" ;;
     apply) exec bash "$D/copy.sh" apply "$@" ;;
     help|-h|--help)
-        echo "usage: CREW_AS=<name> bash $D/crew.sh <command> [args]"
+        echo "usage: crew <command> [args]   (identity from the session; else prefix CREW_AS=<name>; without PATH: bash $D/crew.sh)"
         for f in "$D"/*.sh; do sed -n 's/^# help: /  /p' "$f"; done
         exit 0 ;;
     lib|crew) ;;

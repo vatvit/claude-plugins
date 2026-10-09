@@ -19,13 +19,20 @@ crew_fast_skip && exit 0
             NAME="$n"
         fi
     fi
+    # identity for every later Bash command: CLAUDE_ENV_FILE is a preamble Claude Code runs before
+    # each one, so `crew` then knows the caller with no CREW_AS prefix (written once per session)
+    run=""
+    if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "$SID" ]; then
+        grep -qx "export CREW_SID=$SID" "$CLAUDE_ENV_FILE" 2>/dev/null || printf 'export CREW_SID=%s\n' "$SID" >> "$CLAUDE_ENV_FILE"
+        run=crew
+    fi
     if [ -n "$NAME" ]; then
         role="$(sess_get "$NAME" role)"; c="$(coordinator)"
         echo "crew $(crew_id): you are $NAME ($role) · committer: $(cfg committer)${c:+ ($c coordinates)} · guards: $(cfg hookMode) · crew: $(crew_line)"
-        echo "crew: run crew commands as: $(prefix_for "$NAME") <command> — start with 'status'; 'help' lists commands. Working rules: the crew skill."
+        echo "crew: run crew commands as: ${run:-$(prefix_for "$NAME")} <command> — start with 'status'; 'help' lists commands. Working rules: the crew skill."
         load_area inbox; declare -F mail_start >/dev/null && mail_start "$NAME" "$SID"
     else
-        echo "crew: this repo runs crew $(crew_id) ($(crew_line)). Join before editing: bash $CREW_BIN whoami \"<the name peers address you by in SendMessage>\" [worker|coordinator] — spaces are fine; it must be unique on this machine. A session with a title (/rename) joins by itself. Working rules: the crew skill."
+        echo "crew: this repo runs crew $(crew_id) ($(crew_line)). Join before editing: crew whoami \"<the name peers address you by in SendMessage>\" [worker|coordinator] — spaces are fine; it must be unique on this machine. A session with a title (/rename) joins by itself. Working rules: the crew skill."
     fi
 )
 exit 0

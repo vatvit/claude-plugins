@@ -24,7 +24,7 @@ hook pre-bash.sh "$(payload sid-s1 "$R" Bash command "bash $C whoami s1 coordina
 check "the parked id alone does not switch crew on either" no "$( [ -d "$R/.git/crew" ] && echo yes || echo no)"
 out="$(cd "$R" && bash "$C" whoami s1 coordinator)"
 check "whoami binds via the hook's pending id" yes "$(contains "you are s1 (coordinator)" "$out")"
-check "…and teaches the prefix" yes "$(contains "CREW_AS=s1 bash" "$out")"
+check "…and teaches the prefix" yes "$(contains "CREW_AS=s1 crew" "$out")"
 join "$R" s2
 out="$(cd "$R" && bash "$C" whoami s3 coordinator --sid sid-s3 2>&1)"; rc=$?
 check "a second coordinator is refused" 1 "$rc"
@@ -43,7 +43,7 @@ check "--leave removes the session" no "$( [ -f "$R/.git/crew/sessions/s3" ] && 
 echo "-- SessionStart context"
 out="$(hook session-start.sh "$(payload sid-s2 "$R" x x x)")"
 check "named session: role line" yes "$(contains "you are s2 (worker)" "$out")"
-check "named session: prefix line" yes "$(contains "CREW_AS=s2 bash" "$out")"
+check "named session: prefix line" yes "$(contains "CREW_AS=s2 crew" "$out")"
 check "named session: at most 2 lines" 2 "$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
 out="$(hook session-start.sh "$(payload sid-new "$R" x x x)")"
 check "unnamed session: join hint" yes "$(contains "whoami \"<the name" "$out")"

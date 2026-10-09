@@ -19,7 +19,7 @@ for c in 'git add -A' 'git add .' 'git add -u' 'git add --all src' 'cd sub && gi
 done
 out="$(gx s2 'git add -A')"
 check "denial names the alternative" yes "$(contains "msg handoff" "$out")"
-check "denial carries the caller's prefix" yes "$(contains "CREW_AS=s2 bash" "$out")"
+check "denial carries the caller's prefix" yes "$(contains "CREW_AS=s2 crew" "$out")"
 
 echo "-- guard: allowed"
 for c in 'git status' 'git log --oneline -5' 'git diff' 'git add a.txt' 'git add -- "a b.txt"' 'git checkout -- a.txt' \
@@ -51,16 +51,16 @@ check "worker: git add --verbose (a long option, not a cluster)" allow "$(verdic
 
 echo "-- guard: the alternative depends on the role (PLUG-046)"
 out="$(gx s1 'git add -A')"
-check "coordinator on add -A: pointed at land" yes "$(contains "CREW_AS=s1 bash $C land --msg-file F -- <paths>" "$out")"
+check "coordinator on add -A: pointed at land" yes "$(contains "CREW_AS=s1 crew land --msg-file F -- <paths>" "$out")"
 check "…not told to hand off" no "$(contains "msg handoff" "$out")"
 out="$(gx s1 'git commit -am wip')"
 check "coordinator on commit -a: pointed at land" yes "$(contains "land --msg-file F" "$out")"
 check "…not told to hand off" no "$(contains "msg handoff" "$out")"
 out="$(gx s2 'git commit -am wip')"
-check "worker on commit -a: pointed at msg handoff" yes "$(contains "CREW_AS=s2 bash $C msg handoff" "$out")"
+check "worker on commit -a: pointed at msg handoff" yes "$(contains "CREW_AS=s2 crew msg handoff" "$out")"
 printf '{"committer":"each-session"}' > "$R/.crew.json"
 out="$(gx s2 'git add -A')"
-check "each-session worker on add -A: lands its own paths" yes "$(contains "CREW_AS=s2 bash $C land --msg-file F -- <your paths>" "$out")"
+check "each-session worker on add -A: lands its own paths" yes "$(contains "CREW_AS=s2 crew land --msg-file F -- <your paths>" "$out")"
 check "…not told to hand off" no "$(contains "msg handoff" "$out")"
 rm -f "$R/.crew.json"
 
@@ -101,7 +101,7 @@ check "…landed claims dropped" no "$(contains "a.txt" "$(cat "$R/.git/crew/cla
 echo "-- holds, modes"
 edit "$R" s2 c.txt "c"; crew_as s2 "$R" hold c.txt >/dev/null
 out="$(crew_as s1 "$R" land --msg-file "$TMP/msg" -- c.txt)"
-check "coordinator lands a held hand-off and says who releases" yes "$(contains "s2 releases c.txt: CREW_AS=s2 bash" "$out")"
+check "coordinator lands a held hand-off and says who releases" yes "$(contains "s2 releases c.txt: CREW_AS=s2 crew" "$out")"
 printf '{"committer":"human-approved"}' > "$R/.crew.json"
 edit "$R" s2 d.txt "d"
 before="$(git -C "$R" rev-parse HEAD)"

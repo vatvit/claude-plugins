@@ -19,16 +19,16 @@ In each session, give it the name its peers use for it in SendMessage. Names mus
 the machine, because each repo can run its own crew, so prefer `<repo>-<name>` when several crews run:
 
 ```
-bash <plugin>/scripts/crew.sh whoami "Max Coordinator" coordinator   # the first session
-bash <plugin>/scripts/crew.sh whoami "Ann Worker"                     # each worker (a titled session joins by itself)
+crew whoami "Max Coordinator" coordinator   # the first session
+crew whoami "Ann Worker"                     # each worker (a titled session joins by itself)
 ```
 
-From then on, SessionStart tells each session who it is and gives it the prefix for every
-command:
+`crew` is on the Bash tool's PATH while the plugin is enabled. From then on, SessionStart tells each
+session who it is, and exports the session's id so `crew` knows the caller without a prefix:
 
 ```
 crew myrepo: you are s2 (worker) · committer: coordinator (s1 coordinates) · guards: deny · crew: s1 coordinator · s2 worker
-crew: run crew commands as: CREW_AS=s2 bash …/crew.sh <command> — start with 'status'; 'help' lists commands.
+crew: run crew commands as: crew <command> — start with 'status'; 'help' lists commands.
 ```
 
 In a repo without a crew, the plugin is silent and adds no tokens.

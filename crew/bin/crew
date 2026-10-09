@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# `crew <command>` — a plugin's bin/ is on the Bash tool's PATH while the plugin is enabled, so
+# sessions call crew by name instead of `bash <long plugin path>/scripts/crew.sh`.
+d="${BASH_SOURCE[0]%/*}"; [ "$d" != "${BASH_SOURCE[0]}" ] || d=.
+exec bash "$d/../scripts/crew.sh" "$@"
