@@ -61,3 +61,6 @@ bind() {
 with_lock sessions bind
 echo "crew $(crew_id): you are $name ($role). Prefix every crew call with: $(prefix_for "$name")"
 echo "crew: $(crew_line)"
+# mail waiting for this name (sent before it joined, or to its previous session): say so, arm the notice
+load_area inbox; declare -F mail_start >/dev/null && mail_start "$name" "$sid"
+exit 0

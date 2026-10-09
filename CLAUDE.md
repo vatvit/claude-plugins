@@ -171,7 +171,7 @@ disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.m
 external docs / catalogue / ingest / reference material*, task-roadmap owns *roadmap / gantt /
 timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
 tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
-hand off / hold / hot spot / slot / land / copy / snapshot* and says *slot*, never *job* or *queue* alone,
+hand off / hold / hot spot / slot / land / copy / snapshot / inbox / mailbox* and says *slot*, never *job* or *queue* alone,
 kickoff owns *kickoff / kick off / new project / start a project / bootstrap / questionnaire / charter*
 and never says *init*, which is the built-in `/init`.
 Bare *pdf / word / excel / docx /

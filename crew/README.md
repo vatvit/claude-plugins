@@ -39,7 +39,8 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 |---------|--------------|
 | `whoami "<name>" [worker\|coordinator] [--take]` | join the crew. Spaces are fine and the name must be unique on this machine. `whoami` alone lists the crew |
 | `status` | the crew, the branch vs origin, every dirty path by owner (yours, a peer's, SHARED, unclaimed) |
-| `msg <kind>` | a ready-to-send message: `handoff` (paths + commit message + test-first proof), `decision`, `stop` |
+| `msg <kind> [--send]` | a ready-to-send message: `handoff` (paths + commit message + test-first proof), `decision`, `stop`; `--send` also files it in the recipient's mailbox |
+| `inbox [--all]` / `inbox --ack <id>` | your unread crew mail, oldest first; hooks tell you after each tool call and hold one stop while mail waits |
 | `config` | effective settings, each with the layer it came from |
 | `hold <path...>` / `release <path...> --sha SHA` / `chain <path>` / `who` / `drop` | hot-spot holds; the pre-edit hook denies edits to a file another session holds |
 | `slot run <cpu\|exclusive\|quiet> <min> -- <cmd>` / `slot request\|start\|done\|list\|clear` | the queue for machine time: classes, priority, ETAs, stale slots |
