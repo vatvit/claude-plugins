@@ -34,6 +34,36 @@ check "coordinator: push" allow "$(verdict s1 'git push')"
 check "coordinator: still no add -A" deny "$(verdict s1 'git add -A')"
 check "unnamed session: treated as a worker" deny "$(verdict nobody 'git commit -m x -- a.txt')"
 
+echo "-- guard: dry runs stage nothing (PLUG-046)"
+for c in 'git add -A --dry-run' 'git add --dry-run -A' 'git add -n .' 'git add -nA' 'git add -An' 'git add -u -n'; do
+    check "worker: $c" allow "$(verdict s2 "$c")"
+done
+check "…but 'git add -A' still denied" deny "$(verdict s2 'git add -A')"
+check "…and -N (intent-to-add) is not a dry run" deny "$(verdict s2 'git add -NA')"
+
+echo "-- guard: a flag inside a short-option cluster, in any position (PLUG-046)"
+for c in 'git add -Av' 'git add -uv' 'git checkout -qf' 'git switch -qc feat' 'git branch -qD other'; do
+    check "worker: $c" deny "$(verdict s2 "$c")"
+done
+check "coordinator: commit -av is the commit -a denial" yes "$(contains "git commit -a takes" "$(gx s1 'git commit -av -m x')")"
+check "worker: git clean -fdn (a dry run)" allow "$(verdict s2 'git clean -fdn')"
+check "worker: git add --verbose (a long option, not a cluster)" allow "$(verdict s2 'git add --verbose a.txt')"
+
+echo "-- guard: the alternative depends on the role (PLUG-046)"
+out="$(gx s1 'git add -A')"
+check "coordinator on add -A: pointed at land" yes "$(contains "CREW_AS=s1 bash $C land --msg-file F -- <paths>" "$out")"
+check "…not told to hand off" no "$(contains "msg handoff" "$out")"
+out="$(gx s1 'git commit -am wip')"
+check "coordinator on commit -a: pointed at land" yes "$(contains "land --msg-file F" "$out")"
+check "…not told to hand off" no "$(contains "msg handoff" "$out")"
+out="$(gx s2 'git commit -am wip')"
+check "worker on commit -a: pointed at msg handoff" yes "$(contains "CREW_AS=s2 bash $C msg handoff" "$out")"
+printf '{"committer":"each-session"}' > "$R/.crew.json"
+out="$(gx s2 'git add -A')"
+check "each-session worker on add -A: lands its own paths" yes "$(contains "CREW_AS=s2 bash $C land --msg-file F -- <your paths>" "$out")"
+check "…not told to hand off" no "$(contains "msg handoff" "$out")"
+rm -f "$R/.crew.json"
+
 echo "-- guard: quiet slot holds pushes; warn mode"
 crew_as s3 "$R" slot request quiet 5 >/dev/null
 check "push during another's quiet slot" deny "$(verdict s1 'git push')"

@@ -28,16 +28,23 @@ guard_reason() {
     any() { local x p; for x in ${args[@]+"${args[@]}"}; do for p in "$@"; do
         # shellcheck disable=SC2254
         case "$x" in $p) return 0 ;; esac; done; done; return 1; }
+    flag() { any "-[$1]*" "-[!-]*[$1]*"; }      # flag <letters> — one of them in a short-option cluster (-Av, -fdn)
     nonopt() { local x; for x in ${args[@]+"${args[@]}"}; do case "$x" in -*) ;; *) printf '%s\n' "$x" ;; esac; done; }
+    instead() {                                 # what this caller does instead of staging or committing everything
+        if [ "$committer" = each-session ]; then echo "land your own paths: $pre land --msg-file F -- <your paths>"
+        elif [ "$role" = coordinator ]; then echo "land the exact paths: $pre land --msg-file F -- <paths>"
+        else echo "hand off your paths ($pre msg handoff); the coordinator lands them"; fi
+    }
     is_commit() { git -C "$ROOT" rev-parse -q --verify "$1^{commit}" >/dev/null 2>&1; }
     is_path() { [ -e "$ROOT/$1" ] || git -C "$ROOT" ls-files --error-unmatch -- "$1" >/dev/null 2>&1; }
 
     case "$sub" in
         add)
-            any -A --all . ./ :/ ':/\*' '\*' -u --update --no-ignore-removal '-[a-zA-Z]*[Au]*' && {
-                echo "git add of everything stages other sessions' work too (the index is shared). Stage nothing yourself: hand off your paths ($pre msg handoff); the committer lands them ($pre land --msg-file F -- <paths>)"; return; } ;;
+            any --dry-run || flag n && return 0                 # git add -n stages nothing
+            any --all . ./ :/ ':/\*' '\*' --update --no-ignore-removal || flag Au && {
+                echo "git add of everything stages other sessions' work too (the index is shared). Stage nothing yourself: $(instead)"; return; } ;;
         commit)
-            any -a --all '-[a-zA-Z]*a*' && { echo "git commit -a takes every session's changes. The committer lands an exact path list: $pre land --msg-file F -- <paths>"; return; }
+            any --all || flag a && { echo "git commit -a takes every session's changes. $(instead)"; return; }
             if [ "$committer" = coordinator ] && [ "$role" != coordinator ]; then
                 echo "only the coordinator commits in this crew (committer=coordinator). Hand off instead: $pre msg handoff"; return
             fi
@@ -46,7 +53,7 @@ guard_reason() {
         stash)
             case "${args[0]:-}" in list|show) ;; *) echo "git stash takes every session's uncommitted work off the shared tree. Work in a copy instead ($pre copy new <dir>)"; return ;; esac ;;
         checkout)
-            any . ./ :/ '\*' -f --force -b -B --orphan --detach -p --patch && { echo "this checkout overwrites or moves the shared tree for every session. Undo your own file with: $pre snapshot restore <id> (snapshot log <path>), or git checkout -- <exact path>"; return; }
+            any . ./ :/ '\*' --force --orphan --detach --patch || flag fbBp && { echo "this checkout overwrites or moves the shared tree for every session. Undo your own file with: $pre snapshot restore <id> (snapshot log <path>), or git checkout -- <exact path>"; return; }
             if [ "$has_dd" -eq 0 ]; then
                 a="$(nonopt | head -1)"
                 if [ -n "$a" ] && [ "$a" != "$br" ] && is_commit "$a" && ! is_path "$a"; then
@@ -55,7 +62,7 @@ guard_reason() {
             fi ;;
         switch)
             a="$(nonopt | head -1)"
-            [ "$a" = "$br" ] && ! any -c -C --create --force-create --detach --orphan || { echo "one tree, one branch: every session stays on $br (no switching, no feature branches)"; return; } ;;
+            [ "$a" = "$br" ] && ! { any --create --force-create --detach --orphan || flag cC; } || { echo "one tree, one branch: every session stays on $br (no switching, no feature branches)"; return; } ;;
         restore)
             any . ./ :/ '\*' && { echo "git restore of everything discards every session's changes. Restore your own path: git restore -- <exact path>, or $pre snapshot restore <id>"; return; } ;;
         reset)
@@ -65,11 +72,11 @@ guard_reason() {
             [ "$has_dd" -eq 0 ] && [ "$(nonopt | wc -l | tr -d ' ')" -eq 1 ] && is_commit "$a" && ! is_path "$a" && {
                 echo "git reset $a moves the branch for every session — ask the coordinator"; return; } ;;
         clean)
-            any -n --dry-run || { echo "git clean deletes other sessions' new files. Remove your own file by its exact path"; return; } ;;
+            any --dry-run || flag n || { echo "git clean deletes other sessions' new files. Remove your own file by its exact path"; return; } ;;
         worktree)
             echo "no worktrees: crew sessions share one working tree on purpose, so collisions surface instead of hiding. Need isolation? $pre copy new <dir>"; return ;;
         branch)
-            [ -z "$(nonopt)" ] && ! any -d -D -m -M -c -C --delete --move --copy || { echo "no feature branches: the crew works on $br only"; return; } ;;
+            [ -z "$(nonopt)" ] && ! { any --delete --move --copy || flag dDmMcC; } || { echo "no feature branches: the crew works on $br only"; return; } ;;
         rebase|pull|merge|cherry-pick|revert|am)
             [ "$role" = coordinator ] || { echo "git $sub moves the shared branch and tree — the coordinator does that"; return; } ;;
         push)
