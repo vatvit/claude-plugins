@@ -8,6 +8,7 @@ copy new <dir> [--at COMMIT]      # e.g. your scratchpad; a `git clone --shared`
   … edit and test inside <dir> (run the tests in a slot) …
 copy status <dir>                 # what the copy changed; flags a stale copy
 copy rebase <dir>                 # move onto the tree's current HEAD (merge or refuse)
+copy rebase <dir> --ours <path...> # …keeping the copy's version of conflicts you resolved there
 apply <dir> [path...]             # land into the shared tree
 msg handoff                       # then hand off the landed paths
 ```
@@ -26,7 +27,14 @@ The summary line reads `apply: N taken, M merged, K already there`.
 
 - **Rebase before applying.** A copy goes stale every time anyone lands. Apply still merges peer
   changes, but your tests never ran against them. `rebase` uses the same rules in reverse and
-  refuses, leaving the copy unchanged, on a conflict. Resolve the conflict in the copy.
+  refuses on a conflict and leaves the copy unchanged. To resolve one:
+  1. edit the file in the copy so it holds both changes. The refusal shows how to see the
+     tree's version: `git -C <dir> show <sha>:<path>`;
+  2. run `copy rebase <dir> --ours <path...>`, which the refusal prints with the conflicting paths.
+
+  A plain rebase would only refuse again, because it still compares the old base, the new base
+  and the copy. `--ours` keeps the copy's version only for the paths it names, and only
+  where they conflict: any other conflict still refuses, and the other files rebase as usual.
 - **`landCheck`** (project config, e.g. a formatter check) runs on the landed file list after the
   writes. If it fails, every write is undone. Run the formatter in the copy first, so that the
   check passes.

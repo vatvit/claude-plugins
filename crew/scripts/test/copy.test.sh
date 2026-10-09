@@ -66,6 +66,36 @@ out="$(crew_as s2 "$R" copy rebase "$K" 2>&1)"; rc=$?
 check "rebase conflict is refused" 1 "$rc"
 check "…the copy is unchanged" yes "$(cmp -s "$TMP/kept" "$K/m.txt" && echo yes || echo no)"
 
+echo "-- rebase --ours: a conflict resolved in the copy (PLUG-048)"
+check "the refusal names the flag and the path" yes "$(contains "copy rebase $K --ours m.txt" "$out")"
+printf 'copy-b\n' > "$K/b.txt"; printf 'peer-b\n' > "$R/b.txt"; git -C "$R" commit -q -am peer-b
+awk 'NR==2{$0="clash+copy-l2"}1' "$R/m.txt" > "$K/m.txt"                  # resolved by hand in the copy
+cp "$K/m.txt" "$TMP/resolved"
+out="$(crew_as s2 "$R" copy rebase "$K" 2>&1)"; rc=$?
+check "a resolved copy without --ours: still refused" 1 "$rc"
+out="$(crew_as s2 "$R" copy rebase "$K" --ours m.txt 2>&1)"; rc=$?
+check "--ours covers only the paths it names (b.txt still clashes)" 1 "$rc"
+check "…naming b.txt" yes "$(contains "rebase conflict in b.txt" "$out")"
+check "…the copy is unchanged" yes "$(cmp -s "$TMP/resolved" "$K/m.txt" && echo yes || echo no)"
+out="$(crew_as s2 "$R" copy rebase "$K" m.txt 2>&1)"; rc=$?
+check "a path without --ours is a usage error" 1 "$rc"
+out="$(crew_as s2 "$R" copy rebase "$K" --ours m.txt b.txt a.txt 2>&1)"; rc=$?
+check "--ours on every conflicting path: rebased" 0 "$rc"
+check "…keeps the copy's resolution" yes "$(cmp -s "$TMP/resolved" "$K/m.txt" && echo yes || echo no)"
+check "…and the copy's b.txt" copy-b "$(cat "$K/b.txt")"
+check "…says what it took" yes "$(contains "--ours: m.txt" "$out")"
+check "…and names an --ours path that had no conflict" yes "$(contains "--ours: a.txt — no conflict there" "$out")"
+check "…the copy is on HEAD now" no "$(contains "stale" "$(crew_as s2 "$R" copy status "$K")")"
+
+echo "-- rebase an unchanged copy (PLUG-048)"
+rm -rf "$K"; crew_as s2 "$R" copy new "$K" >/dev/null
+printf 'more\n' > "$R/more.txt"; git -C "$R" add more.txt && git -C "$R" commit -q -m more
+out="$(crew_as s2 "$R" copy rebase "$K" 2>"$TMP/err")"; rc=$?
+check "unchanged copy: rebased" 0 "$rc"
+check "…no errors" "" "$(cat "$TMP/err")"
+check "…0 files carried over" yes "$(contains "(0 changed files carried over)" "$out")"
+check "…and the copy moved" more "$(cat "$K/more.txt")"
+
 echo "-- landCheck"
 rm -rf "$K"; crew_as s2 "$R" copy new "$K" >/dev/null
 printf 'checked\n' > "$K/a.txt"

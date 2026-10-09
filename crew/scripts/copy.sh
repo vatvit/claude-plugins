@@ -8,7 +8,7 @@
 # both `apply` (copy → tree) and `rebase` (tree's new HEAD → copy).
 # help: copy new <dir> [--at COMMIT] — make a copy at a named commit (default HEAD)
 # help: copy status <dir> — files the copy changed against its base
-# help: copy rebase <dir> — move the copy onto the commit the tree is on now (merge or refuse)
+# help: copy rebase <dir> [--ours <path...>] — move the copy onto the commit the tree is on now (merge or refuse); --ours: conflicts you resolved in the copy
 # help: apply <dir> [path...] — land the copy into the shared tree: take, 3-way merge, or refuse all
 
 [ -n "${CREW_LIB_DIR:-}" ] || . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
@@ -73,23 +73,30 @@ copy_status() {
 }
 
 # --- rebase: the tree's new HEAD into the copy ------------------------------------------------------
-copy_rebase() {
-    local dir="$1" old new f w d r t b c n=0 bad=0
+copy_rebase() { # <dir> [path...] — the paths are --ours: conflicts already resolved in the copy, kept as they are
+    local dir="$1" old new f w d r t b c p n=0 bad=0 clash="" kept=""
+    shift
     old="$(copy_meta "$dir" base)"; new="$(git -C "$ROOT" rev-parse HEAD)"
     [ "$old" != "$new" ] || { echo "copy: already on $(git -C "$ROOT" rev-parse --short "$new")"; return 0; }
     w="$(mktemp -d)"; CREW_ON_EXIT="rm -rf '$w'"
     while IFS= read -r f; do
+        [ -n "$f" ] || continue                                 # an unchanged copy: one blank line
         n=$((n + 1)); d="$w/$n"; mkdir -p "$d"
         printf '%s\n' "$f" > "$d/path"
         [ -e "$dir/$f" ] && cp "$dir/$f" "$d/c" && c="$d/c" || c=""
         blob_at "$old" "$f" "$d/b" && b="$d/b" || b=""
         blob_at "$new" "$f" "$d/t" && t="$d/t" || t=""
         r="$(resolve3 "$t" "$b" "$c" "$d/out")"; echo "$r" > "$d/r"
-        [ "$r" = conflict ] && { echo "copy: rebase conflict in $f" >&2; bad=1; }
+        if [ "$r" = conflict ]; then
+            for p in "$@"; do [ "$p" = "$f" ] && r=ours; done
+            if [ "$r" = ours ]; then echo ours > "$d/r"; kept="$kept|$f|"; else echo "copy: rebase conflict in $f" >&2; bad=1; clash="$clash $(printf %q "$f")"; fi
+        fi
     done <<EOF
 $(copy_changes "$dir")
 EOF
-    [ "$bad" -eq 0 ] || { echo "copy: rebase refused — nothing changed; resolve in the copy against $(git -C "$ROOT" rev-parse --short "$new")" >&2; return 1; }
+    [ "$bad" -eq 0 ] || {
+        echo "copy: rebase refused — nothing changed. Resolve each conflict in the copy against $(git -C "$ROOT" rev-parse --short "$new") (its version: git -C $(printf %q "$dir") show $(git -C "$ROOT" rev-parse --short "$new"):<path>), then keep yours with: copy rebase $(printf %q "$dir") --ours$clash" >&2
+        return 1; }
     git -C "$dir" checkout -q -f --detach "$new" || die "checkout of $new in $dir failed"
     for d in "$w"/*; do
         [ -f "$d/path" ] || continue
@@ -98,9 +105,12 @@ EOF
             take|same) [ -f "$d/c" ] && { mkdir -p "$(dirname "$dir/$f")"; cp "$d/c" "$dir/$f"; } ;;
             merged)    mkdir -p "$(dirname "$dir/$f")"; cp "$d/out" "$dir/$f" ;;
             delete)    rm -f "$dir/$f" ;;
+            ours)      if [ -f "$d/c" ]; then mkdir -p "$(dirname "$dir/$f")"; cp "$d/c" "$dir/$f"; else rm -f "$dir/$f"; fi
+                       echo "copy: --ours: $f — the copy's version kept" ;;
             keep)      : ;;
         esac
     done
+    for p in "$@"; do case "$kept" in *"|$p|"*) ;; *) echo "copy: --ours: $p — no conflict there, rebased as usual" ;; esac; done
     printf 'base=%s\nroot=%s\nmade=%s\n' "$new" "$ROOT" "$(copy_meta "$dir" made)" > "$dir/.git/crew-copy"
     echo "copy: rebased $dir onto $(git -C "$ROOT" rev-parse --short "$new") ($n changed files carried over)"
 }
@@ -180,12 +190,15 @@ undo_writes() { # <workdir> — put back every file written so far
 }
 
 copy_main() {
-    local sub="${1:-}" dir; [ $# -gt 0 ] && shift
+    local sub="${1:-}" dir p; [ $# -gt 0 ] && shift
     crew_init
     case "$sub" in
         new)    [ -n "${1:-}" ] || die "copy new <dir> [--at COMMIT]"; copy_new "$@" ;;
         status) copy_check "${1:?copy status <dir>}"; copy_status "$1" ;;
-        rebase) copy_check "${1:?copy rebase <dir>}"; copy_rebase "$1" ;;
+        rebase) dir="${1:?copy rebase <dir> [--ours <path...>]}"; shift; copy_check "$dir"
+                case "${1:-}" in --ours) shift; [ $# -gt 0 ] || die "--ours needs the paths you resolved" ;; "") ;; *) die "copy rebase <dir> [--ours <path...>]" ;; esac
+                local -a ours=(); for p in "$@"; do ours+=("$(rel_path "$p")"); done
+                copy_rebase "$dir" ${ours[@]+"${ours[@]}"} ;;
         apply)  need_active; dir="${1:?apply <dir> [path...]}"; shift; copy_check "$dir"
                 with_lock apply copy_apply "$(me)" "$dir" "$@" ;;
         *) die "copy new|status|rebase <dir>, or apply <dir>" ;;
