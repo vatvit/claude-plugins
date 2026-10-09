@@ -18,7 +18,10 @@ echo "-- whoami"
 out="$(cd "$R" && bash "$C" whoami s1 coordinator 2>&1)"; rc=$?
 check "whoami without a visible session id fails" 1 "$rc"
 check "…and says how" yes "$(contains "--sid" "$out")"
+check "a failed join does not switch crew on (no crew/ dir)" no "$( [ -d "$R/.git/crew" ] && echo yes || echo no)"
+check "…and names the restart cause" yes "$(contains "must be restarted" "$out")"
 hook pre-bash.sh "$(payload sid-s1 "$R" Bash command "bash $C whoami s1 coordinator")" >/dev/null
+check "the parked id alone does not switch crew on either" no "$( [ -d "$R/.git/crew" ] && echo yes || echo no)"
 out="$(cd "$R" && bash "$C" whoami s1 coordinator)"
 check "whoami binds via the hook's pending id" yes "$(contains "you are s1 (coordinator)" "$out")"
 check "…and teaches the prefix" yes "$(contains "CREW_AS=s1 bash" "$out")"

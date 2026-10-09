@@ -21,7 +21,7 @@ esac
         *crew.sh*whoami*)
             n="$(printf '%s\n' "$cmd" | awk '{ for (i = 1; i < NF; i++) if ($i == "whoami") { print $(i + 1); exit } }')"
             if valid_name "$n" && [ -n "$SID" ]; then
-                mkdir -p "$STATE/pending" && printf '%s\n' "$SID" > "$STATE/pending/$n"
+                mkdir -p "$CREW_PENDING" && printf '%s\n' "$SID" > "$CREW_PENDING/$n"
             fi ;;
     esac
     crew_active || exit 0

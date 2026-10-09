@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Session identity. A crew name is the identity (holds, slots and claims are by name); the Claude
 # session id only maps a hook payload to that name. The PreToolUse Bash hook sees the session id of
-# the `whoami <name>` call and leaves it in $STATE/pending/<name>, so nobody has to type an id.
+# the `whoami <name>` call and leaves it in $CREW_PENDING/<name>, so nobody has to type an id.
 # help: whoami <name> [worker|coordinator] [--take] [--sid ID] — join the crew as <name>
 # help: whoami — show the crew
 # help: whoami --leave <name> — remove a session from the crew
@@ -30,10 +30,10 @@ while [ $# -gt 0 ]; do
     shift
 done
 valid_name "$name" || die "a crew name is letters, digits, '.', '_' or '-': '$name'"
-mkdir -p "$STATE/sessions" "$STATE/pending"
-if [ -z "$sid" ] && [ -f "$STATE/pending/$name" ]; then sid="$(cat "$STATE/pending/$name")"; fi
-rm -f "$STATE/pending/$name"
-[ -n "$sid" ] || die "cannot see this session's id — run whoami through the Bash tool with the crew plugin enabled, or pass --sid <session id>"
+if [ -z "$sid" ] && [ -f "$CREW_PENDING/$name" ]; then sid="$(cat "$CREW_PENDING/$name")"; fi
+rm -f "$CREW_PENDING/$name"
+[ -n "$sid" ] || die "cannot see this session's id — run whoami through the Bash tool with the crew plugin enabled (hooks load at session start: a session already running when crew was installed must be restarted), or pass --sid <session id>"
+mkdir -p "$STATE/sessions"          # only now: a failed join must not switch crew on for the repo
 
 bind() {
     local old cur c o

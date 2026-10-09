@@ -33,6 +33,9 @@ crew_try_init() { # same, but returns 1 instead of dying — for hooks, which mu
     local start="${CREW_PROJECT_DIR:-$(pwd)}" r
     r="$(git -C "$start" rev-parse --path-format=absolute --show-toplevel --git-common-dir 2>/dev/null)" || return 1
     ROOT="${r%%$'\n'*}"; STATE="${r#*$'\n'}/crew"
+    # ids parked by the pre-bash hook for whoami; OUTSIDE crew/, so a join that never completes does
+    # not switch crew on for the repo (crew_active is "crew/ exists")
+    CREW_PENDING="${r#*$'\n'}/crew-pending"
     [ -n "$ROOT" ] && [ "$ROOT" != "$r" ] || return 1
     cfg_load
 }

@@ -50,7 +50,8 @@ crew/
   holds. An entry is live while that crew's `sessions/<name>` still has the same sid; a stale one
   is taken over silently. Every message and the SessionStart line carry `[<crewId>]`.
 - **Nobody types a session id.** The pre-bash hook sees the session id of the
-  `crew.sh whoami <name>` call and leaves it in `pending/<name>` for `whoami.sh` to bind.
+  `crew.sh whoami <name>` call and leaves it in `<git-common-dir>/crew-pending/<name>` for `whoami.sh` to bind. It is outside `crew/` on purpose:
+  a join that never completes must not switch crew on for the repo and put peer sessions under the guard.
   `--sid` is the fallback for when the hooks are not installed.
 - **Area scripts are dual-use.** `holds.sh`, `slot.sh` and the rest define functions when
   sourced (by hooks and other scripts) and run their CLI when executed (`is_main`). Hooks load
