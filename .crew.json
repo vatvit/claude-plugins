@@ -1,0 +1,11 @@
+{
+  "crewId": "claude-plugins",
+  "sharedBranch": "main",
+  "committer": "coordinator",
+  "hotSpots": [
+    "crew/scripts/lib.sh", "crew/scripts/crew.sh", "crew/scripts/msg.sh", "crew/scripts/status.sh",
+    "crew/hooks/*", "crew/scripts/test/helpers.sh",
+    "crew/skills/crew/SKILL.md", "crew/README.md", "crew/CLAUDE.md",
+    "crew/.claude-plugin/plugin.json", ".claude-plugin/marketplace.json", "CLAUDE.md"
+  ]
+}
