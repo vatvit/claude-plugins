@@ -1,6 +1,6 @@
 ---
 title: crew — role-aware guard advice; allow git add --dry-run
-status: proposed
+status: in-progress
 type: bug
 epic: crew-feedback
 priority: medium

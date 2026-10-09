@@ -1,6 +1,6 @@
 ---
 title: crew — durable mailbox: msg --send, inbox, unread notice, Stop check
-status: proposed
+status: in-progress
 type: feature
 epic: crew-feedback
 priority: high

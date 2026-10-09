@@ -1,6 +1,6 @@
 ---
 title: crew — display names (spaces) and auto-join from the session title
-status: proposed
+status: in-progress
 type: feature
 epic: crew-feedback
 priority: high

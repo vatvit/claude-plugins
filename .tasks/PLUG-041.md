@@ -1,6 +1,6 @@
 ---
 title: crew — field feedback from the first real night
-status: proposed
+status: in-progress
 type: epic
 epic-name: crew-feedback
 priority: high
