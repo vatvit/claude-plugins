@@ -23,7 +23,7 @@ crew/
     ├── crew.sh             the one entry point; `help` is built from each script's `# help:` lines
     ├── lib.sh              the ONE place for project/state, config layers, identity, claims, locks, hook decisions
     ├── whoami.sh config.sh status.sh msg.sh
-    ├── holds.sh slot.sh copy.sh snapshot.sh land.sh inbox.sh one area each: functions when sourced, CLI when executed
+    ├── holds.sh slot.sh copy.sh snapshot.sh land.sh inbox.sh watch.sh one area each: functions when sourced, CLI when executed
     ├── status.d/  msg.d/   per-area parts, so adding an area never edits status.sh / msg.sh
     └── test/               helpers.sh, run.sh, <area>.test.sh, Dockerfile (bash:5 + git)
 ```
@@ -82,6 +82,10 @@ crew/
 - **lib.sh owns the one EXIT trap.** It drops a lock left by a dying process and then runs
   `CREW_ON_EXIT` (for example, `slot run` releasing its slot). A script that sets its own `trap … EXIT`
   silently disables both, so it sets `CREW_ON_EXIT` instead. That includes tests that source `lib.sh`.
+- **Silence is measured, not guessed.** Every tool call bumps `<state>/seen/<sid>` (fast.sh: `crew_fast_seen`,
+  a redirection on a builtin, so no fork), and `watch.sh` reads its mtime. A session counts as silent only
+  while it owns something (hold, slot, claimed dirty path). An idle session that owns nothing is just idle.
+  The stale-slot rule lives once, in `slots_plan` (field 13); `slot list` and `watch` both read it.
 - **Mail is a file before it is a message.** `msg --send` files a copy under `<state>/mail/<name>/`,
   and the mail hooks repeat the notice until it is read. They find "no mail for me" without a fork:
   sending leaves `<state>/unread/<sid>` for the recipient (fast.sh: `crew_fast_unread`), and the slow

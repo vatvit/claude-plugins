@@ -41,6 +41,7 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 | `status` | the crew, the branch vs origin, every dirty path by owner (yours, a peer's, SHARED, unclaimed) |
 | `msg <kind> [--send]` | a ready-to-send message: `handoff` (paths + commit message + test-first proof), `decision`, `stop`; `--send` also files it in the recipient's mailbox |
 | `inbox [--all]` / `inbox --ack <id>` | your unread crew mail, oldest first; hooks tell you after each tool call and hold one stop while mail waits |
+| `watch --once` / `watch --wait` / `watch` | silence watchdog: a session silent past `silenceMin` while it owns work, mail unread too long, stale slots; `--wait` in the background wakes an idle coordinator |
 | `config` / `config set\|unset [--user] <key> [value...]` | effective settings, each with the layer it came from; write one key without hand-editing JSON |
 | `hold <path...>` / `release <path...> --sha SHA` / `chain <path>` / `who` / `drop` | hot-spot holds; the pre-edit hook denies edits to a file another session holds |
 | `hold import <file> [--dry-run]` | coordinator: take the holds of a hand-kept bullet list (`- <path> — <holder> (…)`) when adopting crew mid-project; see [adopt.md](skills/crew/references/adopt.md) |

@@ -31,6 +31,7 @@ crew_fast_skip && exit 0
         echo "crew $(crew_id): you are $NAME ($role) · committer: $(cfg committer)${c:+ ($c coordinates)} · guards: $(cfg hookMode) · crew: $(crew_line)"
         echo "crew: run crew commands as: ${run:-$(prefix_for "$NAME")} <command> — start with 'status'; 'help' lists commands. Working rules: the crew skill."
         load_area inbox; declare -F mail_start >/dev/null && mail_start "$NAME" "$SID"
+        load_area watch; declare -F watch_stamp >/dev/null && watch_stamp "$SID"
     else
         echo "crew: this repo runs crew $(crew_id) ($(crew_line)). Join before editing: crew whoami \"<the name peers address you by in SendMessage>\" [worker|coordinator] — spaces are fine; it must be unique on this machine. A session with a title (/rename) joins by itself. Working rules: the crew skill."
     fi

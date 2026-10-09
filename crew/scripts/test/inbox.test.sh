@@ -6,7 +6,6 @@ R="$TMP/repo"; new_repo "$R"
 join "$R" s1 coordinator; join "$R" s2; join "$R" s3
 M="$R/.git/crew/mail"
 unread() { ls "$M/$1/new" 2>/dev/null | grep -c . ; }   # unread <name> -> count
-mailhook() { printf '%s' "$2" | bash "$H/mail.sh" "$1" 2>"$TMP/hook.err"; }   # mailhook <post|stop> <payload>
 
 echo "-- msg --send"
 out="$(crew_as s2 "$R" msg decision plain print)"

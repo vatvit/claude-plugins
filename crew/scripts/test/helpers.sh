@@ -40,6 +40,7 @@ hook() { # hook <script> <payload> -> stdout; returns the hook exit code
     local out rc; out="$(printf '%s' "$2" | bash "$H/$1" 2>"$TMP/hook.err")"; rc=$?; printf "%s" "$out"; return $rc
 }
 denied() { contains '"permissionDecision":"deny"' "$1"; }
+mailhook() { printf '%s' "$2" | bash "$H/mail.sh" "$1" 2>"$TMP/hook.err"; }   # mailhook <post|stop> <payload>
 
 # join <repo> <name> [role] — join through the real path: pre-bash hook sees the id, whoami binds it
 join() {

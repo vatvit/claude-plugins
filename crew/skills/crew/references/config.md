@@ -30,6 +30,7 @@ not start a crew. Adopting crew in a running project: [adopt.md](adopt.md).
 | `snapshotKeep` | project, user | `20` | snapshots kept per path |
 | `snapshotMaxKB` | project, user | `1024` | larger files are not snapshotted |
 | `slotGraceMin` | project, user | `10` | minutes past its estimate before a running slot shows as stale |
+| `silenceMin` | project, user | `15` | minutes of no tool calls before `watch` reports a session that owns a hold, slot or dirty paths; also the age at which unread mail is reported ([watch.md](watch.md)) |
 
 Project-only keys (`crewId`, `sharedBranch`, `hotSpots`, `landCheck`) mean nothing across projects. If
 they appear in the user file, they are ignored and `config` says so.

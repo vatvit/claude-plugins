@@ -16,12 +16,18 @@ CREW_USER_CONFIG="${CREW_USER_CONFIG:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/crew.j
 # Per MACHINE: the session-name registry deliberately ignores CLAUDE_CONFIG_DIR — SendMessage
 # addresses sessions of every account on this machine, so all accounts must see one registry.
 CREW_HOME="${CREW_HOME:-$HOME/.claude/crew}"
-CREW_KEYS="crewId sharedBranch committer hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin"
+CREW_KEYS="crewId sharedBranch committer hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin silenceMin"
 
 die()  { echo "crew: $*" >&2; exit 1; }
 note() { echo "crew: $*" >&2; }
 
 now() { echo "${CREW_NOW:-$(date +%s)}"; }
+
+# file_mtime <file> -> epoch. GNU/busybox first: busybox `stat -f` is filesystem info and prints junk
+# to stdout even as it fails, while BSD `stat -c` fails cleanly.
+file_mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null; }
+# json_esc <text> — a JSON string body (\ and " escaped, newlines as \n), for hook output
+json_esc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN { ORS = "\\n" } { print }' | sed 's/\\n$//'; }
 
 # --- dates: BSD first, GNU/busybox fallback ---------------------------------------------
 fmt_epoch() { date -r "$1" "+$2" 2>/dev/null || date -d "@$1" "+$2"; }
@@ -104,7 +110,7 @@ cfg_load() { CREW_CFG="$(cfg_parse project "$ROOT/.crew.json"; cfg_parse user "$
 cfg_default() {
     case "$1" in
         committer) echo coordinator ;; hookMode) echo deny ;;
-        snapshotKeep) echo 20 ;; snapshotMaxKB) echo 1024 ;; slotGraceMin) echo 10 ;;
+        snapshotKeep) echo 20 ;; snapshotMaxKB) echo 1024 ;; slotGraceMin) echo 10 ;; silenceMin) echo 15 ;;
     esac
     return 0
 }
@@ -178,7 +184,7 @@ with_lock() {
     until mkdir "$l" 2>/dev/null; do
         i=$((i + 1))
         if [ $((i % 50)) -eq 0 ]; then
-            age=$(( $(date +%s) - $(stat -f %m "$l" 2>/dev/null || stat -c %Y "$l" 2>/dev/null || date +%s) ))
+            age=$(( $(date +%s) - $(file_mtime "$l" || date +%s) ))
             [ "$age" -gt 30 ] && rm -rf "$l"
         fi
         [ "$i" -gt 600 ] && die "could not take lock $l"
@@ -290,7 +296,7 @@ my_dirty() { dirty_owned | awk -F'\t' -v n="$1" '{ k = "," $2 ","; if (index(k, 
 # Always exit 0: a hook never crashes the call that triggered it.
 hook_block() {
     local r="crew: $1" esc
-    esc="$(printf '%s' "$r" | sed 's/\\/\\\\/g; s/"/\\"/g' | awk 'BEGIN { ORS = "\\n" } { print }' | sed 's/\\n$//')"
+    esc="$(json_esc "$r")"
     if [ "$(cfg hookMode)" = warn ]; then
         echo "$r (hookMode=warn: allowed)" >&2
         printf '{"systemMessage":"%s (hookMode=warn: allowed)"}\n' "$esc"

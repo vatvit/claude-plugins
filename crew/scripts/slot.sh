@@ -26,15 +26,16 @@ slots_sorted() {
     awk -F'\t' '$7 == "waiting"' "$STATE/slots" | sort -t "$(printf '\t')" -k5,5n -k4,4n -k6,6n -k1,1n
 }
 
-# slots_plan — slots_sorted plus three fields: eta (start), end, startable now (1/0)
+# slots_plan — slots_sorted plus four fields: eta (start), end, startable now (1/0), stale (1/0: running
+# past its estimate + slotGraceMin — the one place that rule lives; slot list and watch read it)
 slots_plan() {
-    slots_sorted | awk -F'\t' -v OFS='\t' -v now="$(now)" '
+    slots_sorted | awk -F'\t' -v OFS='\t' -v now="$(now)" -v grace="$(cfg slotGraceMin)" '
         function max(a, b) { return a > b ? a : b }
         $7 == "running" {
             end = max($8 + $4 * 60, now)
             free_all = max(free_all, end)
             if ($3 != "cpu") { free_ex = max(free_ex, end); run_ex = 1 } else run_cpu = 1
-            print $0, $8, end, 0; next }
+            print $0, $8, end, 0, (now > $8 + ($4 + grace) * 60); next }
         {   # waiting, in queue order
             if ($3 == "cpu") {
                 s = max(now, free_ex); go = (!run_ex && !ahead_ex)
@@ -45,7 +46,7 @@ slots_plan() {
             end = s + $4 * 60; free_all = max(free_all, end)
             if ($3 != "cpu") free_ex = end
             ahead = 1
-            print $0, s, end, go }'
+            print $0, s, end, go, 0 }'
 }
 
 slot_quiet_holder() { # -> name of the session running a quiet slot, empty when none
@@ -60,7 +61,7 @@ slot_line() { # one formatted line from a slots_plan record (stdin)
             who = $2 (($2 == me) ? " (you)" : "")
             why = ($9 != "" ? " — " $9 : "")
             if ($7 == "running") {
-                st = (now > $8 + ($4 + grace) * 60) ? " · STALE (past estimate + " grace "m)" : ""
+                st = $13 ? " · STALE (past estimate + " grace "m)" : ""
                 printf "  #%s %s %s %sm RUNNING since %s, ends ~%s%s%s%s\n", $1, who, $3, $4, hm($8), hm($11), p, st, why
             } else {
                 printf "  #%s %s %s %sm waiting · %s%s%s\n", $1, who, $3, $4, ($12 == 1 ? "can start now" : "ETA " hm($10)), p, why

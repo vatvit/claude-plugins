@@ -69,7 +69,6 @@ mail_send() {
 }
 
 # --- hooks -----------------------------------------------------------------------------------------
-mail_json() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 mail_line() { # <name> <n> — the one-line notice
     echo "crew: $2 unread crew message$([ "$2" -eq 1 ] || echo s) — read before going on: $(prefix_for "$1") inbox"
 }
@@ -79,7 +78,7 @@ mail_notice() {
     [ -n "$1" ] || { rm -f "$STATE/unread/$2"; return 0; }
     n="$(mail_count "$1")"
     [ "$n" -gt 0 ] || { rm -f "$STATE/unread/$2"; return 0; }
-    printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$(mail_json "$(mail_line "$1" "$n")")"
+    printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$(json_esc "$(mail_line "$1" "$n")")"
 }
 # mail_start <name> <sid> — SessionStart: the notice line, and the marker for this (maybe new) sid
 mail_start() {
@@ -99,7 +98,7 @@ mail_stop() {
     [ "$(mail_count "$1")" -gt 0 ] || { rm -f "$STATE/unread/$2"; return 0; }
     [ -n "$new" ] || return 0
     printf '%s\n' $new >> "$held"
-    r="$(mail_json "$(mail_line "$1" "$(mail_count "$1")") — a hand-off may be waiting on you")"
+    r="$(json_esc "$(mail_line "$1" "$(mail_count "$1")") — a hand-off may be waiting on you")"
     if [ "$(cfg hookMode)" = warn ]; then printf '{"systemMessage":"%s"}\n' "$r"
     else printf '{"decision":"block","reason":"%s"}\n' "$r"; fi
 }

@@ -95,6 +95,9 @@ constraints, not preferences — a plugin that breaks them breaks on someone's m
   seconds included, so `-f "%Y-%m-%d %H:%M"` returns a different epoch each second. Always parse
   with explicit seconds. Try BSD (`date -j -f`, `date -r <epoch>`) first, then fall back to
   GNU/busybox (`date -d`, `date -d @<epoch>`), and keep both in one helper.
+- **File mtime: `stat -c %Y` first, then `stat -f %m`.** BSD `stat -c` fails cleanly, but busybox `stat -f`
+  is filesystem status: it prints a screenful to stdout *and* fails, so a BSD-first `||` chain captures
+  junk. Found in crew 1.2 (PLUG-045), where every docker watch check failed; `with_lock` had it latent.
 - **Never bake an absolute path into a value that gets committed.** A digest, cache key or stamp
   containing a checkout path computes differently on every machine, so it always mismatches and the
   check it guards becomes noise people learn to ignore.
@@ -171,7 +174,7 @@ disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.m
 external docs / catalogue / ingest / reference material*, task-roadmap owns *roadmap / gantt /
 timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
 tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
-hand off / hold / hot spot / slot / land / copy / snapshot / inbox / mailbox* and says *slot*, never *job* or *queue* alone,
+hand off / hold / hot spot / slot / land / copy / snapshot / inbox / mailbox / watchdog / adopt / import holds* and says *slot*, never *job* or *queue* alone,
 kickoff owns *kickoff / kick off / new project / start a project / bootstrap / questionnaire / charter*
 and never says *init*, which is the built-in `/init`.
 Bare *pdf / word / excel / docx /

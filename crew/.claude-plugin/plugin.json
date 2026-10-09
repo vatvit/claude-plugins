@@ -1,7 +1,7 @@
 {
   "name": "crew",
-  "description": "Run several Claude Code sessions on one working tree and one branch without lost edits: a coordinator/worker playbook, identity by display name (auto-join from the session title), unique across crews on one machine, a one-screen status of every dirty path by owner, crew-tagged hand-off messages with a durable mailbox (inbox, unread notices, a Stop check), hot-spot holds, a slot queue for machine time (cpu / exclusive / quiet), copies landed with a merge-or-refuse apply, a snapshot before every edit, exact-path-list commits under one committer, and guard hooks that deny whole-index git commands. Layered project/user config; costs nothing in repos without a crew. A bare `crew` command on PATH. Runtime-free (bash + awk + git).",
-  "version": "1.4.0",
+  "description": "Run several Claude Code sessions on one working tree and one branch without lost edits: a coordinator/worker playbook, identity by display name (auto-join from the session title), unique across crews on one machine, a one-screen status of every dirty path by owner, crew-tagged hand-off messages with a durable mailbox (inbox, unread notices, a Stop check), hot-spot holds, a silence watchdog that wakes the coordinator, a slot queue for machine time (cpu / exclusive / quiet), copies landed with a merge-or-refuse apply, a snapshot before every edit, exact-path-list commits under one committer, and guard hooks that deny whole-index git commands. Layered project/user config; costs nothing in repos without a crew. A bare `crew` command on PATH. Runtime-free (bash + awk + git).",
+  "version": "1.5.0",
   "author": {
     "name": "Vat",
     "url": "https://github.com/vatvit"
