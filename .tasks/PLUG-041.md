@@ -81,6 +81,7 @@ after the final hand-offs were lost at 02:56. Also make crew easy to adopt mid-p
 - PLUG-045: silence watchdog — crew watch warns the coordinator — #2b
 - PLUG-046: role-aware guard advice; allow git add --dry-run — #3, #6
 - PLUG-047: adopt mid-project — config set, hold import, adoption guide — #4
+- PLUG-048: copy rebase — empty-path read on an unchanged copy; `--ours` to accept a resolved file (found while dogfooding)
 
 Order and parallelism:
 - **Independent, can start at once:** PLUG-044 (mailbox), PLUG-046 (guard) and PLUG-047

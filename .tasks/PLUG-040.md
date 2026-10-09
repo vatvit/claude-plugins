@@ -59,6 +59,14 @@ needs the user's go-ahead.
   only once it has an id to bind. Three regression checks in `core.test.sh` fail on 1.0.1 and
   pass now. Full run: 264/264 on the host and in `crew-test`.
 
+## Added checks (2026-10-09, crew-feedback epic)
+
+For the same fresh session, also check live:
+- the PostToolUse `additionalContext` unread notice, and the Stop hold with unread mail (PLUG-044);
+- that a plugin SessionStart hook gets `CLAUDE_ENV_FILE`: after start, `crew status` works with no
+  CREW_AS prefix (PLUG-043);
+- auto-join of a titled session started with `--name` (PLUG-042).
+
 ## Current State
 
 Blocked on a fresh session. The bugfix (1.0.2) is uncommitted, waiting for the user's approval
