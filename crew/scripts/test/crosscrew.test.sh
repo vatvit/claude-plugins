@@ -32,7 +32,7 @@ echo "-- crew id in context and messages"
 out="$(hook session-start.sh "$(payload sid-s1 "$A" x x x)")"
 check "SessionStart names the crew" yes "$(contains "crew alpha: you are s1" "$out")"
 out="$(hook session-start.sh "$(payload sid-new "$A" x x x)")"
-check "join hint suggests a unique name" yes "$(contains "e.g. alpha-s1" "$out")"
+check "join hint asks for a machine-unique name" yes "$(contains "unique on this machine" "$out")"
 join "$A" s2
 out="$(crew_as s2 "$A" msg handoff)"
 check "msg header is tagged" yes "$(contains "[alpha] s2 → s1: HANDOFF" "$out")"

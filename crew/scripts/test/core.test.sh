@@ -35,7 +35,8 @@ check "a name bound to another session is refused" 1 "$rc"
 check "--take replaces the coordinator" "coordinator worker" "$(crew_as s3 "$R" whoami >/dev/null; grep -h role= "$R/.git/crew/sessions/s3" "$R/.git/crew/sessions/s1" | sed 's/role=//' | paste -sd' ' -)"
 (cd "$R" && bash "$C" whoami s1 coordinator --sid sid-s1 --take) >/dev/null 2>&1
 out="$(cd "$R" && bash "$C" whoami bad/name --sid x 2>&1)"; rc=$?
-check "invalid name refused" 1 "$rc"
+check "a name with odd characters becomes a slug (PLUG-042)" yes "$(contains "you are bad-name" "$out")"
+(cd "$R" && bash "$C" whoami --leave bad-name) >/dev/null
 (cd "$R" && bash "$C" whoami --leave s3) >/dev/null
 check "--leave removes the session" no "$( [ -f "$R/.git/crew/sessions/s3" ] && echo yes || echo no)"
 
@@ -45,7 +46,7 @@ check "named session: role line" yes "$(contains "you are s2 (worker)" "$out")"
 check "named session: prefix line" yes "$(contains "CREW_AS=s2 bash" "$out")"
 check "named session: at most 2 lines" 2 "$(printf '%s\n' "$out" | wc -l | tr -d ' ')"
 out="$(hook session-start.sh "$(payload sid-new "$R" x x x)")"
-check "unnamed session: join hint" yes "$(contains "whoami <name>" "$out")"
+check "unnamed session: join hint" yes "$(contains "whoami \"<the name" "$out")"
 
 echo "-- config layering"
 out="$(cd "$R" && bash "$C" config)"

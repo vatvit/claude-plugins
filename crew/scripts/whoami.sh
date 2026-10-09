@@ -15,11 +15,11 @@ if [ $# -eq 0 ]; then
     exit 0
 fi
 if [ "$1" = --leave ]; then
-    need_active; n="${2:-}"; valid_name "$n" && [ -f "$STATE/sessions/$n" ] || die "no session '$n'"
+    need_active; n="$(name_for "${2:-}")"; valid_name "$n" && [ -f "$STATE/sessions/$n" ] || die "no session '$n'"
     reg_drop "$n"; rm -f "$STATE/sessions/$n"; echo "crew: $n left"; exit 0
 fi
 
-name="$1"; shift; role=worker; take=0; sid=""
+display="$1"; name="$(name_for "$1")"; shift; role=worker; take=0; sid=""
 while [ $# -gt 0 ]; do
     case "$1" in
         worker|coordinator) role="$1" ;;
@@ -29,7 +29,7 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
-valid_name "$name" || die "a crew name is letters, digits, '.', '_' or '-': '$name'"
+valid_name "$name" || die "a crew name needs letters or digits: '$display'"
 if [ -z "$sid" ] && [ -f "$CREW_PENDING/$name" ]; then sid="$(cat "$CREW_PENDING/$name")"; fi
 rm -f "$CREW_PENDING/$name"
 [ -n "$sid" ] || die "cannot see this session's id — run whoami through the Bash tool with the crew plugin enabled (hooks load at session start: a session already running when crew was installed must be restarted), or pass --sid <session id>"
@@ -55,7 +55,7 @@ bind() {
             note "$c is now a worker"
         fi
     fi
-    printf 'sid=%s\nrole=%s\nsince=%s\n' "$sid" "$role" "$(now)" | replace_file "$STATE/sessions/$name"
+    printf 'sid=%s\nrole=%s\nsince=%s\ndisplay=%s\n' "$sid" "$role" "$(now)" "$display" | replace_file "$STATE/sessions/$name"
     reg_set "$name" "$sid"
 }
 with_lock sessions bind

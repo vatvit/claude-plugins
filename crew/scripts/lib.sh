@@ -197,12 +197,20 @@ replace_file() {
     if [ -f "$1" ] && cmp -s "$tmp" "$1"; then rm -f "$tmp"; else mv "$tmp" "$1"; fi
 }
 
-# --- sessions: $STATE/sessions/<name> holds sid= role= since= -------------------------------
+# --- sessions: $STATE/sessions/<name> holds sid= role= since= display= ------------------------
+# The crew NAME is a slug safe for files and CREW_AS. The DISPLAY name is what peers address the
+# session by in SendMessage (it may contain spaces: "Max Coordinator"). A valid name is its own
+# slug, so names like PLUG-W1 keep their case.
 valid_name() { case "$1" in ''|-*|*[!A-Za-z0-9_.-]*) return 1 ;; esac; return 0; }
+name_for() { # <display or name> -> crew name (slug)
+    if valid_name "$1"; then printf '%s\n' "$1"; return 0; fi
+    printf '%s\n' "$1" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9_.\n-' '-' | sed 's/--*/-/g; s/^-//; s/-$//'
+}
 sess_get() { # <name> <key>
     [ -f "$STATE/sessions/$1" ] || return 0
     sed -n "s/^$2=//p" "$STATE/sessions/$1" | head -1
 }
+display_of() { local d; d="$(sess_get "$1" display)"; printf '%s\n' "${d:-$1}"; }
 sess_names() { [ -d "$STATE/sessions" ] && ls "$STATE/sessions" 2>/dev/null; return 0; }
 name_of_sid() { # <sid> -> name, empty when unbound
     local f
@@ -216,15 +224,17 @@ coordinator() {
     for n in $(sess_names); do [ "$(sess_get "$n" role)" = coordinator ] && { echo "$n"; return 0; }; done
     return 0
 }
-crew_line() { # "s1 coordinator · s2 worker"
+crew_line() { # "Max Coordinator coordinator · PLUG-W1 worker"
     local n out=""
-    for n in $(sess_names); do out="$out${out:+ · }$n $(sess_get "$n" role)"; done
+    for n in $(sess_names); do out="$out${out:+ · }$(display_of "$n") $(sess_get "$n" role)"; done
     printf '%s\n' "$out"
 }
-# me — the caller's crew name, from CREW_AS (the prefix SessionStart hands each session)
+# me — the caller's crew name, from CREW_AS (the prefix SessionStart hands each session); the
+# display name is accepted too
 me() {
     local n="${CREW_AS:-}"
     [ -n "$n" ] || die "who is calling? prefix the command with CREW_AS=<your crew name>"
+    n="$(name_for "$n")"
     [ -f "$STATE/sessions/$n" ] || die "'$n' is not in this crew — join with: crew.sh whoami $n [worker|coordinator]"
     printf '%s\n' "$n"
 }

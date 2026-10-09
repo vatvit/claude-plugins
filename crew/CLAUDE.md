@@ -34,6 +34,12 @@ crew/
 - **State lives in `<git-common-dir>/crew/`.** Every session on the tree shares it, it is never
   committed, and it needs no `.gitignore` entry. Every mutation goes through `with_lock` and
   `replace_file` (temp + `mv`).
+- **Name vs display name.** Peers address a session by its SendMessage name, which may contain
+  spaces. crew keeps that as `display=` and keys everything by `name_for` (the name itself when it
+  is valid, else a lowercase slug), so `PLUG-W1` stays `PLUG-W1` and `Max Coordinator` becomes
+  `max-coordinator`. Messages show display names, and `CREW_AS` accepts either form. SessionStart
+  auto-joins a titled session (`session_title`) as a worker. It never takes a name already bound, and
+  it never makes a coordinator.
 - **A crew name is the identity.** Holds, slots and claims are all keyed by name. The Claude
   session id only maps a hook payload to a name (`sessions/<name>`: `sid= role= since=`).
   Scripts learn the caller from the `CREW_AS=<name>` prefix, which SessionStart teaches (again

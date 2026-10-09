@@ -19,8 +19,8 @@ In each session, give it the name its peers use for it in SendMessage. Names mus
 the machine, because each repo can run its own crew, so prefer `<repo>-<name>` when several crews run:
 
 ```
-bash <plugin>/scripts/crew.sh whoami s1 coordinator     # the first session
-bash <plugin>/scripts/crew.sh whoami s2                 # each worker
+bash <plugin>/scripts/crew.sh whoami "Max Coordinator" coordinator   # the first session
+bash <plugin>/scripts/crew.sh whoami "Ann Worker"                     # each worker (a titled session joins by itself)
 ```
 
 From then on, SessionStart tells each session who it is and gives it the prefix for every
@@ -37,7 +37,7 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 
 | Command | What it does |
 |---------|--------------|
-| `whoami <name> [worker\|coordinator] [--take]` | join the crew (the name must be unique on this machine); `whoami` alone lists it |
+| `whoami "<name>" [worker\|coordinator] [--take]` | join the crew. Spaces are fine and the name must be unique on this machine. `whoami` alone lists the crew |
 | `status` | the crew, the branch vs origin, every dirty path by owner (yours, a peer's, SHARED, unclaimed) |
 | `msg <kind>` | a ready-to-send message: `handoff` (paths + commit message + test-first proof), `decision`, `stop` |
 | `config` | effective settings, each with the layer it came from |

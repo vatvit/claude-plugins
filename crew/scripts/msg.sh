@@ -9,7 +9,7 @@ for part in "$CREW_LIB_DIR"/msg.d/*.sh; do [ -f "$part" ] && . "$part"; done
 FROM="$(me)"
 
 # msg_head <KIND> <to> [summary]
-msg_head() { echo "[$(crew_id)] $FROM → $2: $1${3:+ — $3}"; }
+msg_head() { echo "[$(crew_id)] $(display_of "$FROM") → $(display_of "$2"): $1${3:+ — $3}"; }
 
 kind="${1:-}"; [ $# -gt 0 ] && shift
 if [ -z "$kind" ] || ! declare -F "msg_$kind" >/dev/null; then

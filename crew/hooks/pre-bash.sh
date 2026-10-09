@@ -19,7 +19,11 @@ esac
     cmd="$(printf '%s' "$PAYLOAD" | payload_str command)"
     case "$cmd" in
         *crew.sh*whoami*)
-            n="$(printf '%s\n' "$cmd" | awk '{ for (i = 1; i < NF; i++) if ($i == "whoami") { print $(i + 1); exit } }')"
+            # the argument after whoami: a bare word, or a quoted display name ("Max Coordinator")
+            n="$(printf '%s\n' "$cmd" | awk '{ i = index($0, "whoami "); if (!i) exit; s = substr($0, i + 7); sub(/^ +/, "", s)
+                q = substr(s, 1, 1); if (q == "\"" || q == "'\''") { s = substr(s, 2); print substr(s, 1, index(s, q) - 1) }
+                else { split(s, a, /[ \t;&|]/); print a[1] } exit }')"
+            n="$(name_for "$n")"
             if valid_name "$n" && [ -n "$SID" ]; then
                 mkdir -p "$CREW_PENDING" && printf '%s\n' "$SID" > "$CREW_PENDING/$n"
             fi ;;

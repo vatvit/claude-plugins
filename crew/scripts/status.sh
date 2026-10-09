@@ -5,7 +5,7 @@
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
 crew_init; need_active
-ME="${CREW_AS:-}"
+ME="$(name_for "${CREW_AS:-}")"
 [ -n "$ME" ] && [ ! -f "$STATE/sessions/$ME" ] && ME=""
 
 br="$(shared_branch)"
