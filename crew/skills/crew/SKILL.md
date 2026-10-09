@@ -1,6 +1,6 @@
 ---
 name: crew
-description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, handing off a finished slice, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "work in a copy", "apply the copy", "rebase the copy", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
+description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, handing off a finished slice, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "work in a copy", "apply the copy", "rebase the copy", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
 ---
 
 # crew — parallel Claude sessions on one working tree
@@ -75,13 +75,14 @@ Read only the reference for the area you are working in:
 | Area | Read |
 |------|------|
 | Full playbook: the why behind each rule, push checks, bulk syncs, messages, hard stops | `references/playbook.md` |
-| Config keys and layers | `references/config.md` |
+| Config keys and layers; `config set` / `unset` | `references/config.md` |
 | Hot spots and holds | `references/holds.md` |
 | Slots: machine time | `references/slots.md` |
 | Copy, rebase, apply | `references/copy-apply.md` |
 | Snapshots: recover an overwritten edit | `references/snapshots.md` |
 | Land, the git guard, pushing | `references/land.md` |
 | Mailbox: `msg --send`, `inbox`, the unread notice | `references/inbox.md` |
+| Adopting crew in a running project: hot spots, holds import, what to cut from CLAUDE.md | `references/adopt.md` |
 
 ## When a hook says no
 

@@ -9,6 +9,16 @@ You never need a config file. Each key is resolved separately, in this order:
 
 `crew.sh config` prints every effective value and the layer it came from.
 
+To change a key, don't edit the JSON by hand:
+- `config set <key> <value…>` writes it to `.crew.json` and keeps the other keys. `hotSpots`
+  takes several values.
+- `config set --user <key> <value>` writes it to your user file instead. A project-only key is
+  refused there.
+- `config unset [--user] <key>` removes it.
+
+`set` checks the value: the committer and hook modes, whole numbers, and no `"` or `\`. It does
+not start a crew. Adopting crew in a running project: [adopt.md](adopt.md).
+
 | Key | Layers | Default | Meaning |
 |-----|--------|---------|---------|
 | `crewId` | project | the repo folder name | tags every message and the SessionStart line, so crews on one machine never cross |

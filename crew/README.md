@@ -41,8 +41,9 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 | `status` | the crew, the branch vs origin, every dirty path by owner (yours, a peer's, SHARED, unclaimed) |
 | `msg <kind> [--send]` | a ready-to-send message: `handoff` (paths + commit message + test-first proof), `decision`, `stop`; `--send` also files it in the recipient's mailbox |
 | `inbox [--all]` / `inbox --ack <id>` | your unread crew mail, oldest first; hooks tell you after each tool call and hold one stop while mail waits |
-| `config` | effective settings, each with the layer it came from |
+| `config` / `config set\|unset [--user] <key> [value...]` | effective settings, each with the layer it came from; write one key without hand-editing JSON |
 | `hold <path...>` / `release <path...> --sha SHA` / `chain <path>` / `who` / `drop` | hot-spot holds; the pre-edit hook denies edits to a file another session holds |
+| `hold import <file> [--dry-run]` | coordinator: take the holds of a hand-kept bullet list (`- <path> — <holder> (…)`) when adopting crew mid-project; see [adopt.md](skills/crew/references/adopt.md) |
 | `slot run <cpu\|exclusive\|quiet> <min> -- <cmd>` / `slot request\|start\|done\|list\|clear` | the queue for machine time: classes, priority, ETAs, stale slots |
 | `copy new\|status\|rebase <dir>` / `apply <dir> [path...]` | build in a copy; land with take / 3-way merge / refuse-all, plus an optional `landCheck` |
 | `snapshot log <path>` / `show\|diff\|restore <id>` / `prune` | every file is snapshotted before each edit; recover an overwrite |

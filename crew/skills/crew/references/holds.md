@@ -19,6 +19,7 @@ into two commits, so a file that many features touch gets one holder at a time.
 | `release <path...> --unchanged` | you held it but changed nothing; refused while the path is dirty |
 | `who [path]` | the registry |
 | `drop <path...>` | coordinator only: free a hold whose holder is gone |
+| `hold import <file> [--dry-run]` | coordinator only: one hold per bullet `- <path> — <holder> (…)` of a hand-kept list; unknown holders and conflicts are listed, not held. See [adopt.md](adopt.md) |
 | `msg hold <path...>` / `msg release <path>` | the announcement, pre-filled; the coordinator relays it to everyone |
 
 `msg handoff` lists the holds you will release once your slice lands. The coordinator posts
