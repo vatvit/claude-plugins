@@ -29,6 +29,8 @@ DELAY_DOCKER_WAIT="${DELAY_DOCKER_WAIT:-60}"
 
 die() { echo "delay: $*" >&2; exit 1; }
 
+header() { awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$1"; }   # <script> -> its usage
+
 now() { echo "${DELAY_NOW:-$(date +%s)}"; }
 
 # --- dates: BSD first, GNU/busybox fallback -------------------------------------------
@@ -124,9 +126,32 @@ sha256() { # [file] — of the file, or of stdin; Alpine has only sha256sum, mac
 }
 sha256_file() { sha256 "$1"; }
 
-# job_id <project> <job> -> the short id the human approves by. Stable: approval is per
-# (project, job), so every queued run of a job and its registry entry share one id.
+# job_id <project> <pair_id> -> the short id the human approves by. Stable: approval is per
+# (project, pair), so every queued run of a pair and its registry entry share one id.
 job_id() { printf '%s\n%s' "$1" "$2" | sha256 | cut -c1-6; }
+
+# --- a job = a PAIR (container: compose file + service, and a .sh run inside it) + params ---
+# pair_id <compose> <service> <script> -> 12 hex; names the registry file, passes valid_name
+pair_id() { printf '%s\n%s\n%s' "$1" "$2" "$3" | sha256 | cut -c1-12; }
+entry_pair() { pair_id "$(kv compose "$1")" "$(kv service "$1")" "$(kv script "$1")"; }   # <entry>
+
+entry_args() { # <entry> -> its params, one per line, in the order given
+    awk 'index($0, "arg=") == 1 { print substr($0, 5) }' "$1" 2>/dev/null || true
+}
+
+# entry_sig <entry> -> the duplicate key: the pair plus the params as a multiset (order ignored,
+# each param compared as an exact string)
+entry_sig() { { entry_pair "$1"; entry_args "$1" | LC_ALL=C sort; } | sha256; }
+
+job_desc() { # <entry, registry file or result meta> -> "script params… (compose / service)"
+    local d a
+    d="$(kv script "$1")"
+    if [ -z "$d" ]; then d="$(kv job "$1")"; [ -z "$d" ] || d="$d (queued by delay 1.x)"; echo "$d"; return 0; fi
+    while IFS= read -r a; do [ -z "$a" ] || d="$d $a"; done <<EOF
+$(entry_args "$1")
+EOF
+    echo "$d ($(kv compose "$1") / $(kv service "$1"))"
+}
 
 # inside_project <root> <relpath> -> absolute physical path, exit 1 when it escapes the root
 inside_project() {
@@ -139,6 +164,9 @@ inside_project() {
     case "$abs" in "$root"/*) echo "$abs" ;; *) return 1 ;; esac
 }
 
+# rel_inside <root> <relpath> -> the normalised project-relative path; exit 1 when it escapes
+rel_inside() { local a; a="$(inside_project "$1" "$2")" || return 1; echo "${a#"$1"/}"; }
+
 # write_if_changed <file> — stdin becomes the file; untouched when identical (diff-guard)
 write_if_changed() {
     local f="$1" tmp
@@ -148,8 +176,8 @@ write_if_changed() {
 }
 
 # --- registry -----------------------------------------------------------------------------
-# registry_job <project_root> <job> -> path of the approved job file, exit 1 when not approved
-registry_job() {
+# registry_pair <project_root> <pair_id> -> path of the approved pair, exit 1 when not approved
+registry_pair() {
     local enc dir
     valid_name "$2" || return 1
     enc="$(encode_path "$1")"; dir="$DELAY_REGISTRY/$enc"
@@ -182,16 +210,14 @@ project_store() {
     echo "$d"
 }
 
-# approved_queued <store> -> how many queue entries name a job approved for their project.
-# Safe to run as root over a user-writable store: it only reads names and checks the registry.
+# approved_queued <store> -> how many queue entries name a pair approved for their project.
+# Safe to run as root over a user-writable store: it only hashes paths and checks the registry.
 approved_queued() {
-    local q job root n=0
+    local q root n=0
     for q in "$1"/*/queue/*.job; do
-        [ -f "$q" ] || continue
-        job="$(kv job "$q")"
-        valid_name "$job" || continue
+        [ -f "$q" ] && [ -n "$(kv script "$q")" ] || continue
         root="$(cat "$(dirname "$(dirname "$q")")/project.path" 2>/dev/null)" || continue
-        registry_job "$root" "$job" >/dev/null && n=$((n + 1))
+        registry_pair "$root" "$(entry_pair "$q")" >/dev/null && n=$((n + 1))
     done
     echo "$n"
 }
@@ -203,6 +229,13 @@ DELAY_LABEL="com.claude-delay.dispatch"
 DELAY_PLIST="$DELAY_SYSTEM/$DELAY_LABEL.plist"
 
 runner_installed() { [ -f "$DELAY_PLIST" ] && [ -f "$DELAY_SYSTEM/bin/dispatch.sh" ]; }
+
+# launchd and sudo run root-owned copies: a plugin update reaches them only via re-install
+DELAY_SCRIPTS="lib.sh dispatch.sh start.sh approve.sh"
+installed_current() {
+    local s
+    for s in $DELAY_SCRIPTS; do cmp -s "$DELAY_LIB_DIR/$s" "$DELAY_SYSTEM/bin/$s" || return 1; done
+}
 
 runner_loaded() { # [uid]
     launchctl print "gui/${1:-$(id -u)}/$DELAY_LABEL" >/dev/null 2>&1
@@ -237,31 +270,32 @@ user_store() { # the queue store to read: the sudo user's when running as root, 
     if is_root; then echo "$(user_home "$(sudo_user)")/.claude/delay"; else echo "$DELAY_HOME"; fi
 }
 
-# all_jobs <store> -> TSV records: id, kind, project, job, file — one per (project, job).
-#   approved: in the registry (file = the registry job file)
-#   pending:  queued but not approved (file = a queue entry, which may carry a proposal)
+# all_jobs <store> -> TSV records: id, kind, project, pair_id, file — one per (project, pair).
+#   approved: in the registry (file = the registry pair file)
+#   pending:  queued but not approved (file = a queue entry, which names the pair)
 all_jobs() {
-    local d p f q job
+    local d p f q pr
     {
         for d in "$DELAY_REGISTRY"/*; do
             [ -f "$d/project.path" ] || continue; p="$(cat "$d/project.path")"
             for f in "$d"/jobs/*; do
-                [ -f "$f" ] || continue; job="$(basename "$f")"; valid_name "$job" || continue
-                printf '%s\tapproved\t%s\t%s\t%s\n' "$(job_id "$p" "$job")" "$p" "$job" "$f"
+                [ -f "$f" ] || continue; pr="$(basename "$f")"; valid_name "$pr" || continue
+                printf '%s\tapproved\t%s\t%s\t%s\n' "$(job_id "$p" "$pr")" "$p" "$pr" "$f"
             done
         done
         for d in "$1"/*; do
             [ -f "$d/project.path" ] || continue; p="$(cat "$d/project.path")"
             for q in "$d"/queue/*.job; do
-                [ -f "$q" ] || continue; job="$(kv job "$q")"; valid_name "$job" || continue
-                registry_job "$p" "$job" >/dev/null && continue
-                printf '%s\tpending\t%s\t%s\t%s\n' "$(job_id "$p" "$job")" "$p" "$job" "$q"
+                [ -f "$q" ] && [ -n "$(kv script "$q")" ] || continue
+                pr="$(entry_pair "$q")"
+                registry_pair "$p" "$pr" >/dev/null && continue
+                printf '%s\tpending\t%s\t%s\t%s\n' "$(job_id "$p" "$pr")" "$p" "$pr" "$q"
             done
         done
     } | awk -F'\t' '!seen[$1]++'
 }
 
-# print_jobs — every project with its approved and waiting jobs and their IDs (approve.sh, install.sh)
+# print_jobs — every project with its approved and waiting pairs and their IDs (approve.sh, install.sh)
 print_jobs() {
     local tmp p
     tmp="$(mktemp)"
@@ -274,20 +308,16 @@ print_jobs() {
         echo
         echo "$p"
         awk -F'\t' -v p="$p" '$3 == p' "$tmp" | sort -t "$(printf '\t')" -k2,2 -k4,4 |
-        while IFS=$'\t' read -r id kind _ job f; do
+        while IFS=$'\t' read -r id kind _ _ f; do
             if [ "$kind" = approved ]; then
                 st="approved"
                 if [ ! -d "$p" ]; then st="project missing"
                 elif ! verify_pins "$p" "$f" >/dev/null 2>&1; then st="CHANGED, re-approve"; fi
-                printf '  %s  %-16s %-22s %s / %s / %s\n' "$id" "$job" "$st" \
+                printf '  %s  %-20s %-22s %s / %s / %s\n' "$id" "$(kv script "$f")" "$st" \
                     "$(kv compose "$f")" "$(kv service "$f")" "$(kv command "$f")"
-            elif [ -n "$(kv proposed_compose "$f")" ]; then
-                printf '  %s  %-16s %-22s %s / %s / %s\n' "$id" "$job" "WAITING for approval" \
-                    "$(kv proposed_compose "$f")" "$(kv proposed_service "$f")" \
-                    "$(c="$(kv proposed_command "$f")"; [ -n "$c" ] && echo "$c" || kv proposed_wrapper "$f")"
             else
-                printf '  %s  %-16s %-22s %s\n' "$id" "$job" "WAITING, no definition" \
-                    "ask Claude to re-queue it with --compose/--service/--wrapper, or use the full form"
+                printf '  %s  %-20s %-22s %s / %s\n' "$id" "$(kv script "$f")" "WAITING for approval" \
+                    "$(kv compose "$f")" "$(kv service "$f")"
             fi
         done
     done

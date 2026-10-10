@@ -21,9 +21,16 @@ delay/
 
 ## Trust boundaries (don't regress these)
 
-- **The queue is user-writable, so it is never trusted.** It names a job, nothing else: no
-  command and no time. The dispatcher re-checks everything against the registry at run time, and
-  `start.sh` (root) only asks it "how many approved, `valid_name` jobs are waiting?".
+- **The queue is user-writable, so it is never trusted.** It names a pair (compose, service,
+  script) and carries params: no command and no time. The dispatcher hashes the pair, looks it up
+  in the registry and runs the **registry's** compose, service and command, and `start.sh` (root)
+  only asks "how many queued pairs are approved?". A `command=` in the queue is ignored.
+- **Params are Claude's, unapproved — so they are data.** They are appended as argv words after
+  `SERVICE` (`set -- "$@" "$arg"`), where docker parses no more options: no shell, no glob, no
+  eval. The container bounds what an approved script can reach with any params. The one way a
+  script turns params into arbitrary code is running them; `approve.sh` scans for that
+  (`scan_params`) and refuses without `--accept-risks`. The scan is a safety net — the rule itself
+  lives in the user's global CLAUDE.md. Before 2.0, Claude chose only *which* approved job ran.
 - **When is the human's, never Claude's.** The root-owned `window` file (`approve.sh --window`)
   is the only time source: `start.sh` wakes for its start, and the dispatcher starts jobs
   only inside it, re-checking before each job. A missed window waits for the next one; there is

@@ -14,7 +14,7 @@
 # is empty or the window has ended — so there is no always-on daemon. Being the human's command
 # it is also a per-night approval: queued jobs do not run until someone starts the runner.
 #
-# As root it reads the user's queue only to count approved jobs (names checked against the
+# As root it reads the user's queue only to count approved jobs (pairs checked against the
 # root-owned registry); nothing from the queue is executed or trusted for timing. The wake is
 # tagged with our owner and is the only one it cancels later — never `pmset schedule cancelall`.
 set -euo pipefail

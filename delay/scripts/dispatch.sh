@@ -9,8 +9,8 @@
 #
 # Per queued entry: claim it (atomic mv) → re-check everything against the root-owned
 # registry → verify pins → wait for docker → run under caffeinate with a timeout → record the
-# result on the host. The queue is never trusted: it only names a job, and every check is
-# repeated here because the queue is user-writable.
+# result on the host. The queue is never trusted: it names a pair and carries params, and every
+# check is repeated here because the queue is user-writable.
 set -uo pipefail
 . "$(cd "$(dirname "$0")" && pwd -P)/lib.sh"
 
@@ -74,13 +74,18 @@ wait_for_docker() {
     done
 }
 
-# run_job <rd> <project> <job_file> -> sets RC and TIMED_OUT
+# run_job <rd> <project> <job_file> -> sets RC and TIMED_OUT. Compose, service and command are
+# the REGISTRY's; only the params come from the queue, appended as argv words after SERVICE,
+# where docker no longer parses options.
 run_job() {
-    local rd="$1" proj="$2" jf="$3" compose service command timeout pid start name
+    local rd="$1" proj="$2" jf="$3" compose service command timeout pid start name a
     compose="$(kv compose "$jf")"; service="$(kv service "$jf")"
     command="$(kv command "$jf")"; timeout="$(kv timeout "$jf")"
     is_digits "$timeout" || timeout=10800
     set -f; set -- $command; set +f        # split on spaces, never glob, never eval
+    while IFS= read -r a; do [ -z "$a" ] || set -- "$@" "$a"; done <<EOF
+$(entry_args "$rd/job")
+EOF
     name="claude-delay-$(basename "$rd")"
     echo "== docker compose -f $compose run --rm -T --name $name $service $* ==" >> "$rd/log"
     ( cd "$proj" && exec docker compose -f "$compose" run --rm -T --name "$name" "$service" "$@" ) < /dev/null >> "$rd/log" 2>&1 &
@@ -101,7 +106,7 @@ run_job() {
 }
 
 process() { # process <store> <queue_file>
-    local store="$1" q="$2" id rd proj job jf started st rc="" pins
+    local store="$1" q="$2" id rd proj jf started st rc="" pins
     id="$(basename "$q" .job)"
     valid_name "$id" || { rm -f "$q"; return; }
     rd="$store/results/$id"
@@ -109,13 +114,17 @@ process() { # process <store> <queue_file>
     mv "$q" "$rd/job" 2>/dev/null || { rmdir "$rd"; return; }
     : > "$rd/log"
     started="$(now)"
-    proj="$(kv project "$rd/job")"; job="$(kv job "$rd/job")"
+    proj="$(kv project "$rd/job")"
 
-    if ! valid_name "$job" || [ "$(cat "$store/project.path")" != "$proj" ]; then
+    if [ -z "$(kv script "$rd/job")" ]; then
+        st=invalid
+        [ -z "$(kv job "$rd/job")" ] ||
+            echo "queued by delay 1.x (a job name, no script) — re-queue it: delay.sh add <script.sh>" >> "$rd/log"
+    elif [ "$(cat "$store/project.path")" != "$proj" ]; then
         st=invalid
     elif [ ! -d "$proj" ]; then
         st=project-missing
-    elif ! jf="$(registry_job "$proj" "$job")"; then
+    elif ! jf="$(registry_pair "$proj" "$(entry_pair "$rd/job")")"; then
         st=not-approved
     elif ! pins="$(verify_pins "$proj" "$jf")"; then
         st=needs-reapproval

@@ -47,7 +47,6 @@ case "$INTERVAL" in [1-9]|[1-5][0-9]|60) ;; *) die "--interval must be 1-60 minu
 [ -z "$HOURS" ] || valid_hours "$HOURS" || die "--hours must be 1-24"
 UID_="$(id -u "$U")"
 BIN="$DELAY_SYSTEM/bin"
-SCRIPTS="lib.sh dispatch.sh start.sh approve.sh"
 
 xml() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
 
@@ -67,7 +66,32 @@ fi
 
 HOME_U="$(user_home "$U")"
 mkdir -p "$BIN" "$DELAY_REGISTRY" "$DELAY_STATE"
-for s in $SCRIPTS; do write_if_changed "$BIN/$s" < "$SRC/$s"; done
+for s in $DELAY_SCRIPTS; do write_if_changed "$BIN/$s" < "$SRC/$s"; done
+
+# delay 1.x approved a NAME (jobs/<name>, wrapper=); 2.0 approves a pair (jobs/<pair_id>, script=).
+# Same compose, service, command and pins, so nothing needs re-approval. Two names for one pair
+# keep the first. Queue entries are not translated: the dispatcher marks a 1.x one invalid.
+migrate_registry() {
+    local d f name w pr
+    for d in "$DELAY_REGISTRY"/*; do
+        [ -f "$d/project.path" ] || continue
+        for f in "$d"/jobs/*; do
+            [ -f "$f" ] || continue
+            w="$(kv wrapper "$f")"; [ -n "$w" ] && [ -z "$(kv script "$f")" ] || continue
+            name="$(basename "$f")"
+            pr="$(pair_id "$(kv compose "$f")" "$(kv service "$f")" "$w")"
+            if [ "$name" != "$pr" ] && [ -f "$d/jobs/$pr" ]; then
+                rm -f "$f"; echo "  dropped $name: the same pair as a job already migrated"; continue
+            fi
+            awk '{ if (index($0, "wrapper=") == 1) print "script=" substr($0, 9); else print }' "$f" |
+                write_if_changed "$d/jobs/$pr"
+            chmod 644 "$d/jobs/$pr"
+            [ "$name" = "$pr" ] || rm -f "$f"
+            echo "  migrated $name -> $pr"
+        done
+    done
+}
+migrated="$(migrate_registry)"
 
 # the run window: defaults (03:00, 4h) on a first install; a re-install keeps it unless asked
 if [ -n "$RUN_AT$HOURS" ] || ! window_conf >/dev/null; then
@@ -119,6 +143,7 @@ W="$(window_conf)"
 echo "  run window: ${W% *} for ${W#* }h — change it: sudo \"$BIN/approve.sh\" --window HH:MM HOURS"
 if [ "$(setting awake)" = 1 ]; then echo "  start.sh keeps the Mac awake until the jobs are done (installed with --awake; keep the lid open)"
 else echo "  start.sh lets the Mac sleep and relies on the wake (re-install with --awake to change)"; fi
+[ -z "$migrated" ] || { echo "  approvals moved from delay 1.x names to pairs (no re-approval needed):"; echo "$migrated"; }
 echo "  1. approve each waiting job once, by its ID (list below): sudo \"$BIN/approve.sh\" <ID>"
 echo "  2. after Claude queues jobs, start the runner: sudo \"$BIN/start.sh\""
 
