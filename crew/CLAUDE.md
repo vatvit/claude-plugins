@@ -39,9 +39,12 @@ crew/
 - **Name vs display name.** Peers address a session by its SendMessage name, which may contain
   spaces. crew keeps that as `display=` and keys everything by `name_for` (the name itself when it
   is valid, else a lowercase slug), so `PLUG-W1` stays `PLUG-W1` and `Max Coordinator` becomes
-  `max-coordinator`. Messages show display names, and `CREW_AS` accepts either form. SessionStart
-  auto-joins a titled session (`session_title`) as a worker. It never takes a name already bound, and
-  it never makes a coordinator.
+  `max-coordinator`. Messages show display names, and `CREW_AS` accepts either form.
+- **Membership is opt-in; a non-member works as usual (PLUG-055).** Only `whoami` joins. SessionStart
+  never auto-joins (that was PLUG-042, reversed), because not every session on a repo belongs to its
+  crew. The guards key on `NAME`: a session with none gets no git guard and no holds or hot-spot
+  denial, only snapshots and claims. A member of a crew with no coordinator is told how to take the
+  role, never sent to hand off to nobody.
 - **A crew name is the identity.** Holds, slots and claims are all keyed by name. The Claude
   session id only maps a hook payload to a name (`sessions/<name>`: `sid= role= since= display=`).
   Scripts learn the caller via `caller_name`, which takes `CREW_AS` (a name or a display name) when it

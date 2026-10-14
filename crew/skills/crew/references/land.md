@@ -44,6 +44,10 @@ The pre-bash hook denies, with the reason and the alternative:
 Exact-path forms always pass: `git add <path>`, `git checkout -- <path>`,
 `git restore -- <path>`, `git reset -- <path>`.
 
+The guard applies to crew members only. A session that never ran `whoami` works as usual. A
+member of a crew with no coordinator is told to take the role (`crew whoami <name> coordinator`)
+or ask the user, rather than to hand off to nobody.
+
 `hookMode=warn` turns every denial into a warning. Don't re-spell a denied command to get
 past the guard. If the guard is wrong, raise it with the coordinator.
 

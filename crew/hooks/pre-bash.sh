@@ -2,7 +2,7 @@
 # crew PreToolUse hook for Bash:
 #   1. `crew.sh whoami <name>` — leave this session's id for whoami.sh to bind (works before a
 #      crew exists: it is how one starts)
-#   2. git guard — deny commands that touch the whole shared index or tree (land area)
+#   2. git guard (crew members only) — deny commands that touch the whole shared index or tree (land area)
 # Always exits 0; a denial is a JSON decision on stdout, not an exit code.
 h="${BASH_SOURCE[0]%/*}"; [ "$h" != "${BASH_SOURCE[0]}" ] || h=.; . "$h/fast.sh"   # no fork
 crew_fast_read
@@ -29,6 +29,7 @@ esac
             fi ;;
     esac
     crew_active || exit 0
+    [ -n "$NAME" ] || exit 0              # outside the crew: works as usual (PLUG-055)
     load_area land; declare -F git_guard >/dev/null && git_guard "$NAME" "$cmd"
     exit 0
 )

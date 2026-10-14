@@ -30,17 +30,16 @@ check "CREW_AS accepts the display name" yes "$(contains "you: ann-worker" "$out
 out="$(cd "$R" && bash "$C" whoami)"
 check "crew line shows display names" yes "$(contains "Max Coordinator coordinator" "$out")"
 
-echo "-- auto-join from the session title"
+echo "-- membership is opt-in (PLUG-055): a title never joins a session"
 out="$(hook session-start.sh "$(start_payload sid-b "$R" "Bob Builder")")"
-check "titled session joins as a worker" yes "$(contains "you are bob-builder (worker)" "$out")"
-check "…bound" "sid=sid-b" "$(grep '^sid=' "$R/.git/crew/sessions/bob-builder")"
-out="$(hook session-start.sh "$(start_payload sid-b "$R" "Bob Builder")")"
-check "again (resume): still bob-builder" yes "$(contains "you are bob-builder (worker)" "$out")"
-out="$(hook session-start.sh "$(start_payload sid-other "$R" "Bob Builder")")"
-check "a title held by another session is not taken" "sid=sid-b" "$(grep '^sid=' "$R/.git/crew/sessions/bob-builder")"
-check "…join hint instead" yes "$(contains "whoami" "$out")"
+check "titled session is not joined" no "$( [ -f "$R/.git/crew/sessions/bob-builder" ] && echo yes || echo no)"
+check "…told it is outside the crew and unguarded" yes "$(contains "you are not in it — its guards do not apply to you" "$out")"
+check "…and how to join if it is meant to" yes "$(contains "crew whoami" "$out")"
 out="$(hook session-start.sh "$(start_payload sid-n "$R")")"
-check "untitled session: hint, nothing bound" yes "$(contains "Join before editing" "$out")"
+check "untitled session: the same line, nothing bound" yes "$(contains "you are not in it" "$out")"
+join "$R" bob-builder
+out="$(hook session-start.sh "$(start_payload sid-bob-builder "$R" "Bob Builder")")"
+check "a member that joined explicitly is recognised on start" yes "$(contains "you are bob-builder (worker)" "$out")"
 check "coordinator stays explicit" yes "$(contains "Max Coordinator coordinator" "$(cd "$R" && bash "$C" whoami)")"
 
 finish

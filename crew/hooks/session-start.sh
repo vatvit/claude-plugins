@@ -9,16 +9,8 @@ crew_fast_skip && exit 0
     . "$(cd "$(dirname "${BASH_SOURCE[0]}")/../scripts" && pwd -P)/lib.sh"
     hook_init || exit 0
     crew_active || exit 0
-    # auto-join: a session with a title (--name, /rename) joins as a worker under that title —
-    # never taking a name another session holds; the coordinator role stays an explicit choice
-    title="$(printf '%s' "$PAYLOAD" | payload_str session_title)"
-    if [ -z "$NAME" ] && [ -n "$title" ] && [ -n "$SID" ]; then
-        n="$(name_for "$title")"
-        if valid_name "$n" && [ ! -f "$STATE/sessions/$n" ] \
-            && CREW_PROJECT_DIR="$CREW_PROJECT_DIR" bash "$CREW_BIN" whoami "$title" --sid "$SID" >/dev/null 2>&1; then
-            NAME="$n"
-        fi
-    fi
+    # membership is opt-in (PLUG-055): only `crew whoami` joins. A session outside the crew works
+    # as usual — the guards key on NAME — so a session is never put under them by starting here.
     # identity for every later Bash command: CLAUDE_ENV_FILE is a preamble Claude Code runs before
     # each one, so `crew` then knows the caller with no CREW_AS prefix (written once per session)
     run=""
@@ -33,7 +25,7 @@ crew_fast_skip && exit 0
         load_area inbox; declare -F mail_start >/dev/null && mail_start "$NAME" "$SID"
         load_area watch; declare -F watch_stamp >/dev/null && watch_stamp "$SID"
     else
-        echo "crew: this repo runs crew $(crew_id) ($(crew_line)). Join before editing: crew whoami \"<the name peers address you by in SendMessage>\" [worker|coordinator] — spaces are fine; it must be unique on this machine. A session with a title (/rename) joins by itself. Working rules: the crew skill."
+        echo "crew: this repo runs crew $(crew_id) ($(crew_line)); you are not in it — its guards do not apply to you, work as usual. Only if the user puts this session in the crew: crew whoami \"<the name peers address you by in SendMessage>\" [worker|coordinator] — spaces are fine; it must be unique on this machine. Working rules: the crew skill."
     fi
 )
 exit 0

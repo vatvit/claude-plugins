@@ -25,9 +25,9 @@ crew, the branch, every dirty path by owner, the holds and the slots.
 To join, run `crew whoami "<name>" [worker|coordinator]` through the Bash tool. A hook passes
 it your session id. Use the name your peers address you by in SendMessage. Spaces are fine
 (`"Max Coordinator"`): crew keeps that as your display name and derives a short crew name
-(`max-coordinator`) for `CREW_AS`. A session that has a title (`--name` or `/rename`) joins as a
-worker by itself when it starts. Names must be unique on the machine, because another repo may run
-its own crew. `whoami` refuses a name that is taken and suggests `<crew>-<name>`.
+(`max-coordinator`) for `CREW_AS`. Membership is opt-in: only `whoami` joins, and only when the
+user puts this session in the crew. A session outside the crew works as usual, and no guard applies
+to it. Names must be unique on the machine, because another repo may run its own crew. `whoami` refuses a name that is taken and suggests `<crew>-<name>`.
 
 ## Roles
 

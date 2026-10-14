@@ -20,7 +20,7 @@ the machine, because each repo can run its own crew, so prefer `<repo>-<name>` w
 
 ```
 crew whoami "Max Coordinator" coordinator   # the first session
-crew whoami "Ann Worker"                     # each worker (a titled session joins by itself)
+crew whoami "Ann Worker"                     # each worker
 ```
 
 `crew` is on the Bash tool's PATH while the plugin is enabled. From then on, SessionStart tells each

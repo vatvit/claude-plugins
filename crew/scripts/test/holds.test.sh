@@ -31,7 +31,9 @@ crew_as s2 "$R" hold b.txt >/dev/null
 edit "$R" s2 b.txt "s2 edit"; rc=$?
 check "held hot spot: holder may edit" 0 "$rc"
 out="$(hook pre-edit.sh "$(payload sid-x "$R" Edit file_path "$R/b.txt")")"
-check "unnamed session denied on a held path" yes "$(denied "$out")"
+check "non-member works as usual on a held path (PLUG-055)" no "$(denied "$out")"
+out="$(hook pre-edit.sh "$(payload sid-x "$R" Edit file_path "$R/scenes/main.ts")")"
+check "…and on an unheld hot spot" no "$(denied "$out")"
 edit "$R" s3 c.txt "free file"; rc=$?
 check "ordinary file is free" 0 "$rc"
 

@@ -32,7 +32,23 @@ check "coordinator: commit without a path list" deny "$(verdict s1 'git commit -
 check "coordinator: rebase" allow "$(verdict s1 'git pull --rebase')"
 check "coordinator: push" allow "$(verdict s1 'git push')"
 check "coordinator: still no add -A" deny "$(verdict s1 'git add -A')"
-check "unnamed session: treated as a worker" deny "$(verdict nobody 'git commit -m x -- a.txt')"
+echo "-- guard: a session outside the crew works as usual (PLUG-055)"
+for c in 'git commit -m x -- a.txt' 'git commit -m x' 'git add -A' 'git commit -am wip' 'git push' 'git stash'; do
+    check "non-member: $c" allow "$(verdict nobody "$c")"
+done
+
+echo "-- guard: a member with no coordinator is not sent to nobody (PLUG-055)"
+R2="$TMP/solo"; new_repo "$R2"; join "$R2" w1
+out="$(hook pre-bash.sh "$(payload sid-w1 "$R2" Bash command 'git commit -m x -- a.txt')")"
+check "still denied: membership keeps the guard" yes "$(denied "$out")"
+check "…says there is no coordinator" yes "$(contains "this crew has no coordinator" "$out")"
+check "…names the way out" yes "$(contains "crew whoami w1 coordinator" "$out")"
+check "…not a hand-off to nobody" no "$(contains "msg handoff" "$out")"
+out="$(hook pre-bash.sh "$(payload sid-w1 "$R2" Bash command 'git push')")"
+check "push: the same way out" yes "$(contains "crew whoami w1 coordinator" "$out")"
+(cd "$R2" && CREW_AS=w1 bash "$C" whoami w1 coordinator --sid sid-w1 >/dev/null 2>&1)
+check "…and the way out works: the commit is allowed" no "$(denied "$(hook pre-bash.sh "$(payload sid-w1 "$R2" Bash command "git commit -m x -- a.txt")")")"
+check "with a coordinator the hand-off stays" yes "$(contains "msg handoff" "$(gx s2 'git commit -m x -- a.txt')")"
 
 echo "-- guard: dry runs stage nothing (PLUG-046)"
 for c in 'git add -A --dry-run' 'git add --dry-run -A' 'git add -n .' 'git add -nA' 'git add -An' 'git add -u -n'; do

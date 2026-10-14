@@ -24,6 +24,9 @@ guard_reason() {
     sub="${1:-}"; [ $# -gt 0 ] && shift
     local -a args=(); for a in "$@"; do [ "$a" = -- ] && has_dd=1; args+=("$a"); done
     committer="$(cfg committer)"; br="$(shared_branch)"
+    # with no coordinator, a hand-off goes to nobody: name the way out instead of a dead end
+    local coord; coord="$(coordinator)"
+    way_out() { echo "this crew has no coordinator: take the role (crew whoami ${n:-<name>} coordinator), or ask the user"; }
     pre="$(prefix_for "${n:-<name>}")"
     any() { local x p; for x in ${args[@]+"${args[@]}"}; do for p in "$@"; do
         # shellcheck disable=SC2254
@@ -33,6 +36,7 @@ guard_reason() {
     instead() {                                 # what this caller does instead of staging or committing everything
         if [ "$committer" = each-session ]; then echo "land your own paths: $pre land --msg-file F -- <your paths>"
         elif [ "$role" = coordinator ]; then echo "land the exact paths: $pre land --msg-file F -- <paths>"
+        elif [ -z "$coord" ]; then way_out
         else echo "hand off your paths ($pre msg handoff); the coordinator lands them"; fi
     }
     is_commit() { git -C "$ROOT" rev-parse -q --verify "$1^{commit}" >/dev/null 2>&1; }
@@ -46,6 +50,7 @@ guard_reason() {
         commit)
             any --all || flag a && { echo "git commit -a takes every session's changes. $(instead)"; return; }
             if [ "$committer" = coordinator ] && [ "$role" != coordinator ]; then
+                if [ -z "$coord" ]; then echo "only the coordinator commits in this crew (committer=coordinator), and $(way_out)"; return; fi
                 echo "only the coordinator commits in this crew (committer=coordinator). Hand off instead: $pre msg handoff"; return
             fi
             any --amend && [ "$role" != coordinator ] && { echo "--amend rewrites a commit the crew shares — ask the coordinator"; return; }
@@ -78,9 +83,9 @@ guard_reason() {
         branch)
             [ -z "$(nonopt)" ] && ! { any --delete --move --copy || flag dDmMcC; } || { echo "no feature branches: the crew works on $br only"; return; } ;;
         rebase|pull|merge|cherry-pick|revert|am)
-            [ "$role" = coordinator ] || { echo "git $sub moves the shared branch and tree — the coordinator does that"; return; } ;;
+            [ "$role" = coordinator ] || { echo "git $sub moves the shared branch and tree — the coordinator does that$([ -n "$coord" ] || echo ", and $(way_out)")"; return; } ;;
         push)
-            if [ "$committer" = coordinator ] && [ "$role" != coordinator ]; then echo "the coordinator pushes in this crew"; return; fi
+            if [ "$committer" = coordinator ] && [ "$role" != coordinator ]; then echo "the coordinator pushes in this crew$([ -n "$coord" ] || echo ", and $(way_out)")"; return; fi
             load_area slot
             q="$(declare -F slot_quiet_holder >/dev/null && slot_quiet_holder)"
             [ -z "$q" ] || [ "$q" = "$n" ] || { echo "$q is running a quiet slot (timing) — pushes wait: $pre slot clear && git push"; return; } ;;
