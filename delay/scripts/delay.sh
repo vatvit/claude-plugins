@@ -25,6 +25,18 @@ cmd="${1:-}"; shift || true
 
 when_str() { fmt_epoch "$1" "%Y-%m-%d %H:%M"; }
 
+# outcome <status> <exit> -> what happened, in words. A bare `failed` reads as a delay fault; it
+# is the script's own verdict, so say the job ran. The stored status= values stay as they are.
+outcome() {
+    case "$1" in
+        passed)         echo "ran, exit 0 — passed" ;;
+        failed)         echo "ran, exit ${2:-?} — the script failed" ;;
+        timeout)        echo "ran, killed at the timeout" ;;
+        queued|running) echo "$1" ;;
+        *)              echo "not run — $1" ;;
+    esac
+}
+
 window_str() { # one line describing the run window
     local c w
     if c="$(window_conf)" && w="$(window_target "$(now)")"; then
@@ -203,8 +215,8 @@ list)
         [ -f "$m" ] || continue
         found=1
         st="$(kv status "$m")"; [ -n "$st" ] || st=running
-        printf '  %s  %-40s %-18s %s\n' "$d" "$(job_desc "$m")" "$st" \
-            "$(s="$(kv started "$m")"; [ -n "$s" ] && when_str "$s")"
+        printf '  %s  %-40s %-16s %s\n' "$d" "$(job_desc "$m")" \
+            "$(s="$(kv started "$m")"; [ -n "$s" ] && when_str "$s")" "$(outcome "$st" "$(kv exit "$m")")"
     done
     [ "$found" = 1 ] || echo "  (none)"
     runner_reminder
@@ -217,7 +229,11 @@ show)
         cat "$DELAY_HOME/$(encode_path "$ROOT")/queue/$id.job"; echo "status=queued"; exit 0
     fi
     [ -d "$d" ] || die "no job $id in this project"
-    if [ -f "$d/meta" ]; then cat "$d/meta"; else cat "$d/job"; echo "status=running"; fi
+    if [ -f "$d/meta" ]; then
+        cat "$d/meta"; echo "outcome=$(outcome "$(kv status "$d/meta")" "$(kv exit "$d/meta")")"
+    else
+        cat "$d/job"; echo "status=running"; echo "outcome=running"
+    fi
     echo "log=$d/log"
     ;;
 

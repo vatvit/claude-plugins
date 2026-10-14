@@ -328,6 +328,9 @@ check "6j the registry's command runs, never the queue's" "no:passed" "$(has "$T
 queue_raw j3 scripts/test-all.sh; FAKE_RC=3 dispatch >/dev/null
 check "7a non-zero exit -> failed" "failed" "$(meta j3 status)"
 check "7b exit code kept" "3" "$(meta j3 exit)"
+check "7c list: a non-zero exit reads as ran + the script's verdict" "yes" "$(saysf "$(client list)" "ran, exit 3 — the script failed")"
+o="$(client show j3)"
+check "7d show: outcome line, stored status untouched" "yes:status=failed" "$(saysf "$o" "outcome=ran, exit 3 — the script failed"):$(echo "$o" | grep '^status=')"
 
 echo "changed" >> "$P/tests/one.test"
 queue_raw j4 scripts/test-all.sh; dispatch >/dev/null
@@ -341,6 +344,7 @@ cp "$TMP/compose.bak" "$P/compose.yml"
 
 queue_raw j6 scripts/nope.sh; dispatch >/dev/null
 check "9a unapproved pair -> not-approved" "not-approved" "$(meta j6 status)"
+check "9i show: nothing ran is said so" "yes" "$(saysf "$(client show j6)" "outcome=not run — not-approved")"
 queue_raw j7 ""; dispatch >/dev/null
 check "9b missing script -> invalid" "invalid" "$(meta j7 status)"
 mkdir -p "$(store)/queue"; printf 'id=j8\nproject=%s\njob=tests-full\ncreated=%s\n' "$P" "$NOW" > "$(store)/queue/j8.job"; dispatch >/dev/null
@@ -354,6 +358,7 @@ check "9e docker down -> docker-unavailable" "docker-unavailable" "$(meta j10 st
 approve scripts/slow.sh --compose compose.yml --service app --timeout 1 >/dev/null
 queue_raw j11 scripts/slow.sh; FAKE_SLEEP=6 dispatch >/dev/null
 check "9f timeout kills and records" "timeout" "$(meta j11 status)"
+check "9j list: a timeout ran and was killed" "yes" "$(saysf "$(client list)" "ran, killed at the timeout")"
 check "9g timeout removes the container by name" "yes" "$(has "$TMP/docker.log" "rm -f claude-delay-j11")"
 
 mv "$P" "$TMP/proj.moved"
@@ -375,6 +380,12 @@ check "11a retention keeps $DELAY_KEEP_RESULTS" "$DELAY_KEEP_RESULTS" "$(ls "$(s
 check "11b keeps the newest" "yes" "$([ -d "$(store)/results/r25" ] && echo yes || echo no)"
 check "11c list shows results" "yes" "$(l="$(client list)"; says "$l" 'r25  scripts/test-all.sh.*passed')"
 check "11d show a result" "status=passed" "$(client show r25 | grep '^status=')"
+check "11e show: a pass" "yes" "$(saysf "$(client show r25)" "outcome=ran, exit 0 — passed")"
+mkdir -p "$(store)/results/r26"; cp "$(store)/results/r25/job" "$(store)/results/r26/job"
+check "11f show: a job without meta yet is running, not 'not run'" "status=running|outcome=running" \
+  "$(client show r26 | grep -E '^(status|outcome)=' | paste -sd '|' -)"
+check "11g list: the same" "yes" "$(says "$(client list)" 'r26 .*running$')"
+rm -rf "$(store)/results/r26"
 
 echo "== install =="
 UH="$TMP/uhome"

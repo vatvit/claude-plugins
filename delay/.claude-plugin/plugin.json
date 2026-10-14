@@ -1,7 +1,7 @@
 {
   "name": "delay",
   "description": "Delay long-running jobs, such as slow autotest suites, to the user's run window on a Mac: Claude queues a .sh script with params for the project's docker container (a duplicate is a no-op) and reminds the user to start the runner; the user approves the container + script pair once with sudo (sha256-pinned, red-flag checked, including scripts that run a param as a command); the user's sudo start.sh schedules a pmset wake and loads the runner, which runs the jobs with the screen locked, keeps the results, and unloads itself (no always-on daemon). Runtime-free (bash + awk); macOS + launchd.",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "author": {
     "name": "Vat",
     "url": "https://github.com/vatvit"

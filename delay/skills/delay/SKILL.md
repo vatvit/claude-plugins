@@ -1,7 +1,7 @@
 ---
 name: delay
 description: Use to delay a long-running job, typically a slow autotest suite, to the user's run window on this Mac (e.g. overnight). Claude queues a .sh script with params to run in the project's docker container; the user approves the container + script once and decides when queued jobs run. In the window the Mac wakes from sleep and runs the job inside that container, even with the screen locked, and the result waits for any later session. Queuing the same script with the same params twice is a no-op. Activate on "delay the tests", "run the tests tonight", "run this later", "run at night", "delay a job", "delay this script", "run the smoke tests tonight with these params", "wake the laptop and run", "what delayed jobs are queued", "when do delayed jobs run", "did last night's run pass", "delayed job results", "install delay", "set up delay", "how do I install delay", "delay on another Mac", or /delay.
-version: 2.0.0
+version: 2.0.1
 ---
 
 # delay
@@ -25,7 +25,7 @@ relative to this skill file:
 bash <PLUGIN_ROOT>/scripts/delay.sh jobs                              # approved pairs here
 bash <PLUGIN_ROOT>/scripts/delay.sh add <script.sh> [-- param...]     # queue for the next window
 bash <PLUGIN_ROOT>/scripts/delay.sh list          # the window, queued jobs, latest results
-bash <PLUGIN_ROOT>/scripts/delay.sh show <id>     # one job: status, exit, log path
+bash <PLUGIN_ROOT>/scripts/delay.sh show <id>     # one job: status, exit, outcome, log path
 bash <PLUGIN_ROOT>/scripts/delay.sh rm <id>       # cancel a queued job
 bash <PLUGIN_ROOT>/scripts/delay.sh status        # install state, run window, runner started?
 ```
@@ -95,6 +95,10 @@ position. `approve.sh` refuses a script that does (it names the line), unless th
 | `not-approved` | the pair was never approved, or was revoked after it was queued |
 | `docker-unavailable` | docker did not answer within 60 s |
 | `project-missing` / `invalid` | project moved, a malformed queue entry, or one queued by delay 1.x (re-queue it) |
+
+`list` and `show` (`outcome=`) put this in words: **ran** — the exit code is the script's own
+verdict — or **not run**, which is the only kind delay caused. Report `failed` as "the job ran;
+the tests failed (exit N)", never as "the job failed": the user reads that as a delay fault.
 
 A job still **queued** after its window means either the runner was not started, or the Mac
 didn't wake in time (lid closed on battery, shut down, or the user logged out). The runner has

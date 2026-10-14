@@ -168,7 +168,7 @@ delay.sh add scripts/test.sh -- smoke          # queue for the next window
 delay.sh add scripts/test.sh --compose docker-compose.yml --service app -- full
                                                # name the container: first time, or several approved
 delay.sh list                      # the window, queued jobs, latest results, reminder if not started
-delay.sh show <id>                 # meta + log path
+delay.sh show <id>                 # meta + outcome + log path
 delay.sh rm <id>
 delay.sh status                    # installed? window? runner started? + the install, approve, start commands
 ```
