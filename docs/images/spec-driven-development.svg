@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
-  <title>Spec-driven development with Claude Code: docs-manager, task and crew</title>
+  <title>Spec-driven development with Claude Code: docs-manager, task and crew; the task is the spec</title>
   <defs>
     <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -14,16 +14,16 @@
 
   <!-- title -->
   <text x="800" y="82" text-anchor="middle" font-size="46" font-weight="700" fill="#0f172a">Spec-driven development with Claude Code</text>
-  <text x="800" y="126" text-anchor="middle" font-size="23" fill="#475569">The spec comes first, the work follows it, and the spec stays current as the code moves</text>
+  <text x="800" y="126" text-anchor="middle" font-size="23" fill="#475569">The <tspan font-weight="700" fill="#b45309">task is the spec</tspan>: written first, approved by you, and the code follows it</text>
 
   <!-- the human -->
-  <rect x="470" y="160" width="660" height="50" rx="25" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
-  <text x="800" y="193" text-anchor="middle" font-size="21" fill="#78350f"><tspan font-weight="700">You</tspan> — approve each step, and the plan before any code</text>
+  <rect x="440" y="160" width="720" height="50" rx="25" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="800" y="193" text-anchor="middle" font-size="21" fill="#78350f"><tspan font-weight="700">You</tspan> — approve each workflow step, and the plan before any code</text>
 
   <!-- step labels -->
   <g font-size="18" font-weight="700" letter-spacing="1" fill="#64748b" text-anchor="middle">
-    <text x="220" y="266">1 · THE SYSTEM</text>
-    <text x="630" y="266">2 · THE CHANGE</text>
+    <text x="220" y="266">1 · THE DOCS</text>
+    <text x="630" y="266" fill="#b45309">2 · THE SPEC</text>
     <text x="1040" y="266">3 · THE BUILD</text>
     <text x="1415" y="266">4 · THE RESULT</text>
   </g>
@@ -36,8 +36,8 @@
   <rect x="60" y="280" width="320" height="300" rx="18" fill="none" stroke="#0f766e" stroke-width="2"/>
   <text x="220" y="322" text-anchor="middle" font-size="28" font-weight="700" fill="#ffffff">docs-manager</text>
   <text x="84" y="384" font-size="19" fill="#134e4a">
-    <tspan x="84">The spec of the system</tspan>
-    <tspan x="84" dy="28">as it is. Rules: current</tspan>
+    <tspan x="84">docs/ say how the system</tspan>
+    <tspan x="84" dy="28">works now. Rules: current</tspan>
     <tspan x="84" dy="28">state only, one home per</tspan>
     <tspan x="84" dy="28">fact, changed with code.</tspan>
     <tspan x="84" dy="40">Diagrams are flagged when</tspan>
@@ -45,21 +45,22 @@
     <tspan x="84" dy="28">changes.</tspan>
   </text>
 
-  <!-- box 2: task -->
+  <!-- box 2: task = the spec (highlighted) -->
   <g clip-path="url(#c2)">
     <rect x="470" y="280" width="320" height="300" fill="#eff6ff"/>
     <rect x="470" y="280" width="320" height="64" fill="#1d4ed8"/>
   </g>
-  <rect x="470" y="280" width="320" height="300" rx="18" fill="none" stroke="#1d4ed8" stroke-width="2"/>
-  <text x="630" y="322" text-anchor="middle" font-size="28" font-weight="700" fill="#ffffff">task</text>
-  <text x="494" y="384" font-size="19" fill="#1e3a8a">
-    <tspan x="494">The spec of each change:</tspan>
-    <tspan x="494" dy="28">requirements (EARS) →</tspan>
-    <tspan x="494" dy="28">design → tests → code →</tspan>
-    <tspan x="494" dy="28">reflection.</tspan>
-    <tspan x="494" dy="40">Once implementation starts,</tspan>
-    <tspan x="494" dy="28">the task is append-only</tspan>
-    <tspan x="494" dy="28">history.</tspan>
+  <rect x="470" y="280" width="320" height="300" rx="18" fill="none" stroke="#d97706" stroke-width="4"/>
+  <text x="630" y="322" text-anchor="middle" font-size="28" font-weight="700" fill="#ffffff">task <tspan fill="#fde68a">= spec</tspan></text>
+  <text x="494" y="376" font-size="18" fill="#1e3a8a">
+    <tspan x="494">Each task file carries its</tspan>
+    <tspan x="494" dy="26">workflow: requirements</tspan>
+    <tspan x="494" dy="26">(EARS) → architecture →</tspan>
+    <tspan x="494" dy="26">tests → implementation →</tspan>
+    <tspan x="494" dy="26">reflection.</tspan>
+    <tspan x="494" dy="34">Once implementation starts,</tspan>
+    <tspan x="494" dy="26">the task is append-only</tspan>
+    <tspan x="494" dy="26">history.</tspan>
   </text>
 
   <!-- box 3: crew -->
@@ -70,8 +71,8 @@
   <rect x="880" y="280" width="320" height="300" rx="18" fill="none" stroke="#6d28d9" stroke-width="2"/>
   <text x="1040" y="322" text-anchor="middle" font-size="28" font-weight="700" fill="#ffffff">crew</text>
   <text x="904" y="370" font-size="18" fill="#4c1d95">
-    <tspan x="904">Parallel Claude sessions</tspan>
-    <tspan x="904" dy="26">build slices of one spec.</tspan>
+    <tspan x="904">Parallel sessions, each on</tspan>
+    <tspan x="904" dy="26">its own task, one tree.</tspan>
     <tspan x="904" dy="30">Guards block git commands</tspan>
     <tspan x="904" dy="26">that would sweep up a peer's</tspan>
     <tspan x="904" dy="26">work; every edit is</tspan>
@@ -88,10 +89,10 @@
   <rect x="1290" y="280" width="250" height="300" rx="18" fill="none" stroke="#475569" stroke-width="2"/>
   <text x="1415" y="322" text-anchor="middle" font-size="28" font-weight="700" fill="#ffffff">Shipped work</text>
   <text x="1415" y="424" text-anchor="middle" font-size="21" fill="#1e293b">
-    <tspan x="1415">Tested against</tspan>
-    <tspan x="1415" dy="32">the task's</tspan>
+    <tspan x="1415">Built to the task's</tspan>
     <tspan x="1415" dy="32">requirements,</tspan>
-    <tspan x="1415" dy="32">approved by you.</tspan>
+    <tspan x="1415" dy="32">committed with</tspan>
+    <tspan x="1415" dy="32">your approval.</tspan>
   </text>
 
   <!-- forward arrows with labels -->
@@ -101,26 +102,26 @@
     <line x1="1204" y1="470" x2="1284" y2="470"/>
   </g>
   <g font-size="15" fill="#334155" text-anchor="middle">
-    <text x="425" y="432"><tspan x="425" dy="9">the spec</tspan></text>
-    <text x="835" y="432"><tspan x="835">slices to</tspan><tspan x="835" dy="18">sessions</tspan></text>
+    <text x="425" y="432"><tspan x="425">read in</tspan><tspan x="425" dy="18">context</tspan></text>
+    <text x="835" y="432"><tspan x="835">tasks to</tspan><tspan x="835" dy="18">sessions</tspan></text>
     <text x="1245" y="432"><tspan x="1245">approved</tspan><tspan x="1245" dy="18">commits</tspan></text>
   </g>
 
-  <!-- return arrow: lessons back into the spec -->
+  <!-- return arrow: reflection back into the docs -->
   <path d="M1415,584 V640 Q1415,660 1395,660 H240 Q220,660 220,640 V590" stroke="#0f766e" stroke-width="3" stroke-dasharray="10 7" fill="none" marker-end="url(#head)"/>
-  <rect x="610" y="643" width="380" height="34" rx="17" fill="#ffffff"/>
-  <text x="800" y="667" text-anchor="middle" font-size="20" font-style="italic" fill="#0f766e">what we learned updates the spec</text>
+  <rect x="650" y="643" width="300" height="34" rx="17" fill="#ffffff"/>
+  <text x="800" y="667" text-anchor="middle" font-size="20" font-style="italic" fill="#0f766e">reflection updates the docs</text>
 
   <!-- benefits -->
   <g font-size="18" font-weight="600" fill="#0f172a" text-anchor="middle">
-    <rect x="40" y="730" width="360" height="56" rx="28" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
-    <text x="220" y="765">Spec before code</text>
+    <rect x="40" y="730" width="360" height="56" rx="28" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+    <text x="220" y="765">The task (spec) before code</text>
     <rect x="420" y="730" width="360" height="56" rx="28" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
     <text x="600" y="765">Commits name their task</text>
     <rect x="800" y="730" width="360" height="56" rx="28" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
-    <text x="980" y="765">The spec stays current</text>
+    <text x="980" y="765">Docs change with the code</text>
     <rect x="1180" y="730" width="360" height="56" rx="28" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
-    <text x="1360" y="765">Parallel work, one spec</text>
+    <text x="1360" y="765">Parallel sessions, one tree</text>
   </g>
 
   <text x="800" y="860" text-anchor="middle" font-size="17" fill="#94a3b8">Claude Code plugins · github.com/vatvit/claude-plugins</text>

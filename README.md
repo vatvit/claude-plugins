@@ -139,11 +139,11 @@ when present, to remember which tasks the session is working on. [More →](sess
 
 ## How they fit together
 
-The three at the core make spec-driven development work: docs-manager keeps the spec of the system
-as it is, task holds the spec of each change and walks it from requirements to code, and crew builds
-the changes in parallel sessions.
+The three at the core make spec-driven development work, and **the task is the spec**: task walks
+each change from requirements to implementation, docs-manager keeps `docs/` saying how the system
+works now, and crew runs several sessions in parallel, each on its own task.
 
-![Spec-driven development with Claude Code: docs-manager holds the system's spec, task the spec of each change, crew builds the changes in parallel, and what we learn updates the spec](docs/images/spec-driven-development.svg)
+![Spec-driven development with Claude Code: docs-manager keeps the docs, the task is the spec, crew builds tasks in parallel sessions, and reflection updates the docs](docs/images/spec-driven-development.svg)
 
 ```
 kickoff ──scaffolds──▶ docs/ (docs-manager)  +  task config (task)

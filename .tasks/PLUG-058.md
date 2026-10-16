@@ -65,3 +65,7 @@ THE SYSTEM / THE CHANGE; the crew guard claim narrowed to git commands + snapsho
 commits"; banner drops the commit part. README lead-in matches.
 Fourth review: append-only starts at implementation, not when work starts; the docs-manager box says
 "Rules:" again. Committed and pushed with the user's approval.
+
+Reworded in the plugins' own terms (user, 2026-10-16: "use our terms, but highlight that task == spec"):
+docs / task / workflow steps / reflection; the task box is highlighted as "task = spec". The crew line
+"each on its own task" states the rule PLUG-060 adds to crew. Not committed.
