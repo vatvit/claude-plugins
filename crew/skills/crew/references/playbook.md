@@ -11,11 +11,20 @@ failure it prevents; every one of those failures happened at least once in pract
 - **The git index is shared too.** No session runs anything that touches the whole index or tree
   (`git add -A`, `commit -a`, `stash`, `checkout -- .`, `reset --hard`, `clean`). Each one touches
   only its own paths. The `pre-bash` guard enforces this.
+- **One task, one session.** A task in progress has one owner session. Two sessions on one task
+  cannot tell which part of its scope is built: the task file tracks workflow steps, not parts,
+  crew tracks files, and a split agreed in chat is lost on `/compact`. Both would also write the
+  same task file. To work on a task in parallel, split it into sub-tasks first (the task
+  workflow's `subtasks` step); each session owns one. The coordinator assigns tasks, never parts
+  of a task.
+- **Ownership moves by an explicit hand-over.** When a session stops before its task is done, it
+  updates the task's Current State and tells the coordinator, who assigns the task to another
+  session. A task never has two owners at once.
 - **The user decides who commits and who pushes.** By default nobody in the crew does: `land`
   checks the paths and prints the commit for the user, and the user pushes. The coordinator asks
   the user once per project and records the answer (`committer`, `push`).
 - **One committer.** Sessions do not commit for themselves. A worker that has finished
-  a slice sends the coordinator a hand-off with the exact path list and the commit message. The
+  a change sends the coordinator a hand-off with the exact path list and the commit message. The
   coordinator then:
   - checks the list against `git status`, and looks for anything else that is dirty;
   - commits exactly those paths (`git commit -F msg -- <paths>`).
@@ -36,7 +45,7 @@ scene or router file, and similar. List them in `hotSpots`.
 
 ## 3. Unfinished or failing work stays out of the shared tree
 
-- Build a slice in a **copy** based on a named commit, and run its red-first tests there. A
+- Build each change in a **copy** based on a named commit, and run its red-first tests there. A
   failing test that sits in the shared tree fails every other session's checks.
 - Land the copy with **apply**, which merges or refuses:
   - it takes the copy's version where the tree still matches the copy's base;
@@ -50,10 +59,11 @@ scene or router file, and similar. List them in `hotSpots`.
 
 ## 4. Commit at once, one change per commit
 
-- Hand off each green slice the moment it is verified. A pile of uncommitted work is what ties
+- Hand off each green change the moment it is verified. A pile of uncommitted work is what ties
   sessions together, and it is the only kind of work a peer can destroy for you.
 - Task-file and docs-only edits land straight away. They need no test run.
-- One commit holds one task and one slice, with the task id in the message.
+- One commit holds work for one task only, with the task id in the message. A task may take
+  several commits.
 
 ## 5. One queue for machine time
 

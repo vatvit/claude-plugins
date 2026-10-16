@@ -3,7 +3,7 @@
 ## Land: commit exactly a reviewed path list
 
 ```
-land --msg-file F -- <path...>      # one task, one slice, task id in the message
+land --msg-file F -- <path...>      # one task per commit, task id in the message
 ```
 
 `land` refuses, and commits nothing, if any listed path:
@@ -27,7 +27,7 @@ It then:
 The mode is the user's choice for the project: ask them when `status` says it is not decided, and
 set only what they said.
 
-Land at once. A green slice that sits uncommitted ties sessions together, and it is the only
+Land at once. A verified change that sits uncommitted ties sessions together, and it is the only
 kind of work a peer can destroy for you. Task-file and docs-only edits land immediately.
 
 ## The git guard

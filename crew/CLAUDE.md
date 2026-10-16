@@ -50,6 +50,10 @@ crew/
   `git_policy_note` (lib.sh) is the one test for "not decided yet" (neither layer sets the key);
   `status` and the coordinator's SessionStart line print it, and the skill makes the coordinator
   ask the user. A crew installed from the marketplace must never commit or push on its own.
+- **One task, one session (PLUG-060).** Two sessions on one task cannot know which part of it is
+  built, so a task in progress has one owner, and parallel work means separate tasks (the task
+  plugin's sub-tasks). The words follow: crew speaks of tasks and changes, never of "slices", which
+  read as pieces of one task shared out. `wording.test.sh` keeps the word out and the rule stated.
 - **A crew name is the identity.** Holds, slots and claims are all keyed by name. The Claude
   session id only maps a hook payload to a name (`sessions/<name>`: `sid= role= since= display=`).
   Scripts learn the caller via `caller_name`, which takes `CREW_AS` (a name or a display name) when it

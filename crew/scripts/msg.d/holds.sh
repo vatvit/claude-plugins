@@ -19,7 +19,7 @@ msg_release() {
     printf '%s\n' "$l" | awk -F'\t' '{ printf "  released at %s by %s → %s\n", $5, $3, ($4 == "-" ? "free" : "now held by " $4) }'
 }
 
-# extra hand-off lines: the holds to release once the slice has landed
+# extra hand-off lines: the holds to release once the change has landed
 msg_handoff_extra_holds() {
     [ -s "$STATE/holds" ] || return 0
     local mine

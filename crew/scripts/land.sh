@@ -143,7 +143,7 @@ land_main() {
         esac
     done
     [ ${#paths[@]} -gt 0 ] || die "land --msg-file F -- <path...>"
-    [ -n "$mf" ] && [ -s "$mf" ] || die "land needs a non-empty commit message file (--msg-file); one task, one slice, task id in it"
+    [ -n "$mf" ] && [ -s "$mf" ] || die "land needs a non-empty commit message file (--msg-file); one task per commit, task id in it"
     [ "$mode" != coordinator ] || [ "$me" = "$coord" ] || die "only the coordinator ($coord) lands in this crew — hand off instead: msg handoff"
 
     load_area holds

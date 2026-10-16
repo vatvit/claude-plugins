@@ -105,6 +105,7 @@ one session's `git add -A` or `git stash` wiping out another's work.
 
 Sessions opt in with `crew whoami "<name>" [worker|coordinator]`. crew then adds:
 - roles: one coordinator, the rest workers;
+- **one task, one session**: to work on a task in parallel, split it into sub-tasks first;
 - **no commit or push without you**: by default `land` prints the commit for you and you push;
   the coordinator asks you once per project whether the crew may do either;
 - `crew status`: one screen showing every dirty path and who owns it;

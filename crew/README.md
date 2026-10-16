@@ -6,6 +6,8 @@ other's edits.
 Sessions can talk to each other (SendMessage / ListAgents). crew adds the discipline that makes
 that safe:
 - roles: one coordinator, the rest workers;
+- one task, one session: the coordinator assigns each task to one session, and a task that needs
+  several sessions is split into sub-tasks first;
 - commits and pushes only as the user decides per project: by default nobody in the crew commits
   or pushes, and the coordinator asks the user once (`committer`, `push`);
 - one screen showing who changed what;

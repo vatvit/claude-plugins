@@ -1,6 +1,6 @@
 # Copy, rebase, apply
 
-A failing test in the shared tree fails every other session's checks. So build a slice in a
+A failing test in the shared tree fails every other session's checks. So build each change in a
 **copy**: write the test, watch it go red, make it green there, and only then land it.
 
 ```

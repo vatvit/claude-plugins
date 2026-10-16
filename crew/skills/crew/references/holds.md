@@ -22,7 +22,7 @@ into two commits, so a file that many features touch gets one holder at a time.
 | `hold import <file> [--dry-run]` | coordinator only: one hold per bullet `- <path> — <holder> (…)` of a hand-kept list; unknown holders and conflicts are listed, not held. See [adopt.md](adopt.md) |
 | `msg hold <path...>` / `msg release <path>` | the announcement, pre-filled; the coordinator relays it to everyone |
 
-`msg handoff` lists the holds you will release once your slice lands. The coordinator posts
+`msg handoff` lists the holds you will release once your change lands. The coordinator posts
 the landed sha, and you release with it.
 
 The registry is a file, so a missed message never loses a hold. The coordinator still relays
