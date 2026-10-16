@@ -112,6 +112,7 @@ records and read them with `while IFS=$'\t' read -r`.
 3. Add entry to `.claude-plugin/marketplace.json` plugins array with `"source": "my-plugin"`
 4. Add hooks, scripts, skills, CLAUDE.md, README.md as needed
 5. Add a row to the Plugins table above
+6. Add a row and a section to the root `README.md`, which the public reads first (it once listed four of seven plugins)
 
 Hooks are auto-discovered at `<plugin>/hooks/hooks.json` — `plugin.json` does not
 declare them.
@@ -158,7 +159,7 @@ suppressed. Helpers whose empty result is normal must end in `|| true` or `retur
 
 ## Changing an Existing Plugin
 
-When a plugin gains or loses a user-visible capability, three things drift apart unless
+When a plugin gains or loses a user-visible capability, four things drift apart unless
 updated together. The marketplace entry is what people read before installing, and the
 skill description is what decides whether the plugin ever activates — both are easy to
 forget because neither is exercised by any test.
@@ -167,6 +168,8 @@ forget because neither is exercised by any test.
 2. `.claude-plugin/marketplace.json` — sync that plugin's `description` and `version`
 3. `<plugin>/skills/<name>/SKILL.md` — add trigger phrases to `description:`, or the new
    capability is unreachable no matter how good it is
+4. The plugin's section in the root `README.md`, when the capability is worth a line there. It
+   carries no versions, so a bump alone never touches it
 
 **Check trigger phrases against the other plugins' skill descriptions.** Two plugins
 competing for the same words is a coin flip at activation time. Today the vocabularies are
