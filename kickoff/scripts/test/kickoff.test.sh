@@ -82,6 +82,19 @@ a A1 same; ino1=$(ls -i "$P/.kickoff-answers" | awk '{print $1}')
 a A1 same; ino2=$(ls -i "$P/.kickoff-answers" | awk '{print $1}')
 check "6h recording the same answer never rewrites the file" "$ino1" "$ino2"
 
+# A computed default (*italics* in the questionnaire) describes how to work the value out; it is never
+# an answer itself. A live run recorded R7 as "3–5 letters derived from A1" and wrote it as the prefix.
+P=$(fresh computed)
+check "6i the plan marks a computed default (R7)" "yes" "$(has '*' "$(value R7)")"
+check "6j …and only computed ones (A3)" "no" "$(has '*' "$(value A3)")"
+for id in A1 A4 A5 I5 R7; do
+    d="$(value "$id")"; plain="${d#\*}"; plain="${plain%\*}"
+    a "$id" "$d" 2>/dev/null; r1=$?; a "$id" "$plain" 2>/dev/null; r2=$?
+    check "6k $id: its computed default is refused, marked or not" "2 2 0" "$r1 $r2 $([ -f "$P/.kickoff-answers" ] && grep -c "^$id: " "$P/.kickoff-answers" || echo 0)"
+done
+check "6l the refusal says what to do" "yes" "$(has "work it out" "$(a R7 "$(value R7)" 2>&1)")"
+a R7 DEMO; check "6m a worked-out value is recorded" "R7: DEMO" "$(grep '^R7: ' "$P/.kickoff-answers")"
+
 echo "== charter.sh =="
 
 P=$(fresh none)

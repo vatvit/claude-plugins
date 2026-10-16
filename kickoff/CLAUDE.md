@@ -19,6 +19,7 @@ kickoff/
 │   ├── scaffold.sh               ← docs/ skeleton, CLAUDE.md (claude.awk), task config + workflow
 │   ├── inspect.sh / infer.awk    ← existing project: proposed answers with evidence (writes nothing)
 │   ├── get.awk                   ← settled answers for shell scripts
+│   ├── computed.awk              ← answer.sh: is this value a computed default (*italics*)?
 │   ├── defaults.sh               ← the user layer: per-account defaults (kickoff.json)
 │   ├── json.awk                  ← json_q(), the one JSON string writer (defaults-write.awk, registry-insert.awk)
 │   ├── ports.sh                  ← the machine-wide dev-port registry (~/.claude/kickoff/ports.json)
@@ -63,6 +64,9 @@ real file, so a broken edit fails them.
   cut through `—`. Only the host target sees it (existing test 2c–2j).
 - **JSON strings go through `json_q()`** in json.awk, a character loop. busybox treats the backslashes
   in a `gsub` replacement differently from gawk and BSD awk (defaults test 4a/4b).
+- **A computed default is never an answer.** An `*italic*` option (A1, A4, A5, I5, R7) says how to work
+  the value out. `answer.sh` refuses it, with or without the asterisks (6i–6m): a live run once wrote
+  R7's "3–5 letters derived from A1" as the task prefix, because the skill listed only four of them.
 - **Generators write only settled answers** (`settled()` in lib.awk): a pending, stale, undecided or
   `n/a` answer produces nothing.
 - **The port registry is machine-wide** and must never follow `CLAUDE_CONFIG_DIR`; test 3a/3b pins

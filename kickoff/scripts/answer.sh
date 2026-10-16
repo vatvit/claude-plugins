@@ -30,6 +30,11 @@ root="$(project_root "$root")"
 base="${id%.why}"
 grep -q "^| $base |" "$KICKOFF_QUESTIONNAIRE" || { echo "answer.sh: no question $base in the questionnaire" >&2; exit 2; }
 
+if [ "$clear" = 0 ] && [ "$base" = "$id" ]; then
+    how="$(KO_ID="$id" KO_VALUE="$value" kickoff_awk computed.awk "$root")"
+    [ -z "$how" ] || { echo "answer.sh: $id: $how is how to get the answer, not the answer — work it out and record the value" >&2; exit 2; }
+fi
+
 file="$(answers_file "$root")"
 tmp="$(mktemp)"
 if [ -f "$file" ]; then cp "$file" "$tmp.in"; else

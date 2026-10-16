@@ -1,7 +1,7 @@
 ---
 name: kickoff
 description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (questions branch on earlier answers, each with pre-defined options and a default) and turn the answers into the project's charter. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "run kickoff on this existing project", "what is missing from this project's setup", "starting context for this project", "which dev port should this project use", "port registry", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
-version: 0.5.0
+version: 0.5.1
 ---
 
 # Kickoff
@@ -38,9 +38,10 @@ end up in files, not in chat history.
    - Questions with options go through the question UI, up to 4 per call. The default comes first,
      marked "(Recommended)". Keep each label short and put the full option text in its description.
    - Free-text questions (name, one-liner, goal, non-goals, those with no options) are asked in plain chat.
-   - **Compute the computed defaults** before offering them, so the user confirms a concrete value:
+   - **Compute the computed defaults** (shown in `*italics*`) before offering them, so the user confirms a concrete value:
      A1 is the repo directory name, A4 comes from the git remote owner, A5 is `git remote get-url origin`,
-     and I5 is `bash <PLUGIN_ROOT>/scripts/ports.sh next`. Once I5 is confirmed, reserve it with
+     R7 is 3–5 capital letters from A1, and I5 is `bash <PLUGIN_ROOT>/scripts/ports.sh next`. `answer.sh` refuses
+     the italic text itself. Once I5 is confirmed, reserve it with
      `ports.sh allocate <A1>`. Use `<A1>/<service>` for each further port. Then record the port.
    - **"Not decided yet" is always a valid answer.** Record it as that; never fill in a guess.
 3. **Record every answer as it comes:**

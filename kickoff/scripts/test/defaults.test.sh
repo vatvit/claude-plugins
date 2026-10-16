@@ -33,7 +33,7 @@ echo "== two accounts =="
 P=$(fresh p3)
 CLAUDE_CONFIG_DIR="$HOME/work" d set A4 "My employer's"
 check "3a the work account gets its own default" "My employer's" "$(CLAUDE_CONFIG_DIR="$HOME/work" value A4)"
-check "3b the other account does not" "derived from the git remote owner" "$(value A4)"
+check "3b the other account does not" "*derived from the git remote owner*" "$(value A4)"
 check "3c the work file lives in its config dir" "yes" "$([ -f "$HOME/work/kickoff.json" ] && echo yes || echo no)"
 
 echo "== the file itself =="

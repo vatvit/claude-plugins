@@ -86,6 +86,17 @@ function clean_options(opts,   o, n, i, out) {
     return out
 }
 
+# computed_of(i, v) — the computed option (*italics*) of question i that v is, with or without its
+# asterisks; "" when v is not one. Such an option says how to work a value out, never the value.
+function computed_of(i, v,   o, n, k, t) {
+    n = split(qopts[i], o, / · /)
+    for (k = 1; k <= n; k++) {
+        t = option_text(o[k])
+        if (t ~ /^\*.+\*$/ && (tolower(v) == tolower(t) || tolower("*" v "*") == tolower(t))) return t
+    }
+    return ""
+}
+
 # default_of(i) — the default for question i. The user layer wins, then a conditional
 # (★ if …) whose condition holds, then the plain ★. "" when the question has none.
 function default_of(i,   o, n, k, t, base, cd, c) {

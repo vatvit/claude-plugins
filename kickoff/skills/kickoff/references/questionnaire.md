@@ -38,7 +38,9 @@ generated files. Keep to these forms when editing:
 
 - **A question row** starts `| <letter><digit> |`. Its section is the `## X. Title` heading above it.
 - **Options** are separated by ` · `. A leading `★ ` marks the plain default; a trailing
-  `(★ if <condition>)` marks a conditional one.
+  `(★ if <condition>)` marks a conditional one. An option in `*italics*` is **computed**: it says how
+  Claude works the value out (the repo directory name, the next free port), and is never recorded as
+  an answer itself; `answer.sh` refuses it.
 - **A condition** is `always`, `<ID> = <option>`, `<ID> ≠ <option>` or `<ID> answered`. The option
   text matches an answer that starts with it, ignoring case. Parts joined by ` or ` hold when any part
   holds. Any other wording is a **judgement**: Claude decides from the conversation whether to ask.
@@ -50,11 +52,11 @@ generated files. Keep to these forms when editing:
 | ID | Question | Options (★ default) | Ask when | Goes to |
 |----|----------|---------------------|----------|---------|
 | A0 | Starting point? | ★ New, empty repo · Existing code, no setup · Existing, partly set up | always | how the rest runs |
-| A1 | Project name? | ★ the repo directory name | always | charter, CLAUDE.md |
+| A1 | Project name? | ★ *the repo directory name* | always | charter, CLAUDE.md |
 | A2 | What it is, in one line? | free text | always | charter, CLAUDE.md |
 | A3 | Kind of project? | ★ PoC / experiment · Product / app / service · Game · Library / plugin / tool | always | charter; drives defaults below |
-| A4 | Whose project? | ★ derived from the git remote owner · Mine · A client's · My employer's | always | charter; identity rule |
-| A5 | Git remote? | ★ the detected remote · No remote yet | always | CLAUDE.md |
+| A4 | Whose project? | ★ *derived from the git remote owner* · Mine · A client's · My employer's | always | charter; identity rule |
+| A5 | Git remote? | ★ *the detected remote* · No remote yet | always | CLAUDE.md |
 
 - **A0** — for an existing project the skill reads what is there first and asks only about the gaps.
 - **A4** — a remote owner other than the user's own account triggers the identity-isolation rule: the
@@ -111,7 +113,7 @@ generated files. Keep to these forms when editing:
 | I2 | Infra shape? | ★ One container, one monolith · A few services (compose) · Serverless / managed | A3 ≠ Library | charter decision |
 | I3 | Storage? | ★ SQLite / files · PostgreSQL · None | A3 ≠ Library | charter decision |
 | I4 | Stack? | Claude proposes 2–3 stacks fitting A3, I2 and the external services, each with its reason; the user picks | always | charter decision, architecture doc |
-| I5 | Dev port? | ★ The next free port from the port registry | the project serves HTTP | port registry, CLAUDE.md, compose |
+| I5 | Dev port? | ★ *the next free port from the port registry* | the project serves HTTP | port registry, CLAUDE.md, compose |
 
 - **I4** has no fixed options on purpose: a fixed stack list would go stale and push every project the same way.
 - **I5** — the chosen port is recorded in the port registry (see [Where kickoff keeps its own data](#where-kickoff-keeps-its-own-data)).
@@ -146,7 +148,7 @@ generated files. Keep to these forms when editing:
 | R4 | One entry point for commands? | ★ `scripts/dev.sh` (up, down, test, e2e, sh) · `make` · `docker compose` directly | A3 ≠ Library or the library needs a runtime | CLAUDE.md, `scripts/` |
 | R5 | Several Claude sessions at once? | ★ Yes — set up crew · No, one session | always | crew config, CLAUDE.md |
 | R6 | Where do tasks live? | ★ In the repo, `tasks/` · Outside the repo (★ if A4 ≠ Mine) | always | `.task-config.json` |
-| R7 | Task prefix? | ★ 3–5 letters derived from A1 | always | `.task-config.json` |
+| R7 | Task prefix? | ★ *3–5 letters derived from A1* | always | `.task-config.json` |
 | R8 | Task workflow? | ★ Code and docs profiles · One minimal profile | always | `tasks/_workflow/` |
 | R9 | Roadmap? | ★ Yes (task-roadmap) · No | always | `.task-roadmap.json` |
 

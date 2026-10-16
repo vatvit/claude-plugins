@@ -1,6 +1,6 @@
 ---
 title: kickoff plugin — the new-project questionnaire
-status: in-progress
+status: completed
 type: epic
 epic-name: kickoff
 priority: medium
@@ -10,17 +10,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | the user typed the same starting context at every kickoff |
+| 20 | Requirements | done | questionnaire.md, agreed 2026-10-08 |
+| 30 | Assessment | done | survey of 19 project CLAUDE.md files: only exceptions to the global rules are asked |
+| 40 | POC | skipped | no risky unknown |
+| 50 | Domain | skipped | n/a |
+| 60 | Architecture | done | answers are a file; generators read it (design notes above) |
+| 70 | Tests | done | 181 checks; the live run found a gap, covered by 6i–6m, each defect put back went red |
+| 80 | Subtasks | done | PLUG-035 – PLUG-039, all completed |
+| 90 | Implementation | done | kickoff 0.5.1; live run of the skill loop done in a throwaway repo |
+| 100 | Tech Debt | done | none left; the follow-on backlog is epic PLUG-049 (kickoff-next) |
+| 110 | Reflection | done | questionnaire contract (italic = computed), SKILL step 2, kickoff CLAUDE.md |
 
 ## Goal
 
@@ -102,13 +102,23 @@ Chain: 1 → {2, 4} → 5. Slice 3 is independent of all of them. The hot spots 
 - PLUG-038: per-account defaults, kickoff.json (needs 035)
 - PLUG-039: existing-project mode, A0 (needs 035 and 036)
 
+## Live run and fix (2026-10-16)
+
+The skill loop was run end to end in a throwaway repo (a client's project, fake answers; the port
+registry and the user layer pointed into the fixture). Interview, review, charter and scaffold all
+worked; a re-run changed nothing; the user's identity appeared nowhere.
+
+One defect: R7's default "3–5 letters derived from A1" was recorded literally and written as the
+task prefix into the task config and CLAUDE.md. SKILL step 2 listed the computed defaults by hand
+(A1, A4, A5, I5) and missed R7; nothing in the scripts stopped such a value.
+
+Fix (kickoff 0.5.0 -> 0.5.1): a computed default is `*italic*` in the questionnaire (A1, A4, A5,
+I5, R7), documented in §Reading the tables; `computed_of()` in lib.awk; `answer.sh` refuses such a
+value, with or without its asterisks (computed.awk). SKILL step 2 names R7 and the marker. Tests
+6i–6m: red before (7 failing); the defects put back went red (no refusal 6, R7 unmarked 3, plain
+form allowed 6, check skipped 6). defaults test 3b now expects the marked text.
+
 ## Current State
 
-All five sub-tasks are completed (PLUG-035..039). kickoff 0.5.0 ships the interview, the charter, the setup scaffold, the port registry, per-account defaults and existing-project mode, with 172 checks green on both test targets.
-
-Deviations from the epic text, each recorded in its task:
-- The compose scan always runs (PLUG-037).
-- The first tasks are created through /task, not by kickoff (PLUG-036).
-- sample-poc D1 is a global rule, so it is never asked (PLUG-035).
-
-Not yet done: a live kickoff run by Claude through the skill. The scripts are tested end to end; the SKILL.md loop is not.
+Completed (2026-10-16). kickoff 0.5.1: 181 checks green on host, container (bash:5 + busybox) and a
+standalone copy. Next work for kickoff is epic PLUG-049 (kickoff-next).
