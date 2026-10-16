@@ -1,6 +1,6 @@
 ---
 title: crew — worktree mode — the tree key asked once per project, the user's per-task exception, a task worktree on task/<ID>, merge into the coordinator's branch
-status: approved
+status: completed
 type: feature
 priority: medium
 epic: crew-worktrees
@@ -10,17 +10,17 @@ epic: crew-worktrees
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | copy was the only worktree; the guard and land assumed one tree and one branch |
+| 20 | Requirements | skipped | acceptance criteria are the spec |
+| 30 | Assessment | done | the guard is keyed on the session name; it must also know which tree the git command runs in |
+| 40 | POC | skipped | no risky unknown |
+| 50 | Domain | skipped | n/a |
+| 60 | Architecture | done | tree.sh (dual-use); crew_wt_add and the record helpers moved to lib.sh; task= in the record marks a task worktree for the guard |
+| 70 | Tests | done | tree.test.sh: 70 cases, red before (46 failing); each defect put back went red (guard block 13, stash 3, push refspec 1, taskPush 1, -C 1, exception 3, human-approved 4, note 2, copy refusal 1) |
+| 80 | Subtasks | skipped | one change |
+| 90 | Implementation | done | all 16 crew suites green on host, crew-test and a standalone copy |
+| 100 | Tech Debt | done | copy meta helpers unified into lib.sh (crew_wt_*), one creation path crew_wt_add |
+| 110 | Reflection | done | references/trees.md (new), SKILL rule 1 + coordinator + triggers, playbook §1, config.md, README, crew CLAUDE.md |
 
 ## Description
 
@@ -58,6 +58,28 @@ branch, one worktree, one session; members merge locally and only the coordinato
 
 - Needs PLUG-065 (worktree creation and guard changes in the same files).
 
+## Implementation (2026-10-16)
+
+- Config: `tree` (shared|worktrees, default shared), `treeSync` (merge|rebase, default merge),
+  `taskPush` (crew names), all project-only. `tree_policy_note` (lib.sh) reports `tree` unset in
+  the project layer; `status` prints it as `worktrees: …`, the coordinator's SessionStart line too.
+- `crew tree new|sync|merge|remove <ID>`, `tree allow|revoke <ID>` (coordinator; `$STATE/tree-allow`).
+  `new` is refused under `shared` without an exception; it branches `task/<ID>` from the shared
+  branch, then `crew_wt_add`. `sync` refuses a dirty or mid-merge tree and names conflicted files.
+  `merge` (coordinator, under the apply lock) does `--no-ff`, aborts and changes nothing on a
+  conflict, then removes worktree, branch and exception and prints the regenerate step; under
+  `committer=human-approved` it prints the merge instead. `remove` is refused while dirty or unmerged.
+- lib.sh: `crew_wt_add` (the one creation path, used by copy new and tree new), `crew_wt_metafile`,
+  `crew_wt_meta`, `crew_wt_write_meta` (with `task=`), `crew_wt_task`. copy.sh uses them, and
+  `copy_check` refuses a task worktree.
+- Guard (land.sh): the tree is the session's own or `git -C`'s; in a task worktree it denies stash,
+  raw worktree, branch make/move/delete, checkout/switch off `task/<ID>`, update-ref/symbolic-ref,
+  fetch into a branch, and a push unless the member is in `taskPush` and names only its own branch.
+  The pre-bash filter now also passes update-ref, symbolic-ref and fetch.
+- status: `worktrees: tree=… · the user's exceptions: …` when there are any.
+- land.test.sh: "decided in the user layer" now looks for the commits-and-pushes note only.
+
 ## Current State
 
-Approved (2026-10-16). Nothing changed in code.
+Completed (2026-10-16). All crew suites green on host, crew-test and a standalone copy. Not
+committed. Next: PLUG-067.

@@ -1,6 +1,6 @@
 ---
 title: crew — copy new becomes a detached worktree in .worktrees/; .gitignore line; guard allows only crew's own worktree commands
-status: approved
+status: completed
 type: feature
 priority: medium
 epic: crew-worktrees
@@ -10,17 +10,17 @@ epic: crew-worktrees
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | copy.sh made a clone; lib.sh ROOT was the session's own tree, so inside a worktree crew saw a different repo |
+| 20 | Requirements | skipped | acceptance criteria are the spec |
+| 30 | Assessment | done | crew_try_init must map a linked worktree to the main tree, or copy commands and hooks break inside a copy |
+| 40 | POC | skipped | no risky unknown |
+| 50 | Domain | skipped | n/a |
+| 60 | Architecture | done | ROOT/CREW_TREE split in the one rev-parse; CREW_WT, crew_wt_dir, crew_wt_ignore in lib.sh; meta in the copy's git dir |
+| 70 | Tests | done | copy.test.sh: 72 cases (24 new); red before the fix, 3 red with the mapping and the pre-edit skip put back |
+| 80 | Subtasks | skipped | one change |
+| 90 | Implementation | done | all 13 crew suites green on host and crew-test |
+| 100 | Tech Debt | done | none |
+| 110 | Reflection | done | crew CLAUDE.md design rules, copy-apply.md, land.md, playbook, SKILL (rule 1, trigger), README |
 
 ## Description
 
@@ -62,4 +62,21 @@ what a copy is today.
 
 ## Current State
 
-Approved (2026-10-16). Nothing changed in code.
+Implemented (2026-10-16), not committed. No crew version bump (the epic bumps once).
+
+## Implementation (2026-10-16)
+
+- `crew_try_init` (lib.sh): one `rev-parse` gives `--show-toplevel --git-common-dir --git-dir`.
+  `CREW_TREE` is the session's own tree; `ROOT` is the main tree when the common dir is a
+  `<main>/.git`. State stays in the common dir. A command run inside a copy acts on the crew.
+- `copy new <name>`: `valid_name`, then `git worktree add --detach` into
+  `.worktrees/<repo>-<name>`; meta `crew-copy` in the copy's own git dir, so a pre-2.1 clone
+  copy still works by path. `status`, `rebase`, `apply` take a name or a folder (`copy_dir`).
+- `crew_wt_ignore`: appends `/.worktrees/` to `.gitignore` only when `git check-ignore` fails;
+  diff-guarded, creates the file if absent, left uncommitted.
+- `copy remove <name>`: only a registered worktree that `copy_check` accepts; refused while any
+  changed path differs from the tree; then `git worktree remove --force`. A folder in
+  `.worktrees/` that is not crew's copy is refused and left alone.
+- pre-edit hook: `.worktrees/*` is skipped (no hold, snapshot or claim). The pre-bash guard
+  still denies a raw `git worktree`; the denial names `copy new` / `copy remove`.
+- Fixed in the test along the way: a hold is released with `--unchanged` (a bare `release` is refused).

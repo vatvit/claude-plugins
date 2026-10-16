@@ -10,7 +10,7 @@ case "$PAYLOAD" in *whoami*) ;; *) crew_fast_skip && exit 0 ;; esac   # whoami m
 # only commands that can trip the git guard (or start a crew) need the full hook
 case "$PAYLOAD" in
     *whoami*|*git*" add"*|*git*commit*|*git*stash*|*git*checkout*|*git*switch*|*git*restore*|*git*reset*|*git*clean*) ;;
-    *git*worktree*|*git*branch*|*git*rebase*|*git*pull*|*git*merge*|*git*cherry-pick*|*git*revert*|*git*" am"*|*git*push*) ;;
+    *git*worktree*|*git*update-ref*|*git*symbolic-ref*|*git*fetch*|*git*branch*|*git*rebase*|*git*pull*|*git*merge*|*git*cherry-pick*|*git*revert*|*git*" am"*|*git*push*) ;;
     *) exit 0 ;;
 esac
 (

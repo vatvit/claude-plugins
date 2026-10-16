@@ -1,6 +1,6 @@
 ---
 name: crew
-description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, assigning tasks to sessions (one task, one session), handing off a finished change, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "assign tasks to sessions", "two sessions on one task", "split work between sessions", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "work in a copy", "apply the copy", "rebase the copy", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", "who commits", "who pushes", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
+description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, assigning tasks to sessions (one task, one session), handing off a finished change, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "assign tasks to sessions", "two sessions on one task", "split work between sessions", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "work in a copy", "apply the copy", "rebase the copy", "remove the copy", "task worktree", "worktree per task", "tree new", "tree sync", "tree merge", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", "who commits", "who pushes", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
 ---
 
 # crew — parallel Claude sessions on one working tree
@@ -20,7 +20,7 @@ crew <command> [args]            # or: CREW_AS=<your name> crew <command> [args]
 ```
 
 `help` lists the commands. Start every piece of work with `status`: one screen showing the
-crew, the branch, every dirty path by owner, the holds and the slots.
+crew, the branch, every dirty path by owner, the holds, the slots and crew's worktrees.
 
 To join, run `crew whoami "<name>" [worker|coordinator]` through the Bash tool. A hook passes
 it your session id. Use the name your peers address you by in SendMessage. Spaces are fine
@@ -39,6 +39,8 @@ to it. Names must be unique on the machine, because another repo may run its own
 - asks the user once how this project commits and pushes, when `status` says it is not decided,
   and records only the user's answer (`config set committer …`, `config set push …`). Until then
   nobody commits or pushes: `land` prints the commit for the user, and pushes are the user's;
+- asks the user once, the same way, whether the project works in one shared tree or a worktree
+  per task (`config set tree …`), and records a per-task exception only on their word (`tree allow`);
 - lands hand-offs (`land`), and pushes and checks the push only when `push` lets the crew push;
 - is the only one who changes task status, and only after the work is landed and verified;
 - records decisions in the task file as "the coordinator's" or "the user's".
@@ -53,8 +55,10 @@ to it. Names must be unique on the machine, because another repo may run its own
 
 ## Non-negotiables
 
-1. **One tree, one branch.** No worktrees, no feature branches, no `git switch` away from the
-   shared branch.
+1. **One tree, one branch, unless the user chose worktrees.** No worktrees but crew's own, no
+   feature branches, no `git switch` away from the shared branch. Under `tree=worktrees`, or the
+   user's exception for one task, that task works in its own worktree on `task/<ID>`
+   (`crew tree new <ID>`) and the coordinator merges it (`references/trees.md`).
 2. **One task, one session.** A task in progress has one owner session. To work on a task in
    parallel, split it into sub-tasks first (the task workflow's `subtasks` step); each session
    owns one. Ownership moves only by an explicit hand-over (`references/playbook.md` §1).
@@ -72,7 +76,8 @@ to it. Names must be unique on the machine, because another repo may run its own
 6. **Hot spots have one holder at a time.** `hold` before editing; release with the sha of the
    green commit that landed it.
 7. **Machine time is queued.** Run nothing heavy without a slot. Use `slot run <class> <min> --
-   <cmd>` to request, wait, run and release in one go.
+   <cmd>` to request, wait, run and release in one go. Docker in a copy: `cpu` without host
+   ports, `exclusive` with them (`references/slots.md`).
 8. **Commit at once.** Hand off each green change the moment it is verified. One commit holds
    work for one task only, with the task id in the message.
 9. **Messages start with `[<crew>] <from> → <to>: <KIND>`.** `msg <kind>` prints them pre-filled.
@@ -93,6 +98,7 @@ Read only the reference for the area you are working in:
 | Hot spots and holds | `references/holds.md` |
 | Slots: machine time | `references/slots.md` |
 | Copy, rebase, apply | `references/copy-apply.md` |
+| Task worktrees: the `tree` decision, `tree new` / `sync` / `merge`, their guards, local files in a new worktree | `references/trees.md` |
 | Snapshots: recover an overwritten edit | `references/snapshots.md` |
 | Land, the git guard, pushing | `references/land.md` |
 | Mailbox: `msg --send`, `inbox`, the unread notice | `references/inbox.md` |

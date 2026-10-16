@@ -5,9 +5,12 @@ failure it prevents; every one of those failures happened at least once in pract
 
 ## 1. Ground rules
 
-- **One working tree, one shared branch, no worktrees, no feature branches.** Every session edits
+- **One working tree, one shared branch, no worktrees but crew's own, no feature branches.** Every session edits
   the same clone on the same branch. Worktrees and branches hide collisions instead of surfacing
   them, and sessions switching branches under each other is worse than any merge.
+  The user may choose otherwise for a project (`tree=worktrees`) or for one task (the
+  coordinator's `tree allow`, on the user's word): that task then gets its own branch `task/<ID>`
+  and worktree, and comes back by the coordinator's merge ([trees.md](trees.md)).
 - **The git index is shared too.** No session runs anything that touches the whole index or tree
   (`git add -A`, `commit -a`, `stash`, `checkout -- .`, `reset --hard`, `clean`). Each one touches
   only its own paths. The `pre-bash` guard enforces this.

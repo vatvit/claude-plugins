@@ -18,6 +18,7 @@ crew_fast_skip && exit 0
     case "$fp" in /*) : ;; *) fp="$CREW_PROJECT_DIR/$fp" ;; esac
     rel="$(rel_path "$fp")"
     case "$rel" in /*) exit 0 ;; esac          # outside the work tree: not crew's business
+    case "$rel" in "$CREW_WT"/*) exit 0 ;; esac  # a copy (PLUG-065) is private: no hold, snapshot or claim
     [ -z "$NAME" ] || { load_area holds; declare -F holds_guard >/dev/null && holds_guard "$NAME" "$rel"; }   # members only (PLUG-055)
     load_area snapshot; declare -F snapshot_save >/dev/null && snapshot_save "${NAME:-?}" "$rel"
     [ -n "$NAME" ] && claim_add "$NAME" "$rel"

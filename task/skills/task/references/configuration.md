@@ -3,6 +3,11 @@
 `resolve-config.sh <project-dir>` answers all of this; the detail below is for when its
 output needs interpreting or a config has to be created.
 
+`<project-dir>` inside a linked git worktree stands for the same place in the main tree
+(`projectDir=` in the output): every worktree checks out its own copy of the config and the
+tasks folder, and resolving from that copy would give each worktree its own id lock and id
+sequence. No git, the main tree itself, and a bare repo's worktree resolve unchanged.
+
 Search order:
 
 1. `<project-root>/.task-config.json` — project-local, preferred

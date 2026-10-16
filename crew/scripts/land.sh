@@ -16,11 +16,12 @@ crew_pushes() { [ "$(cfg push)" = committer ] && [ "$(cfg committer)" != human-a
 # --- git guard -----------------------------------------------------------------------------------
 # guard_reason <name> <role> <git args...> — prints why the command is refused, nothing when allowed
 guard_reason() {
-    local n="$1" role="$2" sub a has_dd=0 i=0 committer br pre q
+    local n="$1" role="$2" sub a has_dd=0 i=0 committer br pre q wdir="${CREW_TREE:-$ROOT}" tid
     shift 2
     while [ $# -gt 0 ]; do                      # git's own options before the subcommand
         case "$1" in
-            -C|-c|--git-dir|--work-tree|--namespace) shift 2 ;;
+            -C) case "${2:-}" in /*) wdir="${2:-}" ;; *) wdir="$wdir/${2:-}" ;; esac; shift 2 ;;
+            -c|--git-dir|--work-tree|--namespace) shift 2 ;;
             -*) shift ;;
             *) break ;;
         esac
@@ -46,6 +47,48 @@ guard_reason() {
     is_commit() { git -C "$ROOT" rev-parse -q --verify "$1^{commit}" >/dev/null 2>&1; }
     is_path() { [ -e "$ROOT/$1" ] || git -C "$ROOT" ls-files --error-unmatch -- "$1" >/dev/null 2>&1; }
 
+    # In a task worktree (PLUG-066) the tree and index are the member's own: everything in it is
+    # allowed, except what reaches past it — the shared stash, other branches, the shared branch.
+    tid="$(crew_wt_task "$wdir")"
+    if [ -n "$tid" ]; then
+        local own="task/$tid"
+        case "$sub" in
+            stash)
+                case "${args[0]:-}" in list|show) ;; *) echo "git stash is one stack for every worktree of the repo (refs/stash is shared). Commit on $own instead"; return ;; esac ;;
+            worktree)
+                echo "a raw git worktree is crew's to run: $pre tree new|remove <task-id>"; return ;;
+            branch)
+                [ -z "$(nonopt)" ] && ! { any --delete --move --copy --force --set-upstream-to -u --unset-upstream || flag dDmMcCfu; } \
+                    || { echo "a task worktree has one branch, $own: no other branch is made, moved or deleted from here (the coordinator merges $own: $pre tree merge $tid)"; return; } ;;
+            checkout|switch)
+                any --orphan --detach --create --force-create || flag bBcC && { echo "a task worktree stays on $own: no new branch, no detached HEAD"; return; }
+                if [ "$has_dd" -eq 0 ]; then
+                    a="$(nonopt | head -1)"
+                    if [ -n "$a" ] && [ "$a" != "$own" ] && is_commit "$a" && { [ "$sub" = switch ] || [ ! -e "$wdir/$a" ]; }; then
+                        echo "a task worktree stays on $own: '$a' is another branch or commit"; return
+                    fi
+                fi ;;
+            update-ref|symbolic-ref)
+                echo "git $sub moves a branch by hand: $own moves by your commits, the shared branch only by the coordinator's merge"; return ;;
+            fetch)
+                any '*:*' && { echo "a fetch into a local branch moves it under its owner: fetch without a :<branch> refspec"; return; } ;;
+            push)
+                local -a refs=(); local r
+                while IFS= read -r r; do [ -n "$r" ] && refs+=("$r"); done <<EOF_PUSH
+$(nonopt | tail -n +2)
+EOF_PUSH
+                case " $(cfg taskPush | paste -sd' ' -) " in *" $n "*) ;; *)
+                    echo "the user has not let $n push its task branch (taskPush): hand off $own and its sha; the coordinator merges it"; return ;; esac
+                any --all --mirror --tags --delete --prune || flag d && { echo "push $own only, by name: git push <remote> $own"; return; }
+                [ ${#refs[@]} -gt 0 ] || { echo "name what you push: git push <remote> $own"; return; }
+                for r in "${refs[@]}"; do
+                    r="${r#+}"; r="${r##*:}"; r="${r#refs/heads/}"
+                    [ "$r" = "$own" ] || { echo "you push $own only; '$r' is not yours (pushing the shared branch is the coordinator's, under push)"; return; }
+                done ;;
+        esac
+        return 0
+    fi
+
     case "$sub" in
         add)
             any --dry-run || flag n && return 0                 # git add -n stages nothing
@@ -60,7 +103,7 @@ guard_reason() {
             any --amend && [ "$role" != coordinator ] && { echo "--amend rewrites a commit the crew shares — ask the coordinator"; return; }
             [ "$has_dd" -eq 1 ] || { echo "commit an exact path list, checked against what is dirty: $pre land --msg-file F -- <paths> (or git commit -F F -- <paths>)"; return; } ;;
         stash)
-            case "${args[0]:-}" in list|show) ;; *) echo "git stash takes every session's uncommitted work off the shared tree. Work in a copy instead ($pre copy new <dir>)"; return ;; esac ;;
+            case "${args[0]:-}" in list|show) ;; *) echo "git stash takes every session's uncommitted work off the shared tree. Work in a copy instead ($pre copy new <name>)"; return ;; esac ;;
         checkout)
             any . ./ :/ '\*' --force --orphan --detach --patch || flag fbBp && { echo "this checkout overwrites or moves the shared tree for every session. Undo your own file with: $pre snapshot restore <id> (snapshot log <path>), or git checkout -- <exact path>"; return; }
             if [ "$has_dd" -eq 0 ]; then
@@ -83,7 +126,7 @@ guard_reason() {
         clean)
             any --dry-run || flag n || { echo "git clean deletes other sessions' new files. Remove your own file by its exact path"; return; } ;;
         worktree)
-            echo "no worktrees: crew sessions share one working tree on purpose, so collisions surface instead of hiding. Need isolation? $pre copy new <dir>"; return ;;
+            echo "a raw git worktree is crew's to run: a private copy is $pre copy new <name> (a detached worktree in .worktrees/), dropped with $pre copy remove <name>"; return ;;
         branch)
             [ -z "$(nonopt)" ] && ! { any --delete --move --copy || flag dDmMcC; } || { echo "no feature branches: the crew works on $br only"; return; } ;;
         rebase|pull|merge|cherry-pick|revert|am)

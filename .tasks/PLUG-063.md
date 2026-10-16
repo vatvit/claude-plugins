@@ -1,6 +1,6 @@
 ---
 title: task — the resolver finds the main tree from a worktree; the skill uses only the paths the scripts print
-status: approved
+status: completed
 type: feature
 priority: medium
 epic: crew-worktrees
@@ -10,17 +10,17 @@ epic: crew-worktrees
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | only resolve-config.sh and allocate-id.sh take a project dir; the rest take tasksDir |
+| 20 | Requirements | skipped | acceptance criteria are the spec |
+| 30 | Assessment | done | lib.sh is the home for a shared helper; allocate-id also keys the global registry by project dir |
+| 40 | POC | skipped | no risky unknown |
+| 50 | Domain | skipped | n/a |
+| 60 | Architecture | done | task_project_dir in lib.sh; cd + pwd -P instead of --path-format (needs git 2.31) |
+| 70 | Tests | done | worktree.test.sh, 14 cases; seen red (10 failed) before the fix, 7 red with the defect put back |
+| 80 | Subtasks | skipped | small |
+| 90 | Implementation | done | all 6 suites green on host, container and a standalone copy |
+| 100 | Tech Debt | done | none filed; see the known limit below |
+| 110 | Reflection | done | task CLAUDE.md (do-not-regress + test list), README, SKILL, references |
 
 ## Description
 
@@ -58,4 +58,21 @@ including Claude Code's own `.claude/worktrees/`.
 
 ## Current State
 
-Approved (2026-10-16). Nothing changed in code.
+Implemented (2026-10-16), not committed. task plugin 1.1.2 -> 1.2.0.
+
+## Implementation (2026-10-16)
+
+- `task_project_dir <dir>` in `task/scripts/lib.sh`: in a linked worktree (git-dir differs from
+  the common dir, and the common dir is a `.git` folder) it returns the main tree plus the same
+  subdirectory. Everywhere else it returns `<dir>` as given.
+- `resolve-config.sh` and `allocate-id.sh` both pass their project dir through it. The allocator's
+  global-registry `nextId` write uses the mapped dir too. These are the only two scripts that take
+  a project dir; the rest take `tasksDir`.
+- `resolve-config.sh` also prints `projectDir=`.
+- The skill tells the reader to touch task files only at the absolute paths the scripts print. The
+  reasoning lives in `references/configuration.md`.
+- Tests: `task/scripts/test/worktree.test.sh` (14 cases). Seen red before the fix, and red again
+  in a copy with the helper reduced to identity.
+- Known limit: a project registered in the *global* registry under a path that goes through a
+  symlink resolves from a worktree to the canonical path (`pwd -P`), so the lookup can miss.
+  Project-local `.task-config.json` is unaffected. Not filed: no such setup is known.

@@ -125,6 +125,36 @@ printf 'not json at all' | CLAUDE_PROJECT_DIR="$R" bash "$HOOK" >/dev/null 2>&1
 check "9a malformed payload exits 0" "0" "$?"
 payload "$R/tasks/T-001.md" | CLAUDE_PROJECT_DIR="$R" bash "$HOOK" >/dev/null 2>&1
 check "9b missing tasks dir exits 0" "0" "$?"
+
+echo "== git worktree (PLUG-064) =="
+
+# --- 9c: a linked worktree stands for the main tree --------------------------
+# Each worktree checks out its own stale copy of the tasks; the roadmap belongs
+# to the main tree's. Worktrees are made only inside this test's own temp repo.
+if command -v git >/dev/null 2>&1; then
+  g() { git -c user.email=t@t -c user.name=t -c init.defaultBranch=main "$@"; }
+  R=$(fresh rw); R="$(cd "$R" && pwd -P)"; mkdir -p "$R/tasks"
+  task "$R" "$R/tasks/T-001.md" "First"
+  ( cd "$R" && g init -q && g add -A && g commit -qm init && g worktree add -q --detach .worktrees/rw-x ) >/dev/null 2>&1
+  W="$R/.worktrees/rw-x"
+  task "$R" "$R/tasks/T-002.md" "Second, main tree only"
+  out=$(bash "$GEN" "$W" 2>&1)
+  check "9c generate from a worktree reads the main tree" "yes" \
+    "$(echo "$out" | grep -q '(2 tasks)' && echo yes || echo no)"
+  check "9d the roadmap is written to the main tree" "yes" "$([ -f "$R/tasks/roadmap.html" ] && echo yes || echo no)"
+  check "9e the worktree is unchanged" "" "$(cd "$W" && git status --porcelain)"
+  rm -f "$R/tasks/roadmap.html"
+  payload "$R/tasks/T-001.md" | CLAUDE_PROJECT_DIR="$W" bash "$HOOK" >/dev/null 2>&1
+  check "9f hook in a worktree session regenerates the main tree's" "yes" \
+    "$([ -f "$R/tasks/roadmap.html" ] && echo yes || echo no)"
+  check "9g the worktree is still unchanged" "" "$(cd "$W" && git status --porcelain)"
+  B="$TMP/rw.git"
+  ( g init -q --bare "$B" && cd "$R" && g push -q "$B" HEAD:main && cd "$B" && g worktree add -q "$TMP/rwb" main ) >/dev/null 2>&1
+  out=$(bash "$GEN" "$TMP/rwb" 2>&1)
+  check "9h a bare repo's worktree stays itself" "yes" "$([ -f "$TMP/rwb/tasks/roadmap.html" ] && echo yes || echo no)"
+else
+  echo "  skip git worktree cases: git not installed"
+fi
 echo
 echo "== packaging =="
 

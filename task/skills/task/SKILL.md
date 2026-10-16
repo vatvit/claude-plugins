@@ -54,10 +54,15 @@ judgement calls that cost real work when got wrong.
 <PLUGIN_ROOT>/scripts/resolve-config.sh <project-dir>
 ```
 
-It prints `tasksDir=`, `prefix=`, `nextId=`, `configFile=`, `configScope=`. Exits 1 when the
+It prints `tasksDir=`, `prefix=`, `nextId=`, `configFile=`, `configScope=`, `projectDir=`. Exits 1 when the
 project has no config — then ask the user for `tasksDir` and `prefix` and write
 `.task-config.json` in the project root. `nextId` in that output is informational; allocating
 from it is the first guardrail above.
+
+**In a git worktree, the task files are the main tree's.** The scripts map a linked worktree
+to the main tree, so their output names paths outside your working directory. Read and write
+task files only at the absolute paths the scripts print (`tasksDir=`, `allocate-id.sh`'s
+`ID=path`), never at the same relative path under the worktree — that is a stale copy.
 
 `<PLUGIN_ROOT>` is this plugin's directory — resolve the scripts relative to this skill file,
 never from a pasted absolute path.

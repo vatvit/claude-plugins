@@ -2,28 +2,40 @@
 # Work in a copy, land with a merge-or-refuse apply. Unfinished or failing work never sits in the
 # shared tree, where it would fail every other session's checks.
 #
-# A copy is a `git clone --shared` of the shared repo at a named commit (no worktree, no branch):
-# it sees every new commit through git's alternates, has its own private index, and records its
-# base in <copy>/.git/crew-copy. Every file decision goes through ONE function, resolve3, used by
-# both `apply` (copy → tree) and `rebase` (tree's new HEAD → copy).
-# help: copy new <dir> [--at COMMIT] — make a copy at a named commit (default HEAD)
-# help: copy status <dir> — files the copy changed against its base
-# help: copy rebase <dir> [--ours <path...>] — move the copy onto the commit the tree is on now (merge or refuse); --ours: conflicts you resolved in the copy
-# help: apply <dir> [path...] — land the copy into the shared tree: take, 3-way merge, or refuse all
+# A copy is a detached git worktree of the shared repo at a named commit (no branch), in
+# .worktrees/<repo>-<name> (PLUG-065): it shares the repo's objects, has its own private index, and
+# records its base in its own git dir (crew-copy). Every file decision goes through ONE function,
+# resolve3, used by both `apply` (copy → tree) and `rebase` (tree's new HEAD → copy).
+# A copy made before 2.1 is a `git clone --shared` with .git/crew-copy; status, rebase and apply
+# still take one by its folder.
+# help: copy new <name> [--at COMMIT] — make a copy at a named commit (default HEAD), in .worktrees/<repo>-<name>
+# help: copy status <name> — files the copy changed against its base
+# help: copy rebase <name> [--ours <path...>] — move the copy onto the commit the tree is on now (merge or refuse); --ours: conflicts you resolved in the copy
+# help: copy remove <name> — delete the copy; refused while it has work the tree does not
+# help: apply <name> [path...] — land the copy into the shared tree: take, 3-way merge, or refuse all
 
 [ -n "${CREW_LIB_DIR:-}" ] || . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
 
-copy_meta() { sed -n "s/^$2=//p" "$1/.git/crew-copy" 2>/dev/null | head -1; }
-copy_check() { # <dir> — dies unless it is a copy of THIS repo
-    [ -f "$1/.git/crew-copy" ] || die "$1 is not a crew copy (make one: copy new $1)"
-    [ "$(copy_meta "$1" root)" = "$ROOT" ] || die "$1 is a copy of $(copy_meta "$1" root), not of $ROOT"
+# copy_dir <name|dir> — the copy's folder: crew's worktree of that name, else the argument as a path
+copy_dir() {
+    local d
+    if valid_name "$1"; then d="$(crew_wt_dir "$1")"; [ -d "$d" ] && { echo "$d"; return 0; }; fi
+    echo "$1"
+}
+copy_check() { # <dir> — dies unless it is a crew copy of THIS repo, and the dir is that copy's top
+    local top
+    top="$(git -C "$1" rev-parse --path-format=absolute --show-toplevel 2>/dev/null)" || true
+    [ -n "$top" ] && [ "$top" = "$(cd "$1" && pwd -P)" ] && [ -f "$(crew_wt_metafile "$1")" ] \
+        || die "$1 is not a crew copy (make one: copy new <name>)"
+    [ "$(crew_wt_meta "$1" root)" = "$ROOT" ] || die "$1 is a copy of $(crew_wt_meta "$1" root), not of $ROOT"
+    [ -z "$(crew_wt_meta "$1" task)" ] || die "$1 is a task worktree, not a copy: crew tree sync|merge|remove $(crew_wt_meta "$1" task)"
 }
 
 # copy_changes <dir> — every path the copy changed against its base, NUL-free, one per line
 copy_changes() {
-    local base; base="$(copy_meta "$1" base)"
+    local base; base="$(crew_wt_meta "$1" base)"
     { git -C "$1" diff -z --name-only --no-renames "$base" --; git -C "$1" ls-files -z --others --exclude-standard; } \
-        | tr '\0' '\n' | awk 'NF && !seen[$0]++'
+        | tr '\0' '\n' | awk 'NF && !seen[$0]++' | crew_link_filter ''
 }
 
 # blob_at <commit> <path> <out> — the path's content at commit into out; returns 1 when absent
@@ -53,19 +65,42 @@ resolve3() {
     if git merge-file -p -q "$t" "$b" "$c" > "$out" 2>/dev/null; then echo merged; else echo conflict; fi
 }
 
-copy_new() { # <dir> [--at commit]
-    local dir="$1" at=HEAD sha; shift
+copy_new() { # <name> [--at commit]
+    local name="$1" at=HEAD sha dir; shift
+    valid_name "$name" || die "copy new <name>: letters, digits, . _ - (the copy goes to $CREW_WT/${ROOT##*/}-<name>)"
     [ "${1:-}" = --at ] && at="${2:?--at COMMIT}"
     sha="$(git -C "$ROOT" rev-parse -q --verify "$at^{commit}")" || die "no such commit: $at"
-    [ ! -e "$dir" ] || [ -z "$(ls -A "$dir" 2>/dev/null)" ] || die "$dir exists and is not empty"
-    git clone -q --shared --no-checkout "$ROOT" "$dir" || die "clone into $dir failed"
-    git -C "$dir" checkout -q --detach "$sha"
-    printf 'base=%s\nroot=%s\nmade=%s\n' "$sha" "$ROOT" "$(now)" > "$dir/.git/crew-copy"
-    echo "copy: $dir at $(git -C "$ROOT" rev-parse --short "$sha") — work and test there; land with: apply $dir"
+    dir="$(crew_wt_add "$name" --detach "$sha")" || exit 1
+    crew_wt_write_meta "$dir" "$sha" "$(now)" "$(caller_name)"
+    echo "copy: $dir at $(git -C "$ROOT" rev-parse --short "$sha") — work and test there; land with: apply $name"
+    crew_wt_ready "$dir"
+}
+
+# copy_unlanded <dir> — the paths where the copy holds something the shared tree does not
+copy_unlanded() {
+    local f
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        same_file "$( [ -e "$1/$f" ] && echo "$1/$f")" "$( [ -e "$ROOT/$f" ] && echo "$ROOT/$f")" || printf '%s\n' "$f"
+    done <<EOF
+$(copy_changes "$1")
+EOF
+}
+copy_remove() { # <dir>
+    local lost d wts
+    d="$(cd "$1" && pwd -P)" || die "no such copy: $1"
+    wts="$(git -C "$ROOT" worktree list --porcelain)"
+    printf '%s\n' "$wts" | grep -qxF "worktree $d" \
+        || die "$1 is not a worktree copy (a copy made before 2.1 is a clone: delete its folder yourself)"
+    lost="$(copy_unlanded "$1")"
+    [ -z "$lost" ] || die "$1 has work the tree does not — land it (apply), or drop those files in the copy first:
+$(printf '%s\n' "$lost" | sed 's/^/  /')"
+    git -C "$ROOT" worktree remove --force "$1" || die "git worktree remove $1 failed"
+    echo "copy: removed $1"
 }
 
 copy_status() {
-    local base n; base="$(copy_meta "$1" base)"; n="$(copy_changes "$1" | grep -c . || true)"
+    local base n; base="$(crew_wt_meta "$1" base)"; n="$(copy_changes "$1" | grep -c . || true)"
     echo "copy: $1 based on $(git -C "$ROOT" rev-parse --short "$base") (tree is at $(git -C "$ROOT" rev-parse --short HEAD)) · $n changed"
     copy_changes "$1" | sed 's/^/  /'
     [ "$base" = "$(git -C "$ROOT" rev-parse HEAD)" ] || echo "  (stale: rebase before applying — copy rebase $1)"
@@ -76,7 +111,7 @@ copy_status() {
 copy_rebase() { # <dir> [path...] — the paths are --ours: conflicts already resolved in the copy, kept as they are
     local dir="$1" old new f w d r t b c p n=0 bad=0 clash="" kept=""
     shift
-    old="$(copy_meta "$dir" base)"; new="$(git -C "$ROOT" rev-parse HEAD)"
+    old="$(crew_wt_meta "$dir" base)"; new="$(git -C "$ROOT" rev-parse HEAD)"
     [ "$old" != "$new" ] || { echo "copy: already on $(git -C "$ROOT" rev-parse --short "$new")"; return 0; }
     w="$(mktemp -d)"; CREW_ON_EXIT="rm -rf '$w'"
     while IFS= read -r f; do
@@ -111,7 +146,7 @@ EOF
         esac
     done
     for p in "$@"; do case "$kept" in *"|$p|"*) ;; *) echo "copy: --ours: $p — no conflict there, rebased as usual" ;; esac; done
-    printf 'base=%s\nroot=%s\nmade=%s\n' "$new" "$ROOT" "$(copy_meta "$dir" made)" > "$dir/.git/crew-copy"
+    crew_wt_write_meta "$dir" "$new" "$(crew_wt_meta "$dir" made)" "$(crew_wt_meta "$dir" by)"
     echo "copy: rebased $dir onto $(git -C "$ROOT" rev-parse --short "$new") ($n changed files carried over)"
 }
 
@@ -119,7 +154,7 @@ EOF
 copy_apply() { # <me> <dir> [path...]
     local me="$1" dir="$2" base f w d r t c b n=0 bad=0 taken=0 merged=0 same=0 h chk
     shift 2
-    base="$(copy_meta "$dir" base)"
+    base="$(crew_wt_meta "$dir" base)"
     [ "$base" = "$(git -C "$ROOT" rev-parse HEAD)" ] || note "the copy is based on $(git -C "$ROOT" rev-parse --short "$base"), the tree is at $(git -C "$ROOT" rev-parse --short HEAD) — files peers changed are 3-way merged; rebase first to test against them"
     load_area holds
     w="$(mktemp -d)"; CREW_ON_EXIT="rm -rf '$w'"
@@ -193,15 +228,17 @@ copy_main() {
     local sub="${1:-}" dir p; [ $# -gt 0 ] && shift
     crew_init
     case "$sub" in
-        new)    [ -n "${1:-}" ] || die "copy new <dir> [--at COMMIT]"; copy_new "$@" ;;
-        status) copy_check "${1:?copy status <dir>}"; copy_status "$1" ;;
-        rebase) dir="${1:?copy rebase <dir> [--ours <path...>]}"; shift; copy_check "$dir"
-                case "${1:-}" in --ours) shift; [ $# -gt 0 ] || die "--ours needs the paths you resolved" ;; "") ;; *) die "copy rebase <dir> [--ours <path...>]" ;; esac
+        new)    [ -n "${1:-}" ] || die "copy new <name> [--at COMMIT]"; copy_new "$@" ;;
+        status) dir="$(copy_dir "${1:?copy status <name>}")"; copy_check "$dir"; copy_status "$dir" ;;
+        rebase) dir="$(copy_dir "${1:?copy rebase <name> [--ours <path...>]}")"; shift; copy_check "$dir"
+                case "${1:-}" in --ours) shift; [ $# -gt 0 ] || die "--ours needs the paths you resolved" ;; "") ;; *) die "copy rebase <name> [--ours <path...>]" ;; esac
                 local -a ours=(); for p in "$@"; do ours+=("$(rel_path "$p")"); done
                 copy_rebase "$dir" ${ours[@]+"${ours[@]}"} ;;
-        apply)  need_active; dir="${1:?apply <dir> [path...]}"; shift; copy_check "$dir"
+        remove) dir="$(copy_dir "${1:?copy remove <name>}")"; copy_check "$dir"
+                with_lock apply copy_remove "$dir" ;;
+        apply)  need_active; dir="$(copy_dir "${1:?apply <name> [path...]}")"; shift; copy_check "$dir"
                 with_lock apply copy_apply "$(me)" "$dir" "$@" ;;
-        *) die "copy new|status|rebase <dir>, or apply <dir>" ;;
+        *) die "copy new|status|rebase|remove <name>, or apply <name>" ;;
     esac
 }
 

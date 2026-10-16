@@ -22,6 +22,9 @@ Designed to pair with the `/task` skill: it reads the same `tasks/*.md` files.
 bash <PLUGIN_ROOT>/scripts/generate.sh [PROJECT_ROOT]
 ```
 
+`PROJECT_ROOT` defaults to `$CLAUDE_PROJECT_DIR`, else the current directory. Run from a
+linked git worktree, it charts the main tree's tasks and writes the roadmap there.
+
 Then open the generated `roadmap.html`. See the bundled **task-roadmap** skill for the full
 frontmatter schema (`deps` / `estimate` / `epic`) and the optional `.task-roadmap.json` config.
 

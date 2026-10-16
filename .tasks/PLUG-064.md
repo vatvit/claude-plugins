@@ -1,6 +1,6 @@
 ---
 title: task-roadmap — resolve the main tree from a worktree
-status: approved
+status: completed
 type: feature
 priority: medium
 epic: crew-worktrees
@@ -10,17 +10,17 @@ epic: crew-worktrees
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | generate.sh and regenerate-hook.sh each resolve ROOT; both source lib.sh |
+| 20 | Requirements | skipped | acceptance criteria are the spec |
+| 30 | Assessment | done | ROOT must be set after lib.sh is sourced |
+| 40 | POC | skipped | same mechanism as PLUG-063 |
+| 50 | Domain | skipped | n/a |
+| 60 | Architecture | done | project_root in task-roadmap/scripts/lib.sh, own copy (plugin independence) |
+| 70 | Tests | done | roadmap.test.sh 9c-9h; 5 red before the fix and 5 red with the defect put back |
+| 80 | Subtasks | skipped | small |
+| 90 | Implementation | done | 30/30 on host, container and a standalone copy |
+| 100 | Tech Debt | skipped | none |
+| 110 | Reflection | done | task-roadmap CLAUDE.md (lib.sh section), README usage |
 
 ## Description
 
@@ -49,4 +49,13 @@ reads that worktree's stale copy of the tasks and writes a roadmap there.
 
 ## Current State
 
-Approved (2026-10-16). Nothing changed in code.
+Implemented (2026-10-16), not committed. task-roadmap 1.0.3 -> 1.1.0.
+
+## Implementation (2026-10-16)
+
+- `project_root <dir>` in `task-roadmap/scripts/lib.sh`: the same rule as the task plugin's
+  `task_project_dir`, in task-roadmap's own copy.
+- `generate.sh` and `regenerate-hook.sh` set `ROOT` through it, after sourcing `lib.sh`. A
+  hook firing in a worktree session regenerates the main tree's roadmap.
+- Tests: `roadmap.test.sh` 9c–9h, run against a fixture repo with a detached worktree and a bare
+  repo's worktree.

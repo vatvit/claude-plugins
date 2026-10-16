@@ -36,7 +36,9 @@ IDs accept either form: `4`, `004` or `TASK-004`.
   `_epic-index.json` gives O(1) epic lookups and is rebuilt, never hand-edited.
 - **ID allocation is safe across parallel sessions.** `allocate-id.sh` reserves the id and the
   file together under a `mkdir` mutex, computes `max(nextId, highest existing + 1)` so a lost
-  counter can never cause a reuse, and creates files with `noclobber`.
+  counter can never cause a reuse, and creates files with `noclobber`. From a linked git
+  worktree it resolves to the main tree, so all worktrees share one sequence and one set of
+  task files.
 
 ## Configuration
 
@@ -73,6 +75,8 @@ bash scripts/test/epic-dashboard.test.sh   # epic membership parsing
 bash scripts/test/list-tasks.test.sh       # every documented /task list shape
 bash scripts/test/status-session.test.sh   # status writes, epic cascade, active tasks
 bash scripts/test/port.test.sh             # packaging, independence, standalone copy
+bash scripts/test/config.test.sh           # global registry, CLAUDE_CONFIG_DIR
+bash scripts/test/worktree.test.sh         # a linked git worktree resolves to the main tree
 ```
 
 Run on the host *and* in a container (`docker run --rm -v "$PWD":/w -w /w bash:5 …`) — the

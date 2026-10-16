@@ -7,7 +7,6 @@
 # Reads the hook payload (JSON) on stdin; never blocks a tool call (always exit 0).
 #
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-ROOT="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 
 input="$(cat)"
 fp="$(printf '%s' "$input" \
@@ -19,6 +18,8 @@ fp="$(printf '%s' "$input" \
 # separate implementations that agreed only by coincidence.
 # shellcheck source=lib.sh
 . "$PLUGIN_ROOT/scripts/lib.sh"
+# A linked git worktree stands for the main tree (PLUG-064).
+ROOT="$(project_root "${CLAUDE_PROJECT_DIR:-$(pwd)}")"
 TASKS_DIR="$(resolve_tasks_dir "$ROOT")"
 
 case "$fp" in

@@ -5,6 +5,9 @@
 #   tasksDir=/absolute/path/to/tasks
 #   prefix=TASK
 #   nextId=7
+#   configFile=/absolute/path/to/config
+#   configScope=local|global
+#   projectDir=/absolute/path   (in a linked git worktree: the main tree)
 #
 # Search order:
 #   1. <project-dir>/.task-config.json  (project-local, preferred)
@@ -15,11 +18,12 @@
 # Exit 1 if config missing or project not found.
 set -euo pipefail
 
-PROJECT_DIR="${1:-$(pwd)}"
-LOCAL_CONFIG="$PROJECT_DIR/.task-config.json"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
 . "$SCRIPT_DIR/lib.sh"
+# A linked worktree stands for the same place in the main tree.
+PROJECT_DIR="$(task_project_dir "${1:-$(pwd)}")"
+LOCAL_CONFIG="$PROJECT_DIR/.task-config.json"
 # Where a new registry belongs: the active account's root.
 PRIMARY_CONFIG="$(task_global_roots | head -n 1)/config.json"
 
@@ -63,6 +67,7 @@ if [ -f "$LOCAL_CONFIG" ] && [ -s "$LOCAL_CONFIG" ]; then
     done
     printf 'configFile=%s\n' "$LOCAL_CONFIG"
     printf 'configScope=local\n'
+    printf 'projectDir=%s\n' "$PROJECT_DIR"
     exit 0
 fi
 
@@ -138,3 +143,4 @@ echo "$result" | while IFS='=' read -r key val; do
 done
 printf 'configFile=%s\n' "$GLOBAL_CONFIG"
 printf 'configScope=global\n'
+printf 'projectDir=%s\n' "$PROJECT_DIR"

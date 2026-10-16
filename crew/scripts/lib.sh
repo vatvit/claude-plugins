@@ -16,7 +16,7 @@ CREW_USER_CONFIG="${CREW_USER_CONFIG:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/crew.j
 # Per MACHINE: the session-name registry deliberately ignores CLAUDE_CONFIG_DIR — SendMessage
 # addresses sessions of every account on this machine, so all accounts must see one registry.
 CREW_HOME="${CREW_HOME:-$HOME/.claude/crew}"
-CREW_KEYS="crewId sharedBranch committer push hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin silenceMin"
+CREW_KEYS="crewId sharedBranch committer push tree treeSync taskPush treeLink treeSetup hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin silenceMin"
 
 die()  { echo "crew: $*" >&2; exit 1; }
 note() { echo "crew: $*" >&2; }
@@ -34,16 +34,100 @@ fmt_epoch() { date -r "$1" "+$2" 2>/dev/null || date -d "@$1" "+$2"; }
 hhmm() { fmt_epoch "$1" %H:%M; }
 
 # --- project + state -----------------------------------------------------------------------
-# crew_init: sets ROOT (work tree top), STATE (<git-common-dir>/crew). Dies outside a repo.
+# crew_init: sets ROOT (the main work tree), CREW_TREE (the work tree the caller is in: ROOT, or
+# a linked worktree), STATE (<git-common-dir>/crew). Dies outside a repo.
 crew_try_init() { # same, but returns 1 instead of dying — for hooks, which must never fail
-    local start="${CREW_PROJECT_DIR:-$(pwd)}" r
-    r="$(git -C "$start" rev-parse --path-format=absolute --show-toplevel --git-common-dir 2>/dev/null)" || return 1
-    ROOT="${r%%$'\n'*}"; STATE="${r#*$'\n'}/crew"
+    local start="${CREW_PROJECT_DIR:-$(pwd)}" r rest common gd
+    r="$(git -C "$start" rev-parse --path-format=absolute --show-toplevel --git-common-dir --git-dir 2>/dev/null)" || return 1
+    # three lines, or no work tree (a bare repo prints no toplevel)
+    CREW_TREE="${r%%$'\n'*}"; rest="${r#*$'\n'}"; [ -n "$CREW_TREE" ] && [ "$rest" != "$r" ] || return 1
+    common="${rest%%$'\n'*}"; gd="${rest#*$'\n'}"; [ "$gd" != "$rest" ] || return 1
+    # In a linked worktree the crew is still the main tree's: ROOT is where every session lands.
+    ROOT="$CREW_TREE"
+    case "$common" in */.git) [ "$gd" = "$common" ] || ROOT="${common%/.git}" ;; esac
+    STATE="$common/crew"
     # ids parked by the pre-bash hook for whoami; OUTSIDE crew/, so a join that never completes does
     # not switch crew on for the repo (crew_active is "crew/ exists")
-    CREW_PENDING="${r#*$'\n'}/crew-pending"
-    [ -n "$ROOT" ] && [ "$ROOT" != "$r" ] || return 1
+    CREW_PENDING="$common/crew-pending"
     cfg_load
+}
+# crew's own worktrees live in ONE folder of the main tree, named <repo>-<name> (PLUG-062). The
+# folder name is also the Docker Compose project name a copy gets by default.
+CREW_WT=.worktrees
+crew_wt_dir() { printf '%s/%s/%s-%s\n' "$ROOT" "$CREW_WT" "${ROOT##*/}" "$1"; }   # <name>
+# crew_wt_ignore — make sure the main tree ignores crew's worktree folder: one line appended to
+# .gitignore (created when absent), only when no rule covers it yet. Left uncommitted, never removed.
+crew_wt_ignore() {
+    local f="$ROOT/.gitignore" t
+    git -C "$ROOT" check-ignore -q "$CREW_WT/" 2>/dev/null && return 0
+    t="$(mktemp)"
+    { [ -f "$f" ] && cat "$f" && [ -n "$(tail -c 1 "$f")" ] && echo; echo "/$CREW_WT/"; } > "$t"
+    if cmp -s "$t" "$f" 2>/dev/null; then rm -f "$t"; else cat "$t" > "$f"; rm -f "$t"; fi
+    note "added /$CREW_WT/ to .gitignore (not committed) — crew's worktrees live there"
+}
+# crew_wt_add <name> <git worktree add args after the folder...> — the ONE way crew makes a worktree
+# (copy new, tree new): a free folder, the ignore line, then git. Prints the folder.
+crew_wt_add() {
+    local name="$1" dir; shift
+    dir="$(crew_wt_dir "$name")"
+    [ ! -e "$dir" ] || die "$dir is in use (crew status lists crew's worktrees)"
+    crew_wt_ignore
+    git -C "$ROOT" worktree add -q "$dir" "$@" >/dev/null 2>&1 || die "git worktree add $dir failed"
+    printf '%s\n' "$dir"
+}
+# A crew worktree's record: crew-copy in ITS git dir — base= root= made= by=, and task= for a task
+# worktree (PLUG-066). The name predates task worktrees: a pre-2.1 clone copy has the same file.
+crew_wt_metafile() { local g; g="$(git -C "$1" rev-parse --absolute-git-dir 2>/dev/null)" && echo "$g/crew-copy"; }
+crew_wt_meta() { sed -n "s/^$2=//p" "$(crew_wt_metafile "$1")" 2>/dev/null | head -1 || true; }   # <dir> <key>; empty when absent
+crew_wt_write_meta() { # <dir> <base> <made> <by> [task] — by: the session that made it, "" when unknown
+    printf 'base=%s\nroot=%s\nmade=%s\nby=%s\n%s' "$2" "$ROOT" "$3" "$4" "${5:+task=$5
+}" > "$(crew_wt_metafile "$1")"
+}
+# A new worktree has no untracked files (PLUG-067). treeLink lists the local ones to link from the
+# main tree; each entry is data — a relative path with no .. — never executed. treeSetup is the
+# project's own setup step: printed for the session, never run by crew.
+crew_link_ok() { [ -n "$1" ] && case "/$1/" in //*|*/../*|*/./*) return 1 ;; esac; }
+# crew_wt_ready <dir> — after crew made a worktree: the links, the setup step, the Docker report
+crew_wt_ready() {
+    local d="$1" p
+    while IFS= read -r p; do
+        [ -n "$p" ] || continue
+        crew_link_ok "$p" || { echo "crew: treeLink $p: not a path inside the main tree — skipped"; continue; }
+        [ -e "$ROOT/$p" ] || { echo "crew: treeLink $p is not in the main tree — skipped"; continue; }
+        [ ! -e "$d/$p" ] && [ ! -L "$d/$p" ] || continue                   # tracked: the branch's own
+        mkdir -p "$(dirname "$d/$p")" && ln -s "$ROOT/$p" "$d/$p"
+    done <<EOF
+$(cfg treeLink)
+EOF
+    p="$(cfg treeSetup)"
+    [ -z "$p" ] || echo "crew: before working in $d, run the project's setup there: $p (crew prints it, never runs it)"
+    compose_report "$d"
+}
+# crew_link_filter <prefix> — stdin lines minus "<prefix><a treeLink path>": the links are not work
+crew_link_filter() { cfg_resolve treeLink; awk -v links="$CFG_V" -v pre="$1" 'BEGIN { n = split(links, a, "\037"); for (i = 1; i <= n; i++) l[pre a[i]] = 1 } !($0 in l)'; }
+# crew_wt_dirty <dir> — git status of a crew worktree, one line per file, its links left out
+crew_wt_dirty() { git -C "$1" status --porcelain --untracked-files=all 2>/dev/null | crew_link_filter '?? '; }
+# crew_wt_task <dir> — the task id when <dir> is inside one of crew's task worktrees, else empty
+crew_wt_task() {
+    local top
+    top="$(git -C "$1" rev-parse --show-toplevel 2>/dev/null)" || return 0
+    case "$top" in "$ROOT/$CREW_WT"/*) crew_wt_meta "$top" task ;; esac
+    return 0
+}
+# compose_report <dir> — Docker option D (PLUG-068): what in the project's compose setup stops a
+# second copy running beside the first (compose-report.awk). Read-only: one `docker compose config`.
+# Silent without a compose file or docker, or when that command fails.
+compose_report() {
+    local d="$1" f="" cfg p
+    if [ -z "${COMPOSE_FILE:-}" ]; then
+        for f in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do [ -f "$d/$f" ] && break; f=""; done
+        [ -n "$f" ] || return 0
+    fi
+    command -v docker >/dev/null 2>&1 || return 0
+    cfg="$(cd "$d" && docker compose config --no-interpolate 2>/dev/null)" || return 0
+    p="$(printf '%s' "${d##*/}" | tr 'A-Z' 'a-z' | tr -cd 'a-z0-9_-')"   # compose's name for the folder
+    printf '%s\n' "$cfg" | awk -v proj="$p" -v root="$(cd "$d" && pwd -P)" -f "$CREW_LIB_DIR/compose-report.awk"
+    return 0
 }
 crew_init() { crew_try_init || die "not inside a git work tree: ${CREW_PROJECT_DIR:-$(pwd)}"; }
 crew_active() { [ -d "$STATE" ]; }
@@ -110,11 +194,12 @@ cfg_load() { CREW_CFG="$(cfg_parse project "$ROOT/.crew.json"; cfg_parse user "$
 cfg_default() {
     case "$1" in
         committer) echo human-approved ;; push) echo human ;; hookMode) echo deny ;;
+        tree) echo shared ;; treeSync) echo merge ;;
         snapshotKeep) echo 20 ;; snapshotMaxKB) echo 1024 ;; slotGraceMin) echo 10 ;; silenceMin) echo 15 ;;
     esac
     return 0
 }
-cfg_project_only() { case "$1" in crewId|sharedBranch|hotSpots|landCheck) return 0 ;; esac; return 1; }
+cfg_project_only() { case "$1" in crewId|sharedBranch|hotSpots|landCheck|tree|treeSync|taskPush|treeLink|treeSetup) return 0 ;; esac; return 1; }
 # git_policy_note — empty once the user has said how this project commits and pushes (PLUG-057).
 # Until then the defaults hold (nobody commits, nobody pushes) and the coordinator asks the user.
 # A value in either layer counts: the user may decide once for the account.
@@ -122,6 +207,12 @@ git_policy_note() {
     local k u=""
     for k in committer push; do cfg_resolve "$k"; [ "$CFG_SRC" != default ] || u="$u${u:+, }$k"; done
     [ -z "$u" ] || echo "not decided for this project ($u): nothing is committed or pushed until the user says how — ask them, then record their answer: crew config set committer coordinator|each-session|human-approved, crew config set push committer|human"
+    return 0
+}
+# tree_policy_note — empty once the user has said whether this project works in one shared tree or
+# in a worktree per task (PLUG-066). Project layer only: the answer differs per project.
+tree_policy_note() {
+    [ -n "$(cfg_layer project tree)" ] || echo "not decided for this project: everyone works in the one shared tree until the user says otherwise — ask them once, then record their answer: crew config set tree shared|worktrees"
     return 0
 }
 

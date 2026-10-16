@@ -49,6 +49,9 @@ at all, whether to skip a step, append-or-switch when two tasks compete for a se
   no stale counter, self-healing `max(nextId, highest+1)`, `noclobber`, `mkdir` mutex —
   exist because parallel Claude sessions genuinely raced and destroyed each other's task
   files. Never compute an id from `nextId`, never write to a constructed path.
+- **A linked git worktree is the main tree.** `task_project_dir` in `lib.sh` maps it, and
+  every script that takes a project dir goes through it. Resolve from the worktree's own
+  copy and each worktree gets its own lock and its own sequence — the race above, again.
 - **The workflow table is the state.** Nothing else records which step a task reached.
 - **Status is never changed without the user asking.** This is a guardrail in prose
   precisely because it is a judgement call, not something a script can enforce.
@@ -68,6 +71,7 @@ bash scripts/test/list-tasks.test.sh       # 41 cases — every documented list 
 bash scripts/test/status-session.test.sh   # 26 cases — status writes, cascade, active-tasks
 bash scripts/test/port.test.sh             # 19 cases — packaging + standalone copy
 bash scripts/test/config.test.sh           # 13 cases — global registry + step lookup, CLAUDE_CONFIG_DIR
+bash scripts/test/worktree.test.sh         # 14 cases — a linked git worktree resolves to the main tree
 ```
 
 Dual-target (host + `bash:5` container) per the repo convention, and the suite must pass

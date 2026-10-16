@@ -1,6 +1,6 @@
 ---
 title: crew — one working tree or worktrees is the user's call per project, asked once; the user can tell the coordinator to make an exception
-status: approved
+status: completed
 type: epic
 epic-name: crew-worktrees
 priority: medium
@@ -10,17 +10,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | one tree, one branch was a hard rule; copy was a separate clone |
+| 20 | Requirements | done | agreed with the user, recorded above |
+| 30 | Assessment | done | task files, roadmap, guard, Docker and local files all assumed one tree |
+| 40 | POC | skipped | git worktree is built in |
+| 50 | Domain | skipped | n/a |
+| 60 | Architecture | done | one creation path (crew_wt_add) and one post-creation step (crew_wt_ready) for copies and task worktrees; ROOT is the main tree from any worktree |
+| 70 | Tests | done | per sub-task, each seen red; worktrees only in mktemp fixtures |
+| 80 | Subtasks | done | PLUG-063 – PLUG-069, all completed |
+| 90 | Implementation | done | crew, task and task-roadmap suites green on host and container; crew also standalone |
+| 100 | Tech Debt | done | copy meta helpers unified in lib.sh; nothing left open |
+| 110 | Reflection | done | crew 2.0.1 -> 2.1.0: plugin.json, marketplace, root README; skill triggers checked (no overlap) |
 
 ## Description
 
@@ -278,8 +278,15 @@ Tests create real worktrees only in temporary fixture repos (allowed by the user
 - Is a worktree still worth it next to `copy new`? It is visible in the IDE, has history and a
   normal git flow; a copy has none of that.
 
+## Epic close (2026-10-16)
+
+All sub-tasks completed: PLUG-063 (task resolver), PLUG-064 (task-roadmap), PLUG-065 (copy as a
+detached worktree), PLUG-066 (worktree mode), PLUG-067 (local files and setup step), PLUG-068
+(Docker report and slot rule), PLUG-069 (status lists worktrees). crew is bumped once, 2.0.1 ->
+2.1.0: plugin.json (description, keywords `worktree`, `task-branch`), marketplace entry, root
+README crew section.
+
 ## Current State
 
-Approved epic. Nothing changed in code. Every open question is settled (recorded above). Split
-into PLUG-063 – PLUG-069 (2026-10-16). Next: approve the sub-tasks and start wave 1 (PLUG-063,
-064, 065, 068, 069), which can run in parallel sessions.
+Completed (2026-10-16). crew, task and task-roadmap suites green on host and crew-test, crew also
+in a standalone copy. Not committed: awaiting the user's approval.

@@ -5,13 +5,16 @@ R="$TMP/repo"; new_repo "$R"
 printf 'l1\nl2\nl3\nl4\nl5\nl6\nl7\n' > "$R/m.txt"; printf 'gone\n' > "$R/del.txt"
 git -C "$R" add -A && git -C "$R" commit -q -m files
 join "$R" s1 coordinator; join "$R" s2
-tree_sum() { (cd "$R" && find . -path ./.git -prune -o -type f -print | LC_ALL=C sort | while IFS= read -r f; do cksum "$f"; done); }
-K="$TMP/copy"
+tree_sum() { (cd "$R" && find . \( -path ./.git -o -path ./.worktrees \) -prune -o -type f -print | LC_ALL=C sort | while IFS= read -r f; do cksum "$f"; done); }
+# newk <name> — a fresh copy, named; K is its folder (a detached worktree in .worktrees/)
+newk() { N="$1"; K="$R/.worktrees/repo-$1"; crew_as s2 "$R" copy new "$1" >/dev/null; }
 
 echo "-- new + take"
-out="$(crew_as s2 "$R" copy new "$K")"
+N=k1; K="$R/.worktrees/repo-k1"
+out="$(crew_as s2 "$R" copy new k1)"
 check "copy made at HEAD" yes "$(contains "at $(git -C "$R" rev-parse --short HEAD)" "$out")"
-check "the copy is not a worktree" "" "$(git -C "$R" worktree list --porcelain | grep -c "$K" | sed 's/^0$//')"
+check "the copy is a worktree in .worktrees/" 1 "$(git -C "$R" worktree list --porcelain | grep -c "^worktree $K$")"
+check "…detached: no branch" no "$(git -C "$K" symbolic-ref -q HEAD >/dev/null && echo yes || echo no)"
 printf 'copy a\n' > "$K/a.txt"; printf 'new\n' > "$K/new file.txt"; rm "$K/del.txt"
 out="$(crew_as s2 "$R" copy status "$K")"
 check "status lists changes" yes "$(contains "3 changed" "$out")"
@@ -27,7 +30,7 @@ check "re-apply: already there" yes "$(contains "0 taken, 0 merged, 3 already th
 git -C "$R" add -A && git -C "$R" commit -q -m landed
 
 echo "-- merge"
-rm -rf "$K"; crew_as s2 "$R" copy new "$K" >/dev/null
+newk k2
 awk 'NR==1{$0="copy-l1"}1' "$R/m.txt" > "$K/m.txt"
 awk 'NR==7{$0="peer-l7"}1' "$R/m.txt" > "$TMP/x" && mv "$TMP/x" "$R/m.txt"        # a peer, uncommitted
 out="$(crew_as s2 "$R" apply "$K")"; rc=$?
@@ -36,7 +39,7 @@ check "…both edits present" "copy-l1 peer-l7" "$(sed -n '1p;7p' "$R/m.txt" | p
 git -C "$R" add -A && git -C "$R" commit -q -m merged
 
 echo "-- conflict refuses everything"
-rm -rf "$K"; crew_as s2 "$R" copy new "$K" >/dev/null
+newk k3
 awk 'NR==3{$0="copy-l3"}1' "$R/m.txt" > "$K/m.txt"; printf 'copy b\n' > "$K/b.txt"
 awk 'NR==3{$0="peer-l3"}1' "$R/m.txt" > "$TMP/x" && mv "$TMP/x" "$R/m.txt"
 before="$(tree_sum)"
@@ -47,7 +50,7 @@ check "…the tree is byte-identical (b.txt not landed either)" "$before" "$(tre
 git -C "$R" checkout -q -- m.txt
 
 echo "-- rebase a stale copy"
-rm -rf "$K"; crew_as s2 "$R" copy new "$K" >/dev/null
+newk k4
 awk 'NR==2{$0="copy-l2"}1' "$R/m.txt" > "$K/m.txt"
 awk 'NR==6{$0="head-l6"}1' "$R/m.txt" > "$TMP/x" && mv "$TMP/x" "$R/m.txt"; printf 'z\n' > "$R/z.txt"
 git -C "$R" add -A && git -C "$R" commit -q -m advance
@@ -88,7 +91,7 @@ check "…and names an --ours path that had no conflict" yes "$(contains "--ours
 check "…the copy is on HEAD now" no "$(contains "stale" "$(crew_as s2 "$R" copy status "$K")")"
 
 echo "-- rebase an unchanged copy (PLUG-048)"
-rm -rf "$K"; crew_as s2 "$R" copy new "$K" >/dev/null
+newk k5
 printf 'more\n' > "$R/more.txt"; git -C "$R" add more.txt && git -C "$R" commit -q -m more
 out="$(crew_as s2 "$R" copy rebase "$K" 2>"$TMP/err")"; rc=$?
 check "unchanged copy: rebased" 0 "$rc"
@@ -97,7 +100,7 @@ check "…0 files carried over" yes "$(contains "(0 changed files carried over)"
 check "…and the copy moved" more "$(cat "$K/more.txt")"
 
 echo "-- landCheck"
-rm -rf "$K"; crew_as s2 "$R" copy new "$K" >/dev/null
+newk k6
 printf 'checked\n' > "$K/a.txt"
 printf '#!/bin/sh\nprintf "%%s|" "$@" > "%s/args"\nexit "${FAIL:-0}"\n' "$TMP" > "$R/check.sh"
 git -C "$R" add check.sh && git -C "$R" commit -q -m check
@@ -119,7 +122,63 @@ check "…naming the holder" yes "$(contains "held by s1" "$out")"
 O="$TMP/other"; new_repo "$O"
 out="$(crew_as s2 "$R" copy status "$O" 2>&1)"; rc=$?
 check "a non-copy is refused" 1 "$rc"
-out="$(crew_as s2 "$R" copy new "$K" 2>&1)"; rc=$?
-check "copy into a non-empty dir refused" 1 "$rc"
+out="$(crew_as s2 "$R" copy new "$N" 2>&1)"; rc=$?
+check "a copy name already in use is refused" 1 "$rc"
+crew_as s1 "$R" release a.txt >/dev/null 2>&1
+
+echo "-- worktree copies: .gitignore, names, remove, hooks (PLUG-065)"
+G="$TMP/g"; new_repo "$G"; join "$G" g1 coordinator; join "$G" g2
+crew_as g2 "$G" copy new one >/dev/null
+check "the first copy ignores /.worktrees/ in .gitignore" "/.worktrees/" "$(cat "$G/.gitignore" 2>/dev/null)"
+check "…and the main tree shows nothing else" "?? .gitignore" "$(git -C "$G" status --porcelain)"
+check "…left uncommitted" "" "$(git -C "$G" log --oneline -- .gitignore)"
+cp "$G/.gitignore" "$TMP/gi"; crew_as g2 "$G" copy new two >/dev/null
+check "a second copy does not touch .gitignore" yes "$(cmp -s "$TMP/gi" "$G/.gitignore" && echo yes || echo no)"
+I="$TMP/i"; new_repo "$I"; printf 'node_modules/\n.worktrees\n' > "$I/.gitignore"
+git -C "$I" add .gitignore && git -C "$I" commit -q -m ignore; join "$I" i1 coordinator
+cp "$I/.gitignore" "$TMP/gi"; crew_as i1 "$I" copy new x >/dev/null
+check "an existing ignore rule: .gitignore untouched" yes "$(cmp -s "$TMP/gi" "$I/.gitignore" && echo yes || echo no)"
+check "…and the main tree is clean" "" "$(git -C "$I" status --porcelain)"
+J="$TMP/j"; new_repo "$J"; join "$J" j1 coordinator
+crew_as j1 "$J" copy new x >/dev/null
+check "no .gitignore yet: created with the one line" "/.worktrees/" "$(cat "$J/.gitignore")"
+out="$(crew_as g2 "$G" copy new ../escape 2>&1)"; rc=$?
+check "a name with a slash is refused" 1 "$rc"
+check "…nothing made outside .worktrees/" no "$( [ -e "$TMP/escape" ] || [ -e "$G/escape" ] && echo yes || echo no)"
+W="$G/.worktrees/g-one"
+check "status by name" yes "$(contains ".worktrees/g-one based on" "$(crew_as g2 "$G" copy status one 2>&1)")"
+out="$(cd "$W" && CREW_AS=g2 bash "$C" copy status one 2>&1)"; rc=$?
+check "copy commands work from inside the copy" 0 "$rc"
+check "…against the main tree" yes "$(contains "0 changed" "$out")"
+
+echo "-- hooks inside a worktree copy (PLUG-065)"
+crew_as g1 "$G" hold a.txt >/dev/null
+HOOK_OUT="$(hook pre-edit.sh "$(payload sid-g2 "$W" Edit file_path "$W/a.txt")")"
+check "an edit in the copy is not held up by a hold on the tree" no "$(denied "$HOOK_OUT")"
+printf 'copy\n' > "$W/a.txt"
+check "…and not claimed as a tree path" no "$(contains ".worktrees" "$(cat "$G/.git/crew/claims" 2>/dev/null)")"
+check "the guard finds the crew from inside the copy" deny \
+    "$( [ "$(denied "$(hook pre-bash.sh "$(payload sid-g2 "$W" Bash command 'git stash')")")" = yes ] && echo deny || echo allow)"
+check "a raw git worktree from a member is denied" yes \
+    "$(denied "$(hook pre-bash.sh "$(payload sid-g2 "$G" Bash command 'git worktree add .worktrees/x')")")"
+check "…and the denial names crew's command" yes "$(contains "copy new <name>" "$(hook pre-bash.sh "$(payload sid-g2 "$G" Bash command 'git worktree add x')")")"
+check "crew copy new is not denied" no \
+    "$(denied "$(hook pre-bash.sh "$(payload sid-g2 "$G" Bash command "bash $C copy new three")")")"
+crew_as g1 "$G" release a.txt --unchanged >/dev/null
+
+echo "-- remove (PLUG-065)"
+out="$(crew_as g2 "$G" copy remove one 2>&1)"; rc=$?
+check "remove refused while the copy has work the tree lacks" 1 "$rc"
+check "…naming the file" yes "$(contains "a.txt" "$out")"
+check "…the copy is still there" yes "$( [ -f "$W/a.txt" ] && echo yes || echo no)"
+crew_as g2 "$G" apply one >/dev/null
+out="$(crew_as g2 "$G" copy remove one 2>&1)"; rc=$?
+check "remove after apply" 0 "$rc"
+check "…the folder is gone" no "$( [ -e "$W" ] && echo yes || echo no)"
+check "…and git forgot the worktree" 0 "$(git -C "$G" worktree list --porcelain | grep -c "g-one")"
+mkdir -p "$G/.worktrees/foreign"
+out="$(crew_as g2 "$G" copy remove "$G/.worktrees/foreign" 2>&1)"; rc=$?
+check "a folder that is not crew's copy is left alone" 1 "$rc"
+check "…still there" yes "$( [ -d "$G/.worktrees/foreign" ] && echo yes || echo no)"
 
 finish

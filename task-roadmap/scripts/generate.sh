@@ -21,12 +21,13 @@
 set -euo pipefail
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-ROOT="${1:-${CLAUDE_PROJECT_DIR:-$(pwd)}}"
 TEMPLATE="$PLUGIN_ROOT/assets/template.html"
 [ -f "$TEMPLATE" ] || { echo "error: template not found: $TEMPLATE" >&2; exit 1; }
 
 # shellcheck source=lib.sh
 . "$PLUGIN_ROOT/scripts/lib.sh"
+# A linked git worktree stands for the main tree (PLUG-064).
+ROOT="$(project_root "${1:-${CLAUDE_PROJECT_DIR:-$(pwd)}}")"
 
 # --- resolve config ----------------------------------------------------------
 TITLE="Task Roadmap"

@@ -1,0 +1,39 @@
+name: acme
+services:
+  db:
+    container_name: acme-db
+    image: postgres:16
+    ports:
+      - mode: ingress
+        target: 5432
+        published: "5432"
+        protocol: tcp
+    volumes:
+      - type: volume
+        source: pgdata
+        target: /var/lib/postgresql/data
+        volume: {}
+  web:
+    build:
+      context: /w/shop
+      dockerfile: Dockerfile
+    image: acme/web:dev
+    ports:
+      - "127.0.0.1:8080:80"
+      - "9229"
+    volumes:
+      - type: bind
+        source: /w/shop/src
+        target: /app/src
+      - type: bind
+        source: /w/shared-cache
+        target: /cache
+networks:
+  default:
+    name: acme_default
+volumes:
+  pgdata:
+    name: acme_pgdata
+  models:
+    external: true
+    name: models

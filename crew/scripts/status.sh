@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One screen of crew state: who is in, the branch, and every dirty path by owner. Each area adds
 # its own part in status.d/ (holds, slots, ...), so this file never changes when an area is added.
-# help: status — the crew, the branch, dirty paths by owner, holds, slots
+# help: status — the crew, the branch, dirty paths by owner, holds, slots, crew's worktrees
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
 crew_init; need_active
@@ -16,6 +16,7 @@ if git -C "$ROOT" rev-parse -q --verify "origin/$br" >/dev/null 2>&1; then
 fi
 echo "crew $(crew_id)${ME:+ · you: $ME ($(sess_get "$ME" role))} · $br @ $head$ab · committer: $(cfg committer) · push: $(cfg push)"
 note="$(git_policy_note)"; [ -z "$note" ] || echo "commits and pushes: $note"
+note="$(tree_policy_note)"; [ -z "$note" ] || echo "worktrees: $note"
 echo "sessions: $(crew_line)"
 
 dirty_owned | awk -F'\t' -v me="$ME" '

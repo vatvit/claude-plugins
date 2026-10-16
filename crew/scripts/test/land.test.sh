@@ -33,7 +33,7 @@ check "push decided, committer not: still asked" yes "$(contains "not decided fo
 check "push=committer under human-approved: still the user's" deny "$(verdict s1 'git push')"
 # the rest of this suite: a project whose user chose coordinator commits and pushes
 printf '{"committer":"coordinator","push":"committer"}' > "$CREW_USER_CONFIG"
-check "decided in the user layer: no question" no "$(contains "not decided" "$(crew_as s1 "$R" status)")"
+check "decided in the user layer: no question" no "$(contains "commits and pushes: not decided" "$(crew_as s1 "$R" status)")"
 
 echo "-- guard: denied for a worker"
 for c in 'git add -A' 'git add .' 'git add -u' 'git add --all src' 'cd sub && git add -A' 'FOO=1 git -C . add -A' \

@@ -22,7 +22,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="${1:-$(pwd)}"; shift || true
+# shellcheck source=lib.sh
+. "$SCRIPT_DIR/lib.sh"
+# A linked worktree allocates from the main tree's sequence, under its lock.
+PROJECT_DIR="$(task_project_dir "${1:-$(pwd)}")"; shift || true
 
 COUNT=1
 FROM_STDIN=0

@@ -1,0 +1,44 @@
+name: shop
+services:
+  db:
+    image: postgres:16
+    networks:
+      default: null
+    volumes:
+      - type: volume
+        source: pgdata
+        target: /var/lib/postgresql/data
+        volume: {}
+  web:
+    build:
+      context: /w/shop
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_started
+        required: true
+    environment:
+      DB_HOST: db
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 8080
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /w/shop/src
+        target: /app/src
+        bind:
+          create_host_path: true
+  worker:
+    container_name: ${COMPOSE_PROJECT_NAME}-worker
+    image: shop-worker:${COMPOSE_PROJECT_NAME}
+    build:
+      context: /w/shop/worker
+networks:
+  default:
+    name: shop_default
+volumes:
+  pgdata:
+    name: shop_pgdata

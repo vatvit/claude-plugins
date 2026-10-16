@@ -7,8 +7,8 @@
     {
       "name": "task",
       "source": "./task",
-      "description": "Markdown task management: task files with an embedded workflow table that is the state, epics with sub-tasks and an O(1) epic index, atomic lock-guarded ID allocation safe across parallel sessions, and scripted listing — filters, grouping, epic views with closed work collapsed. Runtime-free (bash + awk); storage location is per-project.",
-      "version": "1.1.2"
+      "description": "Markdown task management: task files with an embedded workflow table that is the state, epics with sub-tasks and an O(1) epic index, atomic lock-guarded ID allocation safe across parallel sessions, and scripted listing — filters, grouping, epic views with closed work collapsed. Runtime-free (bash + awk); storage location is per-project, and a linked git worktree resolves to the main tree's tasks.",
+      "version": "1.2.0"
     },
     {
       "name": "session-storage",
@@ -25,8 +25,8 @@
     {
       "name": "task-roadmap",
       "source": "./task-roadmap",
-      "description": "Abstract-Gantt roadmap for a markdown task set: scheduled by dependencies and estimates, grouped by epic, critical path highlighted; self-contained HTML, auto-regenerated on task changes.",
-      "version": "1.0.3"
+      "description": "Abstract-Gantt roadmap for a markdown task set: scheduled by dependencies and estimates, grouped by epic, critical path highlighted; self-contained HTML, auto-regenerated on task changes; from a git worktree it charts the main tree's tasks.",
+      "version": "1.1.0"
     },
     {
       "name": "delay",
@@ -37,8 +37,8 @@
     {
       "name": "crew",
       "source": "./crew",
-      "description": "Run several Claude Code sessions on one working tree and one branch without lost edits: a coordinator/worker playbook (one task, one session; to work on a task in parallel, split it into sub-tasks), opt-in membership (a session outside the crew works as usual), identity by display name, unique across crews on one machine, a one-screen status of every dirty path by owner, crew-tagged hand-off messages with a durable mailbox (inbox, unread notices, a Stop check), hot-spot holds, a silence watchdog that wakes the coordinator, a slot queue for machine time (cpu / exclusive / quiet), copies landed with a merge-or-refuse apply, a snapshot before every edit, exact-path-list commits, no commit or push unless the user says so for the project (asked once), and guard hooks that deny whole-index git commands. Layered project/user config; costs nothing in repos without a crew. A bare `crew` command on PATH. Runtime-free (bash + awk + git).",
-      "version": "2.0.1"
+      "description": "Run several Claude Code sessions on one working tree and one branch without lost edits: a coordinator/worker playbook (one task, one session; to work on a task in parallel, split it into sub-tasks), opt-in membership (a session outside the crew works as usual), identity by display name, unique across crews on one machine, a one-screen status of every dirty path by owner, crew-tagged hand-off messages with a durable mailbox (inbox, unread notices, a Stop check), hot-spot holds, a silence watchdog that wakes the coordinator, a slot queue for machine time (cpu / exclusive / quiet), copies (detached worktrees in .worktrees/) landed with a merge-or-refuse apply, a worktree per task when the user chooses it for the project or one task (branch task/<ID>, synced by merge or rebase, merged back by the coordinator, its own git guards), local files linked into a new worktree and the setup step printed, a read-only Docker compose report, a snapshot before every edit, exact-path-list commits, no commit or push unless the user says so for the project (asked once), and guard hooks that deny whole-index git commands. Layered project/user config; costs nothing in repos without a crew. A bare `crew` command on PATH. Runtime-free (bash + awk + git).",
+      "version": "2.1.0"
     },
     {
       "name": "kickoff",

@@ -1,6 +1,6 @@
 ---
 title: crew — status lists the worktrees — task, branch, owner, unmerged commits, lag, uncommitted files
-status: approved
+status: completed
 type: feature
 priority: medium
 epic: crew-worktrees
@@ -10,17 +10,17 @@ epic: crew-worktrees
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | status.sh sources status.d/*.sh; a part must end true under set -e |
+| 20 | Requirements | skipped | acceptance criteria are the spec |
+| 30 | Assessment | done | the owner was not recorded anywhere: copy meta gains by= (kept on rebase); PLUG-066 records task worktrees the same way |
+| 40 | POC | skipped | no risky unknown |
+| 50 | Domain | skipped | n/a |
+| 60 | Architecture | done | status.d/trees.sh parses worktree list --porcelain in awk into TSV; reuses copy.sh copy_meta/copy_metafile via load_area |
+| 70 | Tests | done | trees.test.sh, 12 cases; red before (9 failed), 3 red with the main-tree skip and the rebase owner broken |
+| 80 | Subtasks | skipped | small |
+| 90 | Implementation | done | all 15 crew suites green on host, crew-test and a standalone copy |
+| 100 | Tech Debt | done | none |
+| 110 | Reflection | done | status help line, README, SKILL status sentence |
 
 ## Description
 
@@ -54,4 +54,17 @@ worktree would be invisible in it.
 
 ## Current State
 
-Approved (2026-10-16). Nothing changed in code.
+Implemented (2026-10-16), not committed. No crew version bump (the epic bumps once).
+
+## Implementation (2026-10-16)
+
+- `crew/scripts/status.d/trees.sh`: `trees: N crew worktrees · M not crew's (left alone)`, then one
+  line each: `.worktrees/<repo>-<x> · task <ID>|copy <name> · <branch>|detached · by <name|?> ·
+  N unmerged · N behind · N uncommitted`, counted against `shared_branch`. Crew's own: under
+  `.worktrees/<repo>-` and either on `task/<ID>` or detached with a `crew-copy` record. Silent
+  when the repo has no linked worktrees; foreign-only prints the one count line.
+- `copy_write_meta` records `by=` (the caller's crew name, empty when unknown); `copy rebase` keeps it.
+- `copy_meta` now ends in `|| true`: under `pipefail` a missing record aborted the status part.
+- copy.test.sh's "not claimed" check read all of `status`, which now names `.worktrees`, and
+  could never fail anyway (the folder is ignored, so never dirty). It reads the claims file now,
+  and was seen red with the pre-edit skip removed.

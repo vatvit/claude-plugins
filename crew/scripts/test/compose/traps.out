@@ -1,0 +1,9 @@
+crew: this compose setup cannot run twice side by side (one copy per worktree):
+  - name: acme — a fixed project name, so every copy is the same project
+  - db: container_name acme-db — one container name for every copy
+  - db: host port 5432 — two copies cannot both publish it
+  - web: builds image acme/web:dev — every copy builds over the same tag
+  - web: host port 8080 — two copies cannot both publish it
+  - web: mounts /w/shared-cache, outside the project — every copy shares it
+  - volume models: external — every copy shares it
+Run Docker from the main tree only, or make those values differ per copy. crew does not change your compose files.

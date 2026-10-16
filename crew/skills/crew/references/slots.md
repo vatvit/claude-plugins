@@ -30,3 +30,19 @@ jumps ahead of a waiting `exclusive` or `quiet` slot.
   that wait without being told assume they have been forgotten.
 - Wrap the project's heavy commands once, for example `slot run exclusive 15 -- ./e2e.sh`, so
   nobody has to remember to.
+
+## Docker in a copy (PLUG-068)
+
+A copy is its own folder, so compose names it its own project (`<repo>-<name>`): its containers,
+networks and volumes do not meet the main tree's. What still collides is what the project fixes by
+hand, and `copy new` prints it once, read-only, from `docker compose config`: a `name:`,
+`container_name`, a fixed tag on a built image, host ports, mounts outside the project, external
+volumes. crew never changes the compose files; if the report lists anything, run Docker from the
+main tree only, or make those values differ per copy yourself.
+
+- A compose run in a copy with **no host ports** takes a `cpu` slot; one that **publishes host
+  ports** takes `exclusive`, since a second copy cannot bind the same port.
+- A one-off unnamed container is isolated already and needs no compose: `docker run --rm -v
+  "$PWD":/w -w /w <image> <cmd>`, with no `--name` and no `-p`. Its traps: the mount (mount the
+  copy, not the main tree), a fixed image tag you build to, and a named volume (`-v name:/path`),
+  which every copy shares. It still takes a `cpu` slot like any heavy run.

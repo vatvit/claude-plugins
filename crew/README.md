@@ -41,7 +41,7 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 | Command | What it does |
 |---------|--------------|
 | `whoami "<name>" [worker\|coordinator] [--take]` | join the crew. Spaces are fine and the name must be unique on this machine. `whoami` alone lists the crew |
-| `status` | the crew, the branch vs origin, every dirty path by owner (yours, a peer's, SHARED, unclaimed) |
+| `status` | the crew, the branch vs origin, every dirty path by owner (yours, a peer's, SHARED, unclaimed), and crew's worktrees with their owner and how far each is from the branch |
 | `msg <kind> [--send]` | a ready-to-send message: `handoff` (paths + commit message + test-first proof), `decision`, `stop`; `--send` also files it in the recipient's mailbox |
 | `inbox [--all]` / `inbox --ack <id>` | your unread crew mail, oldest first; hooks tell you after each tool call and hold one stop while mail waits |
 | `watch --once` / `watch --wait` / `watch` | silence watchdog: a session silent past `silenceMin` while it owns work, mail unread too long, stale slots; `--wait` in the background wakes an idle coordinator |
@@ -49,7 +49,8 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 | `hold <path...>` / `release <path...> --sha SHA` / `chain <path>` / `who` / `drop` | hot-spot holds; the pre-edit hook denies edits to a file another session holds |
 | `hold import <file> [--dry-run]` | coordinator: take the holds of a hand-kept bullet list (`- <path> — <holder> (…)`) when adopting crew mid-project; see [adopt.md](skills/crew/references/adopt.md) |
 | `slot run <cpu\|exclusive\|quiet> <min> -- <cmd>` / `slot request\|start\|done\|list\|clear` | the queue for machine time: classes, priority, ETAs, stale slots |
-| `copy new\|status\|rebase <dir> [--ours <path...>]` / `apply <dir> [path...]` | build in a copy; land with take / 3-way merge / refuse-all, plus an optional `landCheck`. `--ours` keeps a conflict you resolved in the copy |
+| `copy new\|status\|rebase\|remove <name> [--ours <path...>]` / `apply <name> [path...]` | build in a copy (a detached worktree in `.worktrees/`); land with take / 3-way merge / refuse-all, plus an optional `landCheck`. `--ours` keeps a conflict you resolved in the copy. `copy new` also reports, read-only, what in the compose setup stops a second copy running beside the first |
+| `tree new\|sync\|merge\|remove <task-id>` / `tree allow\|revoke <task-id>` | worktree mode, when the user chose it (`tree=worktrees`) or allowed it for one task: branch `task/<ID>` and its worktree, bring in the shared branch, the coordinator merges it back; denies stash and other branches inside it. Every new worktree gets links to the local files in `treeLink` and prints the `treeSetup` step |
 | `snapshot log <path>` / `show\|diff\|restore <id>` / `prune` | every file is snapshotted before each edit; recover an overwrite |
 | `land --msg-file F -- <path...>` / `land prepush` | commit an exact path list under the committer mode; check before pushing |
 | `help` | every command |

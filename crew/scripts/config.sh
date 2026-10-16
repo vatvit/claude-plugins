@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Effective config, one key per line with the layer it came from; set / unset one key in a layer.
 # help: config — effective settings and where each comes from (project > user > default)
-# help: config set [--user] <key> <value...> — write a key to .crew.json (or the user file); hotSpots takes several
+# help: config set [--user] <key> <value...> — write a key to .crew.json (or the user file); hotSpots, taskPush and treeLink take several
 # help: config unset [--user] <key> — remove a key from .crew.json (or the user file)
 set -euo pipefail
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
@@ -22,7 +22,7 @@ config_show() {
 # key_type <key> — how a key is written: a (array of strings), n (number), s (string)
 key_type() {
     case "$1" in
-        hotSpots) echo a ;; snapshotKeep|snapshotMaxKB|slotGraceMin) echo n ;; *) echo s ;;
+        hotSpots|taskPush|treeLink) echo a ;; snapshotKeep|snapshotMaxKB|slotGraceMin) echo n ;; *) echo s ;;
     esac
 }
 
@@ -30,7 +30,7 @@ key_type() {
 check_value() {
     local k="$1" v; shift
     [ $# -gt 0 ] || die "config set $k needs a value (to remove it: config unset $k)"
-    [ "$(key_type "$k")" = a ] || [ $# -eq 1 ] || die "$k takes one value; only hotSpots takes several"
+    [ "$(key_type "$k")" = a ] || [ $# -eq 1 ] || die "$k takes one value; only hotSpots, taskPush and treeLink take several"
     for v in "$@"; do
         case "$v" in '') die "empty value for $k (to remove it: config unset $k)" ;;
                      *[\"\\]*) die "$k: a value cannot contain \" or \\ (put such a command in a script)" ;; esac
@@ -39,6 +39,10 @@ check_value() {
         committer) case "$1" in coordinator|each-session|human-approved) ;; *) die "committer is coordinator, each-session or human-approved" ;; esac ;;
         push) case "$1" in committer|human) ;; *) die "push is committer or human" ;; esac ;;
         hookMode) case "$1" in deny|warn) ;; *) die "hookMode is deny or warn" ;; esac ;;
+        tree) case "$1" in shared|worktrees) ;; *) die "tree is shared or worktrees" ;; esac ;;
+        treeSync) case "$1" in merge|rebase) ;; *) die "treeSync is merge or rebase" ;; esac ;;
+        treeLink) for v in "$@"; do crew_link_ok "$v" || die "treeLink takes paths inside the main tree (relative, no ..): $v"; done ;;
+        taskPush) for v in "$@"; do valid_name "$v" || die "taskPush takes crew names: $v is not one"; done ;;
     esac
     if [ "$(key_type "$k")" = n ]; then case "$1" in *[!0-9]*) die "$k is a whole number" ;; esac; fi
     return 0

@@ -35,6 +35,10 @@ section *Plugin Independence*.
   `.task-roadmap.json` > `.task-config.json` > `tasks`. It used to exist twice, once
   here and once inline in the hook; they agreed only by coincidence and nothing would
   have caught them drifting.
+- `project_root <dir>` — a linked git worktree stands for the same place in the main
+  tree; anything else is returned unchanged. Both `generate.sh` and the hook resolve
+  their root through it, because a worktree's tasks are a stale checked-out copy. The
+  task plugin has the same rule in its own `lib.sh`; that copy is correct, not debt.
 
 Reading `tasksDir` from `.task-config.json` — a file the task skill owns — is
 deliberate. It is shared *data*, not shared code, and it degrades to the default when

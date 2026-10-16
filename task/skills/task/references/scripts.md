@@ -8,7 +8,7 @@ is what each is *for*, and the guarantees that are not obvious from the usage li
 
 | Script | For |
 |--------|-----|
-| `resolve-config.sh <project-dir>` | project → `tasksDir`, `prefix`, `nextId`, `configFile`, `configScope`. Run before anything else. Exit 1 = unconfigured project. |
+| `resolve-config.sh <project-dir>` | project → `tasksDir`, `prefix`, `nextId`, `configFile`, `configScope`, `projectDir`. A linked git worktree resolves to the main tree. Run before anything else. Exit 1 = unconfigured project. |
 | `allocate-id.sh <project-dir> [--count N \| --stdin]` | the only sanctioned way to get an id. Prints `TASK-205=/abs/path`. |
 | `resolve-task.sh <tasksDir> <prefix> <id>` | one id → `id=`, `file=`, every frontmatter field, the current workflow step and its `step_file=`. Exit 1 = no such task. |
 | `read-tasks.sh <tasksDir> <prefix> [flags]` | every task's frontmatter, as JSON or as TSV records. The plugin's only bulk reader. |

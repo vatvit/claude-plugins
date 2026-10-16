@@ -23,7 +23,8 @@ crew/
     ├── crew.sh             the one entry point; `help` is built from each script's `# help:` lines
     ├── lib.sh              the ONE place for project/state, config layers, identity, claims, locks, hook decisions
     ├── whoami.sh config.sh status.sh msg.sh
-    ├── holds.sh slot.sh copy.sh snapshot.sh land.sh inbox.sh watch.sh one area each: functions when sourced, CLI when executed
+    ├── holds.sh slot.sh copy.sh tree.sh snapshot.sh land.sh inbox.sh watch.sh one area each: functions when sourced, CLI when executed
+    ├── compose-report.awk  copy new's read-only Docker report (compose_report in lib.sh; fixtures in test/compose/)
     ├── status.d/  msg.d/   per-area parts, so adding an area never edits status.sh / msg.sh
     └── test/               helpers.sh, run.sh, <area>.test.sh, Dockerfile (bash:5 + git)
 ```
@@ -36,6 +37,32 @@ crew/
 - **State lives in `<git-common-dir>/crew/`.** Every session on the tree shares it, it is never
   committed, and it needs no `.gitignore` entry. Every mutation goes through `with_lock` and
   `replace_file` (temp + `mv`).
+- **`ROOT` is the main tree, even from a linked worktree (PLUG-065).** `crew_try_init` reads
+  `--show-toplevel --git-common-dir --git-dir` in its one `rev-parse`: `CREW_TREE` is the tree the
+  session stands in, and `ROOT` is the main tree whenever the common dir is a `<main>/.git`. So a
+  command run inside a copy acts on the shared tree and its crew, as from the root.
+- **A copy is a detached worktree in `.worktrees/<repo>-<name>` (`CREW_WT`, `crew_wt_dir`).** Its
+  meta is `crew-copy` in the copy's own git dir, so a pre-2.1 clone copy still works by path. The
+  first copy runs `crew_wt_ignore`: `/.worktrees/` is appended to `.gitignore` only when
+  `git check-ignore` says nothing ignores it yet, and left uncommitted. The pre-edit hook skips
+  `.worktrees/*` (a copy is private), and `copy remove` refuses while the copy holds anything the
+  tree does not. Tests make worktrees only in their `mktemp -d` fixtures.
+- **Task worktrees are the user's choice (PLUG-066).** `tree` (project layer only) is `shared` until
+  the user says `worktrees`; `tree_policy_note` reports it undecided, beside `git_policy_note`.
+  Under `shared`, `$STATE/tree-allow` holds the user's per-task exceptions. `crew_wt_add` is the
+  ONE way crew makes a worktree (copy and tree), and the record `crew-copy` carries `task=<ID>` for a
+  task worktree. The git guard finds that record with `crew_wt_task` on the session's tree (or
+  `git -C`) and then applies the worktree rules instead of the shared-tree ones.
+- **A new worktree is made ready in one place (PLUG-067).** `crew_wt_ready` runs after every
+  `crew_wt_add`: it links the `treeLink` paths from the main tree (data: `crew_link_ok` refuses
+  absolute paths and `..`, at `config set` and again at runtime; a tracked path is never replaced),
+  prints `treeSetup` without running it, then runs `compose_report`. `crew_link_filter` keeps those
+  links out of "dirty" (`crew_wt_dirty`) and out of a copy's changes, so they never block a
+  `sync`, `remove` or `apply`.
+- **crew never writes to a project's Docker setup (PLUG-068).** The folder name makes each copy its
+  own compose project; `compose_report` only reads `docker compose config --no-interpolate` and
+  names what defeats that. It is silent without a compose file or docker, so the suites never call
+  a real docker: `docker.test.sh` puts a stub on `PATH`.
 - **Name vs display name.** Peers address a session by its SendMessage name, which may contain
   spaces. crew keeps that as `display=` and keys everything by `name_for` (the name itself when it
   is valid, else a lowercase slug), so `PLUG-W1` stays `PLUG-W1` and `Max Coordinator` becomes

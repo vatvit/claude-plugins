@@ -39,7 +39,7 @@ The pre-bash hook denies, with the reason and the alternative:
 - anything that moves the shared branch for everyone (`checkout`/`switch` to another branch or
   commit, `reset <commit>`; and for workers, `rebase`, `pull`, `merge`, `cherry-pick`, `revert`,
   `am`);
-- `worktree`, and creating or deleting branches;
+- a raw `worktree` (`copy new` and `copy remove` make and drop crew's copies), and creating or deleting branches;
 - `git commit` by a non-committer, or without a `-- <paths>` list;
 - `git push` by anyone unless the user let the crew push (`push=committer`, and a `committer`
   other than `human-approved`); then a worker's push when the committer is the coordinator, and

@@ -49,3 +49,28 @@ resolve_tasks_dir() {
   printf '%s\n' "${dir%/}"
   return 0
 }
+
+# project_root <dir> — the project <dir> stands for. Inside a linked git worktree that
+# is the same place in the main tree: each worktree checks out its own stale copy of
+# the tasks, and the roadmap belongs to the main tree's. Anywhere else (no git, the
+# main tree, a bare repo's worktree) it is <dir> unchanged. The task plugin applies the
+# same rule in its own copy — plugins share no code.
+project_root() {
+  local dir="$1" out gd cd prefix main
+  out=$(cd "$dir" 2>/dev/null && git rev-parse --git-dir --git-common-dir --show-prefix 2>/dev/null) \
+    || { printf '%s\n' "$dir"; return 0; }
+  gd=$(printf '%s\n' "$out" | sed -n 1p)
+  cd=$(printf '%s\n' "$out" | sed -n 2p)
+  prefix=$(printf '%s\n' "$out" | sed -n 3p)
+  gd=$(cd "$dir" && cd "$gd" 2>/dev/null && pwd -P) || { printf '%s\n' "$dir"; return 0; }
+  cd=$(cd "$dir" && cd "$cd" 2>/dev/null && pwd -P) || { printf '%s\n' "$dir"; return 0; }
+  # The main tree, or a bare repo's worktree: nothing to map to.
+  if [ "$gd" = "$cd" ] || [ "${cd##*/}" != ".git" ]; then
+    printf '%s\n' "$dir"; return 0
+  fi
+  main="${cd%/.git}"
+  [ -d "$main" ] || { printf '%s\n' "$dir"; return 0; }
+  prefix="${prefix%/}"
+  if [ -n "$prefix" ]; then printf '%s/%s\n' "$main" "$prefix"; else printf '%s\n' "$main"; fi
+  return 0
+}
