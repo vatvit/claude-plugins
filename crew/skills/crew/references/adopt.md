@@ -12,13 +12,14 @@ The coordinator moves them into crew in this order. Each step is safe to repeat.
    `config set hotSpots 'src/schema.ts' 'src/scenes/*.ts'`. This writes `.crew.json` and keeps
    any keys already there. It works before anyone has joined, and does not start a crew. Commit
    `.crew.json`.
-2. **Pick the committer mode:** `config set committer coordinator` (the default),
-   `each-session` or `human-approved`. See [config.md](config.md). Your own habits across
+2. **Ask the user how this project commits and pushes**, and record their answer:
+   `config set committer human-approved` (the default: `land` prints the commit for the user),
+   `coordinator` or `each-session`; `config set push human` (the default: the user pushes) or
+   `committer`. Never pick these yourself. See [config.md](config.md). Your own habits across
    projects go in the user file instead: `config set --user hookMode warn`. Project-only keys
    (`crewId`, `sharedBranch`, `hotSpots`, `landCheck`) are refused there.
-3. **Everyone joins.** The coordinator runs `whoami "<name>" coordinator`. A session with a title
-   (`--name`, `/rename`) joins as a worker by itself when it starts; any other session runs
-   `whoami "<name>"`. This comes before the import, because a hold needs a holder who is in the
+3. **Everyone joins.** The coordinator runs `whoami "<name>" coordinator`. Each session the user
+   puts in the crew runs `whoami "<name>"`; nobody joins by itself. This comes before the import, because a hold needs a holder who is in the
    crew.
 4. **Import the holds:** `hold import _holds.md --dry-run`, read the plan, then run it without
    `--dry-run`. It reads one hold per bullet, for example `- <path> — <holder> (PLUG-12, since 09:00)`:

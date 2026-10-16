@@ -11,7 +11,10 @@ failure it prevents; every one of those failures happened at least once in pract
 - **The git index is shared too.** No session runs anything that touches the whole index or tree
   (`git add -A`, `commit -a`, `stash`, `checkout -- .`, `reset --hard`, `clean`). Each one touches
   only its own paths. The `pre-bash` guard enforces this.
-- **One committer.** By default sessions do not commit for themselves. A worker that has finished
+- **The user decides who commits and who pushes.** By default nobody in the crew does: `land`
+  checks the paths and prints the commit for the user, and the user pushes. The coordinator asks
+  the user once per project and records the answer (`committer`, `push`).
+- **One committer.** Sessions do not commit for themselves. A worker that has finished
   a slice sends the coordinator a hand-off with the exact path list and the commit message. The
   coordinator then:
   - checks the list against `git status`, and looks for anything else that is dirty;
@@ -94,7 +97,7 @@ scene or router file, and similar. List them in `hotSpots`.
 - Relay the user's words verbatim. Record decisions in the task file as "the coordinator's" or
   "the user's".
 - Ask each session for a hard stop time ("finish by 22:59, or stop between runs").
-- A task closes only after it is pushed and verified, and only the coordinator changes a task's
+- A task closes only after it is landed and verified, and only the coordinator changes a task's
   status.
 
 ## 9. Hand-off template: test-first made visible

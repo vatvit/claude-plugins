@@ -14,7 +14,8 @@ ab=""
 if git -C "$ROOT" rev-parse -q --verify "origin/$br" >/dev/null 2>&1; then
     ab=" · vs origin/$br: +$(git -C "$ROOT" rev-list --count "origin/$br..HEAD") -$(git -C "$ROOT" rev-list --count "HEAD..origin/$br")"
 fi
-echo "crew $(crew_id)${ME:+ · you: $ME ($(sess_get "$ME" role))} · $br @ $head$ab · committer: $(cfg committer)"
+echo "crew $(crew_id)${ME:+ · you: $ME ($(sess_get "$ME" role))} · $br @ $head$ab · committer: $(cfg committer) · push: $(cfg push)"
+note="$(git_policy_note)"; [ -z "$note" ] || echo "commits and pushes: $note"
 echo "sessions: $(crew_line)"
 
 dirty_owned | awk -F'\t' -v me="$ME" '

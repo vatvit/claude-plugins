@@ -6,7 +6,8 @@ other's edits.
 Sessions can talk to each other (SendMessage / ListAgents). crew adds the discipline that makes
 that safe:
 - roles: one coordinator, the rest workers;
-- one committer;
+- commits and pushes only as the user decides per project: by default nobody in the crew commits
+  or pushes, and the coordinator asks the user once (`committer`, `push`);
 - one screen showing who changed what;
 - pre-filled hand-off messages;
 - guard hooks that stop the git commands which wreck a shared index.
@@ -27,7 +28,7 @@ crew whoami "Ann Worker"                     # each worker
 session who it is, and exports the session's id so `crew` knows the caller without a prefix:
 
 ```
-crew myrepo: you are s2 (worker) · committer: coordinator (s1 coordinates) · guards: deny · crew: s1 coordinator · s2 worker
+crew myrepo: you are s2 (worker) · committer: coordinator (s1 coordinates) · push: human · guards: deny · crew: s1 coordinator · s2 worker
 crew: run crew commands as: crew <command> — start with 'status'; 'help' lists commands.
 ```
 

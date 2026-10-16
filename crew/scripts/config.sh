@@ -37,6 +37,7 @@ check_value() {
     done
     case "$k" in
         committer) case "$1" in coordinator|each-session|human-approved) ;; *) die "committer is coordinator, each-session or human-approved" ;; esac ;;
+        push) case "$1" in committer|human) ;; *) die "push is committer or human" ;; esac ;;
         hookMode) case "$1" in deny|warn) ;; *) die "hookMode is deny or warn" ;; esac ;;
     esac
     if [ "$(key_type "$k")" = n ]; then case "$1" in *[!0-9]*) die "$k is a whole number" ;; esac; fi

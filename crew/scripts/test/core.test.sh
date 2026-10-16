@@ -50,7 +50,8 @@ check "unnamed session: join hint" yes "$(contains "whoami \"<the name" "$out")"
 
 echo "-- config layering"
 out="$(cd "$R" && bash "$C" config)"
-check "default committer" yes "$(contains "committer=coordinator (default)" "$out")"
+check "default committer: the user's (PLUG-057)" yes "$(contains "committer=human-approved (default)" "$out")"
+check "default push: the user's (PLUG-057)" yes "$(contains "push=human (default)" "$out")"
 check "default hookMode" yes "$(contains "hookMode=deny (default)" "$out")"
 printf '{\n  "committer": "human-approved",\n  "sharedBranch": "develop",\n  "snapshotKeep": 5\n}\n' > "$CREW_USER_CONFIG"
 out="$(cd "$R" && bash "$C" config)"
@@ -74,7 +75,7 @@ check "user layer follows CLAUDE_CONFIG_DIR" yes "$(contains "committer=each-ses
 out="$(cd "$R" && env -u CREW_USER_CONFIG -u CLAUDE_CONFIG_DIR bash "$C" config)"
 check "…unset: ~/.claude/crew.json" yes "$(contains "committer=human-approved (user)" "$out")"
 out="$(cd "$R" && CLAUDE_CONFIG_DIR="$TMP/acct2" bash "$C" config)"
-check "…an explicit CREW_USER_CONFIG still wins" yes "$(contains "committer=coordinator (default)" "$out")"
+check "…an explicit CREW_USER_CONFIG still wins" yes "$(contains "committer=human-approved (default)" "$out")"
 # the name registry is per MACHINE: SendMessage spans accounts, so every account must see one registry
 out="$(cd "$R" && env -u CREW_HOME CLAUDE_CONFIG_DIR="$TMP/acct2" bash -c '. "$1"; echo "$CREW_HOME"' x "$S/lib.sh")"
 check "CREW_HOME ignores CLAUDE_CONFIG_DIR" "$HOME/.claude/crew" "$out"

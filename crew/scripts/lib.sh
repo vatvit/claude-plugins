@@ -16,7 +16,7 @@ CREW_USER_CONFIG="${CREW_USER_CONFIG:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/crew.j
 # Per MACHINE: the session-name registry deliberately ignores CLAUDE_CONFIG_DIR — SendMessage
 # addresses sessions of every account on this machine, so all accounts must see one registry.
 CREW_HOME="${CREW_HOME:-$HOME/.claude/crew}"
-CREW_KEYS="crewId sharedBranch committer hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin silenceMin"
+CREW_KEYS="crewId sharedBranch committer push hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin silenceMin"
 
 die()  { echo "crew: $*" >&2; exit 1; }
 note() { echo "crew: $*" >&2; }
@@ -109,12 +109,21 @@ cfg_load() { CREW_CFG="$(cfg_parse project "$ROOT/.crew.json"; cfg_parse user "$
 
 cfg_default() {
     case "$1" in
-        committer) echo coordinator ;; hookMode) echo deny ;;
+        committer) echo human-approved ;; push) echo human ;; hookMode) echo deny ;;
         snapshotKeep) echo 20 ;; snapshotMaxKB) echo 1024 ;; slotGraceMin) echo 10 ;; silenceMin) echo 15 ;;
     esac
     return 0
 }
 cfg_project_only() { case "$1" in crewId|sharedBranch|hotSpots|landCheck) return 0 ;; esac; return 1; }
+# git_policy_note — empty once the user has said how this project commits and pushes (PLUG-057).
+# Until then the defaults hold (nobody commits, nobody pushes) and the coordinator asks the user.
+# A value in either layer counts: the user may decide once for the account.
+git_policy_note() {
+    local k u=""
+    for k in committer push; do cfg_resolve "$k"; [ "$CFG_SRC" != default ] || u="$u${u:+, }$k"; done
+    [ -z "$u" ] || echo "not decided for this project ($u): nothing is committed or pushed until the user says how — ask them, then record their answer: crew config set committer coordinator|each-session|human-approved, crew config set push committer|human"
+    return 0
+}
 
 # cfg_layer <layer> <key> -> that layer's raw value, ignoring precedence (config.sh's notes use it)
 cfg_layer() {

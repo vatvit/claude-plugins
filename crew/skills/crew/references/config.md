@@ -16,14 +16,19 @@ To change a key, don't edit the JSON by hand:
   refused there.
 - `config unset [--user] <key>` removes it.
 
-`set` checks the value: the committer and hook modes, whole numbers, and no `"` or `\`. It does
+`committer` and `push` are the user's decision, never the crew's (PLUG-057). While neither layer
+sets them, `status` and the coordinator's SessionStart line say so, and the coordinator asks the
+user once and records the answer. A value in the user file counts as decided for every project.
+
+`set` checks the value: the committer, push and hook modes, whole numbers, and no `"` or `\`. It does
 not start a crew. Adopting crew in a running project: [adopt.md](adopt.md).
 
 | Key | Layers | Default | Meaning |
 |-----|--------|---------|---------|
 | `crewId` | project | the repo folder name | tags every message and the SessionStart line, so crews on one machine never cross |
 | `sharedBranch` | project | the checked-out branch | the one branch the crew works on; switching away is denied |
-| `committer` | project, user | `coordinator` | `coordinator`: only the coordinator lands. `each-session`: a session lands its own paths. `human-approved`: `land` prints the command and stops |
+| `committer` | project, user | `human-approved` | `human-approved`: `land` runs its checks, prints the commit for the user and stops. `coordinator`: only the coordinator lands. `each-session`: a session lands its own paths |
+| `push` | project, user | `human` | `human`: the guard denies every member's `git push`, and the user pushes. `committer`: whoever may commit may push (nobody, under `human-approved`) |
 | `hookMode` | project, user | `deny` | `deny` blocks a guarded tool call. `warn` lets it through with the reason |
 | `hotSpots` | project | none | array of globs: files that need a hold before anyone edits them |
 | `landCheck` | project | none | command run on the landed file list before `apply` keeps it (e.g. a formatter check). No double quotes: put a complex command in a script |
@@ -40,6 +45,7 @@ they appear in the user file, they are ignored and `config` says so.
   "sharedBranch": "develop",
   "hotSpots": ["src/schema.ts", "src/scenes/main.ts"],
   "landCheck": "npx prettier --check",
-  "committer": "coordinator"
+  "committer": "coordinator",
+  "push": "committer"
 }
 ```

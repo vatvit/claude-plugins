@@ -20,9 +20,12 @@ It then:
 
 | `committer` | Who may land |
 |-------------|--------------|
-| `coordinator` (default) | only the coordinator; workers hand off (`msg handoff`) |
+| `human-approved` (default) | nobody: `land` runs every check, then prints the exact `git add` / `git commit` for the user to run or approve |
+| `coordinator` | only the coordinator; workers hand off (`msg handoff`) |
 | `each-session` | anyone, but only paths that they touched |
-| `human-approved` | nobody: `land` runs every check, then prints the exact `git add` / `git commit` for the user to run or approve |
+
+The mode is the user's choice for the project: ask them when `status` says it is not decided, and
+set only what they said.
 
 Land at once. A green slice that sits uncommitted ties sessions together, and it is the only
 kind of work a peer can destroy for you. Task-file and docs-only edits land immediately.
@@ -38,8 +41,9 @@ The pre-bash hook denies, with the reason and the alternative:
   `am`);
 - `worktree`, and creating or deleting branches;
 - `git commit` by a non-committer, or without a `-- <paths>` list;
-- `git push` by a worker (when the committer is the coordinator), and anyone's push while
-  another session runs a quiet slot.
+- `git push` by anyone unless the user let the crew push (`push=committer`, and a `committer`
+  other than `human-approved`); then a worker's push when the committer is the coordinator, and
+  anyone's push while another session runs a quiet slot.
 
 Exact-path forms always pass: `git add <path>`, `git checkout -- <path>`,
 `git restore -- <path>`, `git reset -- <path>`.
@@ -52,6 +56,10 @@ or ask the user, rather than to hand off to nobody.
 past the guard. If the guard is wrong, raise it with the coordinator.
 
 ## Push
+
+Pushes are the user's by default (`push=human`): `land prepush` lists what would go, you give the
+user that list, and they push. The steps below are for a crew the user lets push
+(`push=committer`).
 
 1. `land prepush` lists `origin/<branch>..HEAD`. Match each commit against what was verified.
    It refuses while a quiet slot runs.

@@ -8,6 +8,33 @@ join "$R" s1 coordinator; join "$R" s2; join "$R" s3
 gx() { hook pre-bash.sh "$(payload "sid-$1" "$R" Bash command "$2")"; }    # gx <name> <command>
 verdict() { [ "$(denied "$(gx "$1" "$2")")" = yes ] && echo deny || echo allow; }
 
+echo "-- defaults: the user decides how this project commits and pushes (PLUG-057)"
+check "coordinator: push denied" deny "$(verdict s1 'git push')"
+check "worker: push denied" deny "$(verdict s2 'git push')"
+out="$(gx s1 'git push')"
+check "…the push is the user's" yes "$(contains "pushes are the user's" "$out")"
+check "…points at prepush" yes "$(contains "CREW_AS=s1 crew land prepush" "$out")"
+check "…and only on the user's word, at the setting" yes "$(contains "config set push committer" "$out")"
+edit "$R" s1 z.txt "z"; printf 'feat: z — PLUG-1\n' > "$TMP/msg"
+before="$(git -C "$R" rev-parse HEAD)"
+out="$(crew_as s1 "$R" land --msg-file "$TMP/msg" -- z.txt)"
+check "land commits nothing" "$before" "$(git -C "$R" rev-parse HEAD)"
+check "…prints the commit for the user" yes "$(contains "git commit -F" "$out")"
+rm -f "$R/z.txt"
+out="$(crew_as s1 "$R" status)"
+check "status: undecided is visible" yes "$(contains "not decided for this project (committer, push)" "$out")"
+check "…with the settings to record" yes "$(contains "crew config set push committer|human" "$out")"
+out="$(hook session-start.sh "$(payload sid-s1 "$R" x x x)")"
+check "coordinator start line: ask the user" yes "$(contains "ask them" "$out")"
+check "…shows push" yes "$(contains "push: human" "$out")"
+check "worker start line: no ask (the coordinator asks)" no "$(contains "ask them" "$(hook session-start.sh "$(payload sid-s2 "$R" x x x)")")"
+printf '{"push":"committer"}' > "$CREW_USER_CONFIG"
+check "push decided, committer not: still asked" yes "$(contains "not decided for this project (committer)" "$(crew_as s1 "$R" status)")"
+check "push=committer under human-approved: still the user's" deny "$(verdict s1 'git push')"
+# the rest of this suite: a project whose user chose coordinator commits and pushes
+printf '{"committer":"coordinator","push":"committer"}' > "$CREW_USER_CONFIG"
+check "decided in the user layer: no question" no "$(contains "not decided" "$(crew_as s1 "$R" status)")"
+
 echo "-- guard: denied for a worker"
 for c in 'git add -A' 'git add .' 'git add -u' 'git add --all src' 'cd sub && git add -A' 'FOO=1 git -C . add -A' \
          'git commit -am wip' 'git commit -a -m wip' 'git commit -m wip -- a.txt' 'git stash' 'git stash pop' \

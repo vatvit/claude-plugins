@@ -1,6 +1,6 @@
 ---
 name: crew
-description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, handing off a finished slice, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "work in a copy", "apply the copy", "rebase the copy", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
+description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, handing off a finished slice, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "work in a copy", "apply the copy", "rebase the copy", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", "who commits", "who pushes", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
 ---
 
 # crew — parallel Claude sessions on one working tree
@@ -35,8 +35,11 @@ to it. Names must be unique on the machine, because another repo may run its own
 - relays the user's words to the crew verbatim, and relays every hold and release;
 - owns machine time (the slot queue) and tells waiting sessions their new times and why;
 - keeps `watch --wait` running in the background, so a silent crew wakes it (`references/watch.md`);
-- lands hand-offs (`land`), pushes, and checks the push;
-- is the only one who changes task status, and only after the work is pushed and verified;
+- asks the user once how this project commits and pushes, when `status` says it is not decided,
+  and records only the user's answer (`config set committer …`, `config set push …`). Until then
+  nobody commits or pushes: `land` prints the commit for the user, and pushes are the user's;
+- lands hand-offs (`land`), and pushes and checks the push only when `push` lets the crew push;
+- is the only one who changes task status, and only after the work is landed and verified;
 - records decisions in the task file as "the coordinator's" or "the user's".
 
 **Worker.** It:
@@ -53,8 +56,11 @@ to it. Names must be unique on the machine, because another repo may run its own
 2. **Never touch the whole index or tree.** No `git add -A` / `.` / `-u`, `commit -a`, `stash`,
    `checkout -- .`, `restore .`, `reset --hard`, `clean`. Use exact paths only. The guard hook
    denies these and tells you the alternative.
-3. **One committer.** By default that is the coordinator, and it commits a reviewed path list
-   with `land`. `config` shows the mode (`coordinator` / `each-session` / `human-approved`).
+3. **Commits and pushes are the user's call.** By default nobody in the crew commits
+   (`committer=human-approved`: `land` checks the paths and prints the commit for the user) or
+   pushes (`push=human`). Only the user's word changes that, never your own judgement:
+   `committer=coordinator` lets the coordinator commit a reviewed path list with `land`, and
+   `push=committer` lets whoever commits push.
 4. **Failing work stays out of the shared tree.** Make it red, then green, in a copy. Land it
    with `apply`, which merges or refuses. Never `cp` over the tree, and never write a whole file
    you have not just read.

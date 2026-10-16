@@ -45,6 +45,11 @@ crew/
   crew. The guards key on `NAME`: a session with none gets no git guard and no holds or hot-spot
   denial, only snapshots and claims. A member of a crew with no coordinator is told how to take the
   role, never sent to hand off to nobody.
+- **Commits and pushes are the user's call, per project (PLUG-057).** The defaults commit and push
+  nothing: `committer=human-approved` and `push=human`, the guard denying every member's push.
+  `git_policy_note` (lib.sh) is the one test for "not decided yet" (neither layer sets the key);
+  `status` and the coordinator's SessionStart line print it, and the skill makes the coordinator
+  ask the user. A crew installed from the marketplace must never commit or push on its own.
 - **A crew name is the identity.** Holds, slots and claims are all keyed by name. The Claude
   session id only maps a hook payload to a name (`sessions/<name>`: `sid= role= since= display=`).
   Scripts learn the caller via `caller_name`, which takes `CREW_AS` (a name or a display name) when it

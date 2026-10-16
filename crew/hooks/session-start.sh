@@ -20,7 +20,8 @@ crew_fast_skip && exit 0
     fi
     if [ -n "$NAME" ]; then
         role="$(sess_get "$NAME" role)"; c="$(coordinator)"
-        echo "crew $(crew_id): you are $NAME ($role) · committer: $(cfg committer)${c:+ ($c coordinates)} · guards: $(cfg hookMode) · crew: $(crew_line)"
+        ask=""; [ "$role" = coordinator ] && ask="$(git_policy_note)"
+        echo "crew $(crew_id): you are $NAME ($role) · committer: $(cfg committer)${c:+ ($c coordinates)} · push: $(cfg push) · guards: $(cfg hookMode) · crew: $(crew_line)${ask:+ · commits and pushes $ask}"
         echo "crew: run crew commands as: ${run:-$(prefix_for "$NAME")} <command> — start with 'status'; 'help' lists commands. Working rules: the crew skill."
         load_area inbox; declare -F mail_start >/dev/null && mail_start "$NAME" "$SID"
         load_area watch; declare -F watch_stamp >/dev/null && watch_stamp "$SID"

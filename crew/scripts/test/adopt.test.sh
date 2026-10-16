@@ -26,7 +26,7 @@ check "an unchanged value leaves the file untouched" "$i" "$(inode "$R/.crew.jso
 
 echo "-- config set: refused"
 before="$(cat "$R/.crew.json")"
-for a in 'nope x' 'committer bogus' 'hookMode maybe' 'snapshotKeep many' 'crewId a b' 'hotSpots' 'crewId' 'crewId a"b'; do
+for a in 'nope x' 'committer bogus' 'push maybe' 'hookMode maybe' 'snapshotKeep many' 'crewId a b' 'hotSpots' 'crewId' 'crewId a"b'; do
     out="$(cd "$R" && bash "$C" config set $a 2>&1)"; rc=$?
     check "refused: set $a" 1 "$rc"
 done

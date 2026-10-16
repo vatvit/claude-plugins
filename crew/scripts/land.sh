@@ -3,11 +3,15 @@
 #
 # land: commit exactly a reviewed path list, after checking it against what is dirty.
 # git_guard (sourced by the pre-bash hook): deny git commands that act on the whole index or tree,
-# move the branch under everyone, or commit / push against the committer mode.
+# move the branch under everyone, or commit / push against the committer and push modes.
 # help: land --msg-file F [--] <path...> — commit exactly these paths (checks them against git status)
 # help: land prepush — what a push would publish, and whether a quiet slot holds pushes
 
 [ -n "${CREW_LIB_DIR:-}" ] || . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
+
+# crew_pushes — the crew pushes only when the user said so (push=committer) and someone in it commits.
+# By default (push=human) every push is the user's (PLUG-057).
+crew_pushes() { [ "$(cfg push)" = committer ] && [ "$(cfg committer)" != human-approved ]; }
 
 # --- git guard -----------------------------------------------------------------------------------
 # guard_reason <name> <role> <git args...> — prints why the command is refused, nothing when allowed
@@ -85,6 +89,7 @@ guard_reason() {
         rebase|pull|merge|cherry-pick|revert|am)
             [ "$role" = coordinator ] || { echo "git $sub moves the shared branch and tree — the coordinator does that$([ -n "$coord" ] || echo ", and $(way_out)")"; return; } ;;
         push)
+            crew_pushes || { echo "pushes are the user's in this project (push=$(cfg push), committer=$committer): show them what would go ($pre land prepush) and let them push. Only on the user's word: $pre config set push committer"; return; }
             if [ "$committer" = coordinator ] && [ "$role" != coordinator ]; then echo "the coordinator pushes in this crew$([ -n "$coord" ] || echo ", and $(way_out)")"; return; fi
             load_area slot
             q="$(declare -F slot_quiet_holder >/dev/null && slot_quiet_holder)"
@@ -123,6 +128,7 @@ land_main() {
         echo "land: would push to origin/$br:"
         git -C "$ROOT" log --oneline "origin/$br..HEAD" 2>/dev/null | sed 's/^/  /' || echo "  (no origin/$br to compare with)"
         echo "land: match each commit above against what was verified; read the push output, not the pipe's exit status."
+        crew_pushes || echo "land: pushes are the user's here (push=$(cfg push), committer=$(cfg committer)) — give them this list and let them push"
         load_area slot
         if declare -F slot_quiet_holder >/dev/null && [ -n "$(slot_quiet_holder)" ]; then echo "land: HOLD — $(slot_quiet_holder) runs a quiet slot"; return 1; fi
         return 0
@@ -180,7 +186,8 @@ land_main() {
             [ -n "$h" ] && echo "  $h releases $p: $(prefix_for "$h") release $p --sha $sha"
         done
     fi
-    echo "land: post the sha to the crew; push after: land prepush"
+    if crew_pushes; then echo "land: post the sha to the crew; push after: land prepush"
+    else echo "land: post the sha to the crew; the user pushes (push=$(cfg push)): land prepush shows them what would go"; fi
 }
 
 if is_main; then set -euo pipefail; land_main "$@"; fi
