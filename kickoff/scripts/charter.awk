@@ -48,6 +48,8 @@ END {
         if (r == "decision") {
             nd++   # its own statement: whether a subscript ++ runs before the right-hand side differs between awks
             dec[nd] = "| D" nd " | **" cell(qtext[i]) "** " cell(values(id)) " | " (why[id] != "" ? cell(why[id]) : "—") " |"
+            # a decision that holds only until a trigger (C5 "Later — from …") is revisited then
+            if (later_trigger(ans[id]) != "") { no++; open[no] = "**" qtext[i] "** revisit at: " later_trigger(ans[id]) }
             continue
         }
         sname = substr(r, 3)

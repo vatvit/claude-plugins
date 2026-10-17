@@ -45,6 +45,9 @@ real file, so a broken edit fails them.
   statement. Found as `D0` in the decisions table on the host run only.
 - **`pending` is not `skip`.** A condition on a question still to be asked waits. Evaluating it against
   an empty answer would ask B4 before B2 was known (`≠` holds for an empty string).
+- **`explicit` is not `ask`.** A question whose *Ask when* is `explicitly` (C5) is never settled by
+  accepting defaults; its value column is a recommendation. The test helper `autofill` fails on it
+  without an override, which is what pins it (kickoff 9c).
 - **`n/a` counts as answered** (so `--next` moves on) but never reaches the charter. It is how a
   *judge* question is retired.
 - **The charter refuses to overwrite** a differing file (exit 3). After kickoff it is edited by hand.

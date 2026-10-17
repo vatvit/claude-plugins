@@ -24,6 +24,15 @@ END {
     line("Entry point:", a("R4"))
     if (starts_ci(a("R5"), "Yes")) line("Parallel sessions:", "several Claude sessions work in this tree at once; each joins the crew at session start (crew plugin).")
     if (tasks != "") line("Tasks:", "the `/task` skill, prefix `" a("R7") "`, kept " tasks ".")
+    # C5: the two rules a backward-compatibility answer chooses between; a Later answer flips one to the other.
+    free = "change interfaces, formats and stored data freely — no shims, no deprecation paths, no migrations for old data."
+    keep = "deprecate before removing, and migrate stored data."
+    c5 = a("C5"); L = "Backward compatibility:"
+    if (later_trigger(c5) != "") line(L, "free to break until " later_trigger(c5) "; from then on, " keep)
+    else if (starts_ci(c5, "Not needed")) line(L, "not needed yet: " free)
+    else if (starts_ci(c5, "Never")) line(L, "never kept: " free)
+    else if (starts_ci(c5, "From the start")) line(L, "kept from the start: " keep)
+    else line(L, c5)
     section("Working here")
 
     if (starts_ci(a("E3"), "Yes") && a("E2") != "") line("Approved:", "calling " a("E2") " in development and tests. Any other external service needs its own approval.")

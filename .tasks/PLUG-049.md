@@ -1,6 +1,6 @@
 ---
 title: kickoff — next release backlog
-status: proposed
+status: completed
 type: epic
 epic-name: kickoff-next
 priority: medium
@@ -10,17 +10,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done |  |
+| 20 | Requirements | done | per sub-task |
+| 30 | Assessment | done |  |
+| 40 | POC | skipped |  |
+| 50 | Domain | skipped |  |
+| 60 | Architecture | done | per sub-task |
+| 70 | Tests | done | per sub-task |
+| 80 | Subtasks | done | PLUG-050..052 |
+| 90 | Implementation | done |  |
+| 100 | Tech Debt | done | none |
+| 110 | Reflection | done | release synced |
 ## Goal
 
 Collect the improvements for the next kickoff release in one place, and ship them together as **one**
@@ -65,7 +65,12 @@ other plugins' vocabularies. Sub-tasks do **not** bump the version themselves.
 - PLUG-051: seeded workflow applies SOLID, DRY and INVEST
 - PLUG-052: docs skeleton carries the SOLID/DRY docs conventions
 
+## Outcome (2026-10-17)
+
+- Released as **kickoff 0.5.1 → 0.6.0** (the epic text said 0.5.0; 0.5.1 shipped in between) and
+  **docs-manager 1.7.1 → 1.8.0** (PLUG-052's convention). plugin.json, marketplace.json, SKILL.md
+  version, READMEs (plugin and root) in sync. No new trigger phrases for kickoff (no new user verbs).
+
 ## Current State
 
-Backlog, collected 2026-10-09. Nothing started. The sub-tasks touch disjoint files, so they can run in
-parallel sessions (see each task's Assessment notes).
+Completed 2026-10-17. Host, `bash:5` container and a sibling-free copy: ALL GREEN. (kickoff and docs-manager suites)

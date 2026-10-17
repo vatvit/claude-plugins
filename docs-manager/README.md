@@ -31,7 +31,8 @@ small set of conventions that keep docs DRY and always reflecting the current st
   file, every doc that depends on it. A `.docx` or `.xlsx` is read with `unzip` + awk (headings,
   sheets, header rows, plain text); anything unreadable falls back to a card written from what you say.
 - **Conventions** — docs reflect current state (history lives in tasks), single source of truth,
-  cross-link instead of duplicate, frontmatter on every doc.
+  cross-link instead of duplicate, frontmatter on every doc, and SOLID read for docs (one purpose per
+  doc and folder, grow by adding, one shape per kind, entry points per reader).
 
 Runtime-free: the tool uses only `bash` + `awk`, so it runs anywhere (including restricted/Docker
 environments where no language runtime is allowed).

@@ -9,6 +9,8 @@ may or may not be.
   two ways and the answer can't be misread.
 - **Defaults.** The likely answer is offered first, and a whole section can be accepted in one go.
   Some defaults follow earlier answers: a client's project keeps its tasks outside the repo.
+  A question with a real trade-off (when backward compatibility starts to apply) is never accepted
+  in one go: it is asked on its own, the recommendation first, and you pick.
 - **Answers in files, not in chat.** They are recorded in `.kickoff-answers`, and
   `docs/project/charter.md` is generated from them. The charter holds an overview, the goal, scope,
   non-goals, a numbered decisions table with the reason for each, and the open questions.
@@ -33,9 +35,11 @@ bash kickoff/scripts/defaults.sh list | set <ID> <value> | unset <ID>   # your o
 ## Setup
 
 After the charter, `scaffold.sh` sets the project up from the answers. It writes the `docs/` skeleton
-(one `_index.md` per folder), a small CLAUDE.md that holds only this project's instructions (git,
-entry point, crew, tasks, approvals, exceptions to the global rules), and the task config and
-workflow. In your own project the tasks are in the repo. In a client's they are kept outside it, in the
+(one `_index.md` per folder, its description stating the folder's one purpose), a small CLAUDE.md that
+holds only this project's instructions (git, entry point, crew, tasks, backward compatibility,
+approvals, exceptions to the global rules), and the task config and workflow, whose steps check INVEST
+when a task is shaped and SOLID and DRY at architecture and implementation. In your own project the
+tasks are in the repo. In a client's they are kept outside it, in the
 task skill's registry, so the client's repo carries neither your tasks nor your home path.
 Seeded files are never overwritten; a hand-edited CLAUDE.md is refused rather than replaced.
 

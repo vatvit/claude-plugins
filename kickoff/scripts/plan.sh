@@ -3,7 +3,8 @@
 #
 # Default output: one tab-separated row per question —
 #   section  id  state  value  question  options
-# state is answered | stale | ask | judge | skip; value is the answer, or the default to offer.
+# state is answered | stale | ask | explicit | judge | skip; value is the answer, or the default to offer
+# (for explicit: the recommendation, never accepted as a default — the user picks).
 #   --next    only the first section that still has questions to ask (empty: nothing left)
 #   --review  a markdown table of every answer, for the review screen
 set -euo pipefail

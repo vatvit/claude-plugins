@@ -94,7 +94,9 @@ Every question has pre-defined options and a default, so a whole section can be 
 and later questions depend on earlier answers. The answers are saved in `.kickoff-answers`. From
 them kickoff generates `docs/project/charter.md` (overview, goal, scope, non-goals, numbered
 decisions with their reasons, open questions) and can scaffold the project: a `docs/` skeleton, a
-small instructions-only `CLAUDE.md` and the task config. It also works on an existing project,
+small instructions-only `CLAUDE.md` and the task config, with a workflow whose steps check INVEST,
+SOLID and DRY. A question with a real trade-off, such as when backward compatibility starts to apply,
+is always asked on its own, never accepted as a default. It also works on an existing project,
 proposing answers from what it finds there, and keeps a machine-wide registry of dev ports.
 [More →](kickoff/README.md)
 

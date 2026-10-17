@@ -1,6 +1,6 @@
 ---
 title: kickoff — ask about backward compatibility, explicitly
-status: proposed
+status: completed
 type: feature
 epic: kickoff-next
 priority: medium
@@ -10,17 +10,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done |  |
+| 20 | Requirements | done | below; settled at Architecture |
+| 30 | Assessment | done | lib.awk/plan.awk/claude.awk/charter.awk |
+| 40 | POC | skipped | no unknowns |
+| 50 | Domain | skipped | no domain model |
+| 60 | Architecture | done | C5 in section C; Ask-when keyword explicitly → state explicit |
+| 70 | Tests | done | kickoff.test.sh 9a–9i, seen red |
+| 80 | Subtasks | skipped | small |
+| 90 | Implementation | done |  |
+| 100 | Tech Debt | done | none |
+| 110 | Reflection | done | kickoff/CLAUDE.md |
 ## Description
 
 Backward compatibility matters, but **only when it makes sense**. A PoC that keeps compatibility shims,
@@ -66,6 +66,22 @@ From the very beginning, later (from a named trigger), or never?
   `scripts/test/kickoff.test.sh`. These are disjoint from PLUG-051/052, except `lib.awk` if the
   marker is needed.
 
+## Outcome (2026-10-17, kickoff 0.6.0)
+
+- **C5** in section C: "When does backward compatibility start to apply?" — *Not needed yet* (★ if A3 = PoC),
+  *From the start* (★ if A3 = Library), *Later — from a trigger*, *Never*. Goes to `charter decision, CLAUDE.md`.
+- **Decision (Architecture):** "no plain ★" was not enough — for a PoC or a library the conditional ★
+  resolves and accept-all would record it. So the grammar gains an *Ask when* keyword `explicitly`
+  (always, never settled by a default), and lib.awk a state `explicit`; `--next` lists it with the
+  recommendation in the value column. `to_ask()` in lib.awk is the one "still to be asked" test.
+- A *Later* answer is recorded as `Later — from <trigger>`. `later_trigger()` (lib.awk, pattern-matched
+  for multibyte safety) feeds both claude.awk (free to break until the trigger, then keep compatibility)
+  and charter.awk (an open question "revisit at: <trigger>"), generically, not keyed on C5.
+- CLAUDE.md lines share one "free" and one "keep" phrase. *Not decided yet* → Open questions, no line.
+- Ride-alongs: questionnaire "(E4)" → "(E5)"; the outputs table names C5.
+- Test helper `autofill` answers an explicit row only from an override, else fails. Tests 9a–9i;
+  seen red before the code (15) and with the state removed / the trigger removed.
+
 ## Current State
 
-Proposed, backlog for the next kickoff release (epic PLUG-049). Not started.
+Completed 2026-10-17. Host, `bash:5` container and a sibling-free copy: ALL GREEN.

@@ -62,6 +62,12 @@ tell.
 - Files: `kickoff/scripts/inspect.sh`, `infer.awk`, `skills/kickoff/SKILL.md` (step 0),
   maybe `charter.awk`, `scripts/test/`. Disjoint from PLUG-071. Overlaps the kickoff hot spots that
   PLUG-049's sub-tasks touch (`SKILL.md`, `questionnaire.md`) — check crew holds before starting.
+- Belongs here (from PLUG-052): **skip the K1 docs skeleton when `docs/` predates kickoff** (PLUG-070
+  decision: docs-manager owns `docs/` layout). "docs/ exists" is not the test — `charter.sh` creates
+  `docs/project/` before `scaffold.sh` runs — so define "predates" (e.g. anything under `docs/` other
+  than the charter and kickoff's own `_index.md` files).
+- kickoff 0.6.0 (PLUG-049) added C5 with the `explicitly` state; an `inspect.sh` proposal for an
+  explicit question is still only a proposal, the user picks.
 
 ## Current State
 

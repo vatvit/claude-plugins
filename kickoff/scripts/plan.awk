@@ -16,8 +16,8 @@ END {
     for (id in udef) if (!(id in qidx)) printf "kickoff: your defaults name %s, which is not a question; ignored\n", id > "/dev/stderr"
     if (mode == "next") {
         sec = ""
-        for (i = 1; i <= nq; i++) { s = state_of(i); if (s == "ask" || s == "judge") { sec = qsec[i]; break } }
-        for (i = 1; i <= nq; i++) if (qsec[i] == sec) { s = state_of(i); if (s == "ask" || s == "judge") row(i) }
+        for (i = 1; i <= nq; i++) { s = state_of(i); if (to_ask(s)) { sec = qsec[i]; break } }
+        for (i = 1; i <= nq; i++) if (qsec[i] == sec) { s = state_of(i); if (to_ask(s)) row(i) }
     } else if (mode == "review") {
         print "| ID | Question | Answer |"
         print "|----|----------|--------|"

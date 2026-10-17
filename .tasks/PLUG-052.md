@@ -1,6 +1,6 @@
 ---
 title: kickoff — docs skeleton carries the SOLID/DRY docs conventions
-status: proposed
+status: completed
 type: feature
 epic: kickoff-next
 priority: medium
@@ -10,17 +10,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done |  |
+| 20 | Requirements | done | SOLID reading adopted as proposed |
+| 30 | Assessment | done | descriptions already one-purpose, no TODO |
+| 40 | POC | skipped | no unknowns |
+| 50 | Domain | skipped | no domain model |
+| 60 | Architecture | done | convention in docs-manager SKILL.md |
+| 70 | Tests | done | scaffold.test.sh 2r, seen red by mutation |
+| 80 | Subtasks | skipped | small |
+| 90 | Implementation | done |  |
+| 100 | Tech Debt | done | K1-skip noted on PLUG-072 |
+| 110 | Reflection | done | docs-manager README |
 ## Description
 
 SOLID and DRY matter for how the documentation is organised, too, not only for code. docs-manager
@@ -56,6 +56,19 @@ docs-manager.
   disjoint from PLUG-050, but shares `scaffold.test.sh` with PLUG-051, so coordinate if both run at
   once. The docs-manager part would touch only docs-manager.
 
+## Outcome (2026-10-17, docs-manager 1.8.0 + kickoff 0.6.0)
+
+- **Decision (the open question):** the convention lives in docs-manager's SKILL.md §Conventions,
+  as "SOLID for docs" (S, O, L, I); the existing DRY bullet carries *D* ("link to the decision,
+  never restate it"). Written once; kickoff does not restate or link it, so it works without
+  docs-manager. The SOLID reading was adopted as proposed in this task.
+- kickoff's seeded `_index.md` files already had one-purpose descriptions and no TODO; test 2r now
+  pins it (described, distinct, no TODO; seen red with a TODO description). Existing seeded files stay
+  untouched (3c).
+- Not done here: skipping K1 when `docs/` predates kickoff (PLUG-070's decision). charter.sh creates
+  `docs/project/` before scaffold runs, so it needs a "docs predate kickoff" rule — noted on PLUG-072.
+- docs-manager 1.7.1 → 1.8.0 (plugin.json, marketplace.json, README, trigger "how should the docs be organised").
+
 ## Current State
 
-Proposed, backlog for the next kickoff release (epic PLUG-049). Not started.
+Completed 2026-10-17. Host, `bash:5` container and a sibling-free copy: ALL GREEN.

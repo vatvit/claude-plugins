@@ -17,7 +17,7 @@ value() { field "$1" 4; }
 echo "== plan: branching and defaults =="
 
 P=$(fresh empty)
-check "1a every question is listed" "46" "$(bash "$S/plan.sh" "$P" | wc -l | tr -d ' ')"
+check "1a every question is listed" "47" "$(bash "$S/plan.sh" "$P" | wc -l | tr -d ' ')"
 check "1b A0 is asked first" "ask" "$(state A0)"
 check "1c a question on an unanswered one waits (B6 on B5)" "pending" "$(state B6)"
 check "1d PoC-only questions wait for A3" "pending" "$(state X1)"
@@ -62,6 +62,32 @@ a A3 Game
 check "5c an answer whose question no longer applies is stale" "stale" "$(state X1)"
 check "5d review marks it" "yes" "$(has 'no longer applies' "$(bash "$S/plan.sh" "$P" --review)")"
 check "5e --next never offers answered questions" "no" "$(has $'\tA3\t' "$(bash "$S/plan.sh" "$P" --next)")"
+
+echo "== C5: backward compatibility, always asked explicitly =="
+# C5 is the one question a user must pick themselves: accepting a section's defaults never settles it.
+claude_md() { (. "$S/lib.sh"; kickoff_awk claude.awk "$P" -v tasks=""); }
+for kind in "PoC / experiment|Not needed yet" "Library / plugin / tool|From the start" "Product / app / service|" "Game|"; do
+    P=$(fresh c5kind); a A3 "${kind%%|*}"; v="$(value C5)"
+    check "9a C5 is explicit for ${kind%%|*}" "explicit" "$(state C5)"
+    check "9b ... and recommends what A3 implies" "${kind#*|}" "${v%% —*}"
+done
+P=$(fresh c5next)
+autofill "$P" A1=x A4=Mine A5="No remote yet" R7=X E1=No 2>/dev/null; rc=$?
+check "9c accepting every default never answers C5" "1 0" "$rc $(grep -c '^C5: ' "$P/.kickoff-answers")"
+check "9d --next then offers C5 alone, still to ask" "C	C5	explicit" "$(bash "$S/plan.sh" "$P" --next | cut -f1-3)"
+P=$(fresh c5answers)
+for pair in "Not needed yet|no shims" "Never|no shims" "From the start|deprecate before removing" "Later — from the first client|free to break until the first client"; do
+    a C5 "${pair%%|*}"
+    check "9e CLAUDE.md turns '${pair%%|*}' into an instruction" "yes" "$(has "${pair#*|}" "$(claude_md | grep '^- \*\*Backward compatibility:\*\*')")"
+done
+a C5.why "The first client integrates against the API"
+CH="$(bash "$S/charter.sh" "$P" --stdout)"
+check "9f the charter records the decision with its why" "yes" "$(has "Later — from the first client | The first client integrates against the API |" "$(echo "$CH" | sed -n '/^## Decisions/,/^## Open/p')")"
+check "9g a later answer is revisited: an open question names the trigger" "yes" "$(has "the first client" "$(echo "$CH" | sed -n '/^## Open questions/,$p')")"
+a C5 "From the start"
+check "9h other answers add no open question" "no" "$(has "From the start" "$(bash "$S/charter.sh" "$P" --stdout | sed -n '/^## Open questions/,$p')")"
+a C5 "Not decided yet"
+check "9i not decided yet goes to Open questions, no CLAUDE.md line" "yes no" "$(has "Not decided yet" "$(bash "$S/charter.sh" "$P" --stdout | sed -n '/^## Open questions/,$p')") $(has 'Backward compatibility' "$(claude_md)")"
 
 echo "== answer.sh =="
 

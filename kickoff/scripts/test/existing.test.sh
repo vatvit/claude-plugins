@@ -51,7 +51,7 @@ check "3b its prefix" "OUT" "$(inferred R7)"
 
 echo "== a project kicked off before: nothing asked, nothing changed =="
 P=$(fresh done)
-autofill "$P" A1=done A4=Mine A5="No remote yet" R7=DON E1=No I5=n/a C4=n/a
+autofill "$P" A1=done A4=Mine A5="No remote yet" R7=DON E1=No I5=n/a C4=n/a C5="Never — always free to break"
 bash "$S/charter.sh" "$P" >/dev/null; bash "$S/scaffold.sh" "$P" >/dev/null
 before=$(cd "$P" && find . -type f | sort | while read -r f; do echo "$f $(cksum < "$f")"; done)
 check "4a nothing left to ask" "" "$(bash "$S/plan.sh" "$P" --next)"

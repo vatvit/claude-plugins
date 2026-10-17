@@ -1,6 +1,6 @@
 ---
 title: kickoff — seeded workflow applies SOLID, DRY and INVEST
-status: proposed
+status: completed
 type: feature
 epic: kickoff-next
 priority: medium
@@ -10,17 +10,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done |  |
+| 20 | Requirements | done | below |
+| 30 | Assessment | done | global steps: only context, reflection |
+| 40 | POC | skipped | no unknowns |
+| 50 | Domain | skipped | no domain model |
+| 60 | Architecture | done | INVEST in requirements, no new step |
+| 70 | Tests | done | scaffold.test.sh 2o–2q, 3f, 4o, seen red |
+| 80 | Subtasks | skipped | small |
+| 90 | Implementation | done |  |
+| 100 | Tech Debt | done | none |
+| 110 | Reflection | done | kickoff README |
 ## Description
 
 SOLID and DRY are what the user cares about most for code quality. INVEST is how they want tasks split,
@@ -60,6 +60,16 @@ all**, so nothing in a kicked-off project prompts an INVEST split.
   and PLUG-052.
 - First check the global `project-tasks/_workflow/` step files, so the wording stays DRY with them.
 
+## Outcome (2026-10-17, kickoff 0.6.0)
+
+- **Decision (Architecture):** INVEST goes into `requirements` (where a task is shaped), no new
+  `subtasks` step, so profile shapes stay as they were. SOLID + DRY at `architecture`, DRY at
+  `implementation`, duplication left in place at `tech-debt`. Minimal profile: INVEST at `context`,
+  SOLID + DRY at `implementation`. One clause each.
+- The global `_workflow/steps/` holds only context.md and reflection.md, so there is no step file to link.
+- Tests 2o–2q, 4o (both templates through a real scaffold), 3f (an existing WORKFLOW.md stays
+  byte-identical on re-run). Seen red before the templates changed, and 3f with the seeding forced.
+
 ## Current State
 
-Proposed, backlog for the next kickoff release (epic PLUG-049). Not started.
+Completed 2026-10-17. Host, `bash:5` container and a sibling-free copy: ALL GREEN.

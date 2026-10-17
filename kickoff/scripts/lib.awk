@@ -59,10 +59,10 @@ function cond(c,   parts, n, i, p, r, id, val, judge, pend, st) {
         if (p ~ /^[A-Z][0-9]+ /) {
             id = substr(p, 1, index(p, " ") - 1)
             if (ans[id] == "" && (id in qidx)) {
-                st = state_of(qidx[id]); if (st == "ask" || st == "judge" || st == "pending") { pend = 1; continue }
+                st = state_of(qidx[id]); if (to_ask(st) || st == "pending") { pend = 1; continue }
             }
         }
-        if (p == "always") r = 1
+        if (p == "always" || p == "explicitly") r = 1
         else if (p ~ /^[A-Z][0-9]+ answered$/) { id = substr(p, 1, index(p, " ") - 1); r = (ans[id] != "") }
         else if (match(p, /^[A-Z][0-9]+ = /)) { id = substr(p, 1, index(p, " ") - 1); val = substr(p, RLENGTH + 1); r = starts_ci(ans[id], val) }
         else if (match(p, /^[A-Z][0-9]+ ≠ /)) { id = substr(p, 1, index(p, " ") - 1); val = substr(p, RLENGTH + 1); r = !starts_ci(ans[id], val) }
@@ -114,12 +114,15 @@ function default_of(i,   o, n, k, t, base, cd, c) {
     return cd != "" ? cd : base
 }
 
-# state_of(i) — answered | stale (answered, but its condition no longer holds) | ask | judge |
-# pending (waits for an earlier answer) | skip.
+# to_ask(s) — the state is still to be asked: by the user (ask, explicit) or by Claude (judge).
+function to_ask(s) { return s == "ask" || s == "explicit" || s == "judge" }
+
+# state_of(i) — answered | stale (answered, but its condition no longer holds) | ask | explicit (ask, and
+# never settle it from a default: the user picks) | judge | pending (waits for an earlier answer) | skip.
 function state_of(i,   c) {
     c = cond(qwhen[i])
     if (ans[qid[i]] != "") return c == "0" ? "stale" : "answered"
-    if (c == "1") return "ask"
+    if (c == "1") return qwhen[i] == "explicitly" ? "explicit" : "ask"
     if (c == "pending") return "pending"
     return c == "judge" ? "judge" : "skip"
 }
@@ -138,3 +141,7 @@ function settled(id,   i) {
     if (state_of(i) != "answered" || undecided(ans[id]) || not_applicable(ans[id])) return ""
     return ans[id]
 }
+
+# later_trigger(v) — the trigger of a "Later — from <trigger>" answer (C5), "" for any other answer.
+# Matched by pattern: the dash is several bytes in byte-oriented awks, so no offsets are counted past it.
+function later_trigger(v) { if (!match(tolower(v), /^later[^a-z]*from /)) return ""; return substr(v, RLENGTH + 1) }

@@ -15,15 +15,21 @@ summary() { echo; echo "passed: $pass  failed: $fail"; [ "$fail" -eq 0 ]; }
 
 # autofill <project> [ID=value ...] — answer the whole questionnaire the way a user accepting every
 # default would: each round takes plan.sh --next, records the override for an id if one is given,
-# else the offered default, else n/a (free text with no default). Bounded, so a plan that never
-# settles fails the test instead of hanging it.
+# else the offered default, else n/a (free text with no default). An `explicit` question is never
+# settled by accepting defaults, so it takes an override or autofill fails. Bounded, so a plan that
+# never settles fails the test instead of hanging it.
 autofill() {
-    local p="$1" rounds=0 rows id val o; shift
+    local p="$1" rounds=0 rows id st val o given left n; shift
     while rows="$(bash "$S/plan.sh" "$p" --next)"; [ -n "$rows" ]; do
         rounds=$((rounds + 1)); [ "$rounds" -le 30 ] || { echo "autofill: plan never settles" >&2; return 1; }
-        while IFS=$'\t' read -r _ id _ val _; do
-            for o in "$@"; do case "$o" in "$id="*) val="${o#*=}" ;; esac; done
-            bash "$S/answer.sh" --root "$p" "$id" "${val:-n/a}"
+        left="" n=0
+        while IFS=$'\t' read -r _ id st val _; do
+            given=0
+            for o in "$@"; do case "$o" in "$id="*) val="${o#*=}"; given=1 ;; esac; done
+            if [ "$st" = explicit ] && [ "$given" = 0 ]; then left="$left $id"; continue; fi
+            bash "$S/answer.sh" --root "$p" "$id" "${val:-n/a}"; n=$((n + 1))
         done <<< "$rows"
+        [ "$n" -gt 0 ] || { echo "autofill:$left must be asked explicitly — pass ID=value" >&2; return 1; }
     done
+    return 0
 }

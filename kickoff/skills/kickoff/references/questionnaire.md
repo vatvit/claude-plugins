@@ -20,6 +20,8 @@ same every time; the answers may or may not be.
 
 - **One section at a time.** Show the section's defaults together; the user accepts them all or picks
   which to change. Asking 40 questions one by one defeats the purpose.
+- **Asked explicitly** (`explicitly` in *Ask when*): never part of "accept all defaults". It is asked on
+  its own, its recommended option first, and the user picks — even when they pick the recommendation.
 - **At most 4 options per question** — the limit of the question UI. "Other" is added automatically.
 - **Free-text questions** (name, one-liner, goal, non-goals) are asked in plain chat, never forced into options.
 - **"Not decided yet" is always valid** and goes to the charter's *Open questions*, never filled with a guess.
@@ -28,7 +30,7 @@ same every time; the answers may or may not be.
 - **Defaults depend on earlier answers.** `A3 = PoC` changes the defaults in B, C and R. An option
   marked `(★ if <condition>)` is the default when the condition holds, and it overrides the plain ★.
 - **Global rules are not asked** — Docker only, docs first, the roles, test policy, git approval,
-  DRY. They already apply to every project. Only *exceptions* to them are asked (E4).
+  DRY. They already apply to every project. Only *exceptions* to them are asked (E5).
 - **The end is a review screen**: every answer in one table, the user confirms, then files are written.
 
 ## Reading the tables
@@ -41,9 +43,9 @@ generated files. Keep to these forms when editing:
   `(★ if <condition>)` marks a conditional one. An option in `*italics*` is **computed**: it says how
   Claude works the value out (the repo directory name, the next free port), and is never recorded as
   an answer itself; `answer.sh` refuses it.
-- **A condition** is `always`, `<ID> = <option>`, `<ID> ≠ <option>` or `<ID> answered`. The option
-  text matches an answer that starts with it, ignoring case. Parts joined by ` or ` hold when any part
-  holds. Any other wording is a **judgement**: Claude decides from the conversation whether to ask.
+- **A condition** is `always`, `explicitly` (always, and never settled by a default), `<ID> = <option>`,
+  `<ID> ≠ <option>` or `<ID> answered`. The option text matches an answer that starts with it,
+  ignoring case. Parts joined by ` or ` hold when any part holds. Any other wording is a **judgement**: Claude decides from the conversation whether to ask.
 - **Goes to** routes the answer: `charter` (the overview list), `charter §<Section>`, or
   `charter decision` (the decisions table). Other targets are written by the setup scaffold.
 
@@ -84,6 +86,11 @@ generated files. Keep to these forms when editing:
 | C2 | What is explicitly out of scope? | free text | always | charter §Non-goals |
 | C3 | Source material to bring in? | ★ None · Client documents — ingest into `docs/external/` · Later | always | `docs/external/` (docs-manager) |
 | C4 | Build order of the areas? | free text, or "decide later" | the project has several areas | charter decision |
+| C5 | When does backward compatibility start to apply? | Not needed yet — no consumers; change interfaces, formats and data freely (★ if A3 = PoC) · From the start — deprecate before removing, migrate stored data (★ if A3 = Library) · Later — from a trigger (first release, first client, v1 …) · Never — always free to break | explicitly | charter decision, CLAUDE.md |
+
+- **C5** — asked explicitly: keeping compatibility costs shims, deprecation paths and migrations, so
+  a PoC with no consumers should not pay for it and a library cannot skip it. A *Later* answer is
+  recorded as `Later — from <the trigger>`; the charter keeps the trigger as an open question to revisit.
 
 ## D. Data
 
@@ -168,7 +175,7 @@ generated files. Keep to these forms when editing:
 |--------|-------|
 | `docs/project/charter.md` | A–F: what it is, goal, demo plan, gate, scope, non-goals, and a numbered **decisions table** (D1, D2, … each with its *why*); every "not decided yet" under *Open questions* |
 | `docs/` skeleton + `_index.md` | K1, generated with docs-manager |
-| project `CLAUDE.md` | instructions only: pointer to the charter, R1–R5, E3, E5 — never project knowledge |
+| project `CLAUDE.md` | instructions only: pointer to the charter, R1–R5, C5, E3, E5 — never project knowledge |
 | `.task-config.json`, `tasks/_workflow/` | R6–R8 |
 | crew / task-roadmap config | R5, R9 |
 | first tasks | agree the charter · architecture overview · dev harness with the first vertical slice and its tests |

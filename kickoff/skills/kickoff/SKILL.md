@@ -1,7 +1,7 @@
 ---
 name: kickoff
 description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (questions branch on earlier answers, each with pre-defined options and a default) and turn the answers into the project's charter. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "run kickoff on this existing project", "what is missing from this project's setup", "starting context for this project", "which dev port should this project use", "port registry", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
-version: 0.5.1
+version: 0.6.0
 ---
 
 # Kickoff
@@ -30,11 +30,13 @@ end up in files, not in chat history.
    `section · id · state · value · question · options`, where value is the default to offer. Empty
    output means every question is settled: go to step 4.
    - **ask:** ask it.
+   - **explicit:** ask it on its own, never inside *accept all defaults*. Offer the value as the
+     recommended option, first. The user picks, even when they pick the recommendation (C5).
    - **judge:** its condition is prose (*"the project serves HTTP"*). Decide from what you know. If it
      does not apply, record `n/a` without asking; if unsure, ask.
    - **pending** rows are not listed. They depend on an answer in this round and come up in the next one.
 2. **Ask the whole section in one go.** First show its questions with their defaults as a short list,
-   then offer *accept all defaults* or *change some*. Ask only the questions the user wants to change.
+   then offer *accept all defaults* or *change some*. The defaults cover only the *ask* rows. Ask only the questions the user wants to change.
    - Questions with options go through the question UI, up to 4 per call. The default comes first,
      marked "(Recommended)". Keep each label short and put the full option text in its description.
    - Free-text questions (name, one-liner, goal, non-goals, those with no options) are asked in plain chat.
