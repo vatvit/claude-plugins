@@ -17,7 +17,7 @@ The coordinator moves them into crew in this order. Each step is safe to repeat.
    `coordinator` or `each-session`; `config set push human` (the default: the user pushes) or
    `committer`. Never pick these yourself. See [config.md](config.md). Your own habits across
    projects go in the user file instead: `config set --user hookMode warn`. Project-only keys
-   (`crewId`, `sharedBranch`, `hotSpots`, `landCheck`) are refused there.
+   (listed in [config.md](config.md)) are refused there.
 3. **Everyone joins.** The coordinator runs `whoami "<name>" coordinator`. Each session the user
    puts in the crew runs `whoami "<name>"`; nobody joins by itself. This comes before the import, because a hold needs a holder who is in the
    crew.
@@ -40,7 +40,8 @@ The coordinator moves them into crew in this order. Each step is safe to repeat.
    - "only the coordinator commits" (now `committer`) and the hand-off format (now `msg handoff`).
 
    Keep every rule that is about the project itself: how to build and test, its own
-   conventions and its domain. If unsure, keep it. A duplicated rule costs a few tokens, while a
+   conventions and its domain. Rules that apply only while a crew runs move to the `crewRules`
+   file ([solo.md](solo.md)). If unsure, keep it. A duplicated rule costs a few tokens, while a
    lost one costs a night.
 
 Then run `status`. It shows the crew, the holds and every dirty path by owner, so it is the

@@ -41,7 +41,7 @@ check_value() {
         hookMode) case "$1" in deny|warn) ;; *) die "hookMode is deny or warn" ;; esac ;;
         tree) case "$1" in shared|worktrees) ;; *) die "tree is shared or worktrees" ;; esac ;;
         treeSync) case "$1" in merge|rebase) ;; *) die "treeSync is merge or rebase" ;; esac ;;
-        treeLink) for v in "$@"; do crew_link_ok "$v" || die "treeLink takes paths inside the main tree (relative, no ..): $v"; done ;;
+        treeLink|crewRules) for v in "$@"; do crew_link_ok "$v" || die "$k takes paths inside the main tree (relative, no ..): $v"; done ;;
         taskPush) for v in "$@"; do valid_name "$v" || die "taskPush takes crew names: $v is not one"; done ;;
     esac
     if [ "$(key_type "$k")" = n ]; then case "$1" in *[!0-9]*) die "$k is a whole number" ;; esac; fi

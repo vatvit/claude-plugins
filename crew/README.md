@@ -48,7 +48,9 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 | `config` / `config set\|unset [--user] <key> [value...]` | effective settings, each with the layer it came from; write one key without hand-editing JSON |
 | `hold <path...>` / `release <path...> --sha SHA` / `chain <path>` / `who` / `drop` | hot-spot holds; the pre-edit hook denies edits to a file another session holds |
 | `hold import <file> [--dry-run]` | coordinator: take the holds of a hand-kept bullet list (`- <path> — <holder> (…)`) when adopting crew mid-project; see [adopt.md](skills/crew/references/adopt.md) |
-| `slot run <cpu\|exclusive\|quiet> <min> -- <cmd>` / `slot request\|start\|done\|list\|clear` | the queue for machine time: classes, priority, ETAs, stale slots |
+| `slot run <cpu\|exclusive\|quiet> <min> -- <cmd>` / `slot request\|start\|done\|list\|clear` | the queue for machine time, one for every crew on the Mac: classes, priority, ETAs, stale slots |
+| `active` | exit 0 and one line while a crew runs here, exit 1 and silent when not: for scripts and hooks |
+| `end [--force]` | coordinator: end the crew (holds, slots and names released, repo back to no crew); refused while a copy or task worktree holds work, or mail is unread, unless the user says `--force`. See [solo.md](skills/crew/references/solo.md) |
 | `copy new\|status\|rebase\|remove <name> [--ours <path...>]` / `apply <name> [path...]` | build in a copy (a detached worktree in `.worktrees/`); land with take / 3-way merge / refuse-all, plus an optional `landCheck`. `--ours` keeps a conflict you resolved in the copy. `copy new` also reports, read-only, what in the compose setup stops a second copy running beside the first |
 | `tree new\|sync\|merge\|remove <task-id>` / `tree allow\|revoke <task-id>` | worktree mode, when the user chose it (`tree=worktrees`) or allowed it for one task: branch `task/<ID>` and its worktree, bring in the shared branch, the coordinator merges it back; denies stash and other branches inside it. Every new worktree gets links to the local files in `treeLink` and prints the `treeSetup` step |
 | `snapshot log <path>` / `show\|diff\|restore <id>` / `prune` | every file is snapshotted before each edit; recover an overwrite |
@@ -65,7 +67,12 @@ Optional. Each key is resolved separately: the project's `.crew.json`, then your
 - Your `crew.json` is **per Claude account**: it follows `CLAUDE_CONFIG_DIR`.
 - The session-name registry (`~/.claude/crew/names/`) is **per machine**: SendMessage reaches
   every account's sessions, so every account checks names against one registry.
-- Crew state (holds, slots, snapshots) lives in the repo's `.git/crew/`.
+- The slot queue (`~/.claude/crew/slots`) is **per machine** too: CPU and Docker are the Mac's, so a
+  heavy run in one repo makes runs in another repo wait.
+- Crew state (holds, snapshots, mail) lives in the repo's `.git/crew/`.
+
+**Crew-only project rules** (`crewRules`): a file in the repo with the rules that apply only while
+a crew runs, shown to members only. See [solo.md](skills/crew/references/solo.md).
 
 ## The rules
 

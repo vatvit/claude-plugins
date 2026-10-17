@@ -147,8 +147,8 @@ machine; Claude Code sets `CLAUDE_CONFIG_DIR` for a non-default one.
   `${CLAUDE_CONFIG_DIR:-~/.claude}`, so each account keeps its own. `task` resolves it this way.
 - **Machine-wide** state (anything that guards a resource of the machine — ports, Docker, the
   session-name registry, the run window) lives in `~/.claude/<plugin>/` and deliberately ignores
-  `CLAUDE_CONFIG_DIR`, because two accounts sharing one Docker must see each other. crew's name
-  registry and delay's home are this kind.
+  `CLAUDE_CONFIG_DIR`, because two accounts sharing one Docker must see each other. crew's home
+  (the name registry and the slot queue every repo's crew shares) and delay's home are this kind.
 
 **Beware `set -euo pipefail` when reading config.** `grep` exits non-zero when it matches
 nothing, and with `pipefail` that status propagates out of `v="$(json_str …)"` and kills
@@ -177,9 +177,10 @@ disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.m
 external docs / catalogue / ingest / reference material*, task-roadmap owns *roadmap / gantt /
 timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
 tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
-hand off / hold / hot spot / slot / land / copy / snapshot / inbox / mailbox / watchdog / adopt / import holds* and says *slot*, never *job* or *queue* alone,
-kickoff owns *kickoff / kick off / new project / start a project / bootstrap / questionnaire / charter*
-and never says *init*, which is the built-in `/init`.
+hand off / hold / hot spot / slot / land / copy / snapshot / inbox / mailbox / watchdog / adopt / import holds / end the crew / disband / working solo / crew active* and says *slot*, never *job* or *queue* alone,
+kickoff owns *kickoff / kick off / new project / start a project / bootstrap / questionnaire / charter*.
+No plugin puts a bare *init* in its trigger phrases: that is the built-in `/init`. An explicit
+argument such as `/kickoff:kickoff init` is namespaced and fine (PLUG-070).
 Bare *pdf / word / excel / docx /
 xlsx* belong to Claude's built-in document skills — no plugin here claims them.
 

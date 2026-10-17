@@ -34,7 +34,7 @@ last_seen() { # <name> -> epoch of the session's last activity
 watch_owns() { # <name> -> "hold a.txt b.txt · slot #3 · dirty c.txt" (empty when it owns nothing)
     local h s d out=""
     h="$(awk -F'\t' -v n="$1" '$2 == n { printf "%s%s", (k++ ? " " : ""), $1 }' "$STATE/holds" 2>/dev/null)"
-    s="$(awk -F'\t' -v n="$1" '$2 == n { printf "%s#%s", (k++ ? " " : ""), $1 }' "$STATE/slots" 2>/dev/null)"
+    s="$(awk -F'\t' -v n="$1" '$2 == n { printf "%s#%s", (k++ ? " " : ""), $1 }' "$SLOTS" 2>/dev/null)"
     d="$(my_dirty "$1" | paste -sd' ' -)"
     [ -n "$h" ] && out="hold $h"
     [ -n "$s" ] && out="$out${out:+ · }slot $s"
@@ -65,7 +65,7 @@ watch_findings() {
         done
     fi
     if declare -F slots_plan >/dev/null; then
-        slots_plan | awk -F'\t' '$13 == 1 { printf "stale:%s\tslot #%s of %s (%s, %sm) is stale — next: ask %s; if gone, the coordinator runs: slot release %s\n", $1, $1, $2, $3, $4, $2, $1 }'
+        slots_plan | awk -F'\t' '$14 == 1 && $15 { printf "stale:%s\tslot #%s of %s (%s, %sm) is stale — next: ask %s; if gone, the coordinator runs: slot release %s\n", $1, $1, $2, $3, $4, $2, $1 }'
     fi
     return 0
 }

@@ -34,6 +34,7 @@ not start a crew. Adopting crew in a running project: [adopt.md](adopt.md).
 | `taskPush` | project | none | array of crew names the user lets push their own `task/<ID>` branch, and only that |
 | `treeLink` | project | none | array of paths (relative, no `..`) linked from the main tree into every new worktree: local settings and secrets ([trees.md](trees.md)) |
 | `treeSetup` | project | none | the project's setup step for a new worktree (install, build, seed), printed for the session to run; crew never runs it |
+| `crewRules` | project | none | a file in the repo (relative, no `..`) with the project's rules that apply only while a crew runs; shown to members on join and at session start, never to a solo session ([solo.md](solo.md)) |
 | `hookMode` | project, user | `deny` | `deny` blocks a guarded tool call. `warn` lets it through with the reason |
 | `hotSpots` | project | none | array of globs: files that need a hold before anyone edits them |
 | `landCheck` | project | none | command run on the landed file list before `apply` keeps it (e.g. a formatter check). No double quotes: put a complex command in a script |
@@ -42,7 +43,7 @@ not start a crew. Adopting crew in a running project: [adopt.md](adopt.md).
 | `slotGraceMin` | project, user | `10` | minutes past its estimate before a running slot shows as stale |
 | `silenceMin` | project, user | `15` | minutes of no tool calls before `watch` reports a session that owns a hold, slot or dirty paths; also the age at which unread mail is reported ([watch.md](watch.md)) |
 
-Project-only keys (`crewId`, `sharedBranch`, `hotSpots`, `landCheck`, `tree`, `treeSync`, `taskPush`, `treeLink`, `treeSetup`) mean nothing across projects. If
+Project-only keys (`crewId`, `sharedBranch`, `hotSpots`, `landCheck`, `tree`, `treeSync`, `taskPush`, `treeLink`, `treeSetup`, `crewRules`) mean nothing across projects. If
 they appear in the user file, they are ignored and `config` says so.
 
 ```json

@@ -1,6 +1,6 @@
 ---
 title: crew — `crew end`: disband a crew and return the repo to the no-crew state
-status: proposed
+status: completed
 type: feature
 epic: crew-solo
 priority: medium
@@ -10,17 +10,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done |  |
+| 20 | Requirements | done | below |
+| 30 | Assessment | done | crew_trees refactor needed for DRY |
+| 40 | POC | skipped | no unknowns |
+| 50 | Domain | skipped | no domain model |
+| 60 | Architecture | done | end.sh; never deletes worktrees |
+| 70 | Tests | done | end.test.sh, seen red |
+| 80 | Subtasks | skipped | small |
+| 90 | Implementation | done |  |
+| 100 | Tech Debt | done | none |
+| 110 | Reflection | done | crew/CLAUDE.md |
 
 ## Description
 
@@ -53,6 +53,21 @@ behind, so the repo never goes back to the silent no-crew state.
 - Files: `crew/scripts/crew.sh` (dispatch), a new script or `whoami.sh`, `holds.sh`, `slot.sh`,
   `scripts/test/`, SKILL.md trigger phrases (*end the crew*, *disband*, *close the crew*), README.
 
+## Outcome (2026-10-17, crew 2.2.0)
+
+- `crew end [--force]` (`scripts/end.sh`): coordinator only; refuses (listing each) while a crew copy
+  has `copy_unlanded` paths, a task worktree has unmerged or uncommitted work, or a member has unread
+  mail. `--force` (the user's word) works from any session, also with nobody left.
+- Ending: this crew's slots dropped (`slots_drop`), every name `reg_drop`ped, one line appended to
+  `$CREW_HOME/ended`, `$STATE` and `crew-pending` removed. Prints what was released, the worktrees left
+  in place (never deleted), and a ready CREW ENDED message plus the members to send it to (the
+  mailbox goes with the state). A second `end` is a no-op, exit 0.
+- `whoami --leave` now also drops the leaver's slots.
+- DRY: the worktree listing moved from `status.d/trees.sh` into `tree.sh` as `crew_trees`; status and
+  end both read it (trees.test.sh unchanged and green).
+- Tests `end.test.sh` (18). Seen red before the code (16 failing) and with the lost-work check
+  disabled (7 failing).
+
 ## Current State
 
-Proposed 2026-10-17 (epic PLUG-073). Not started.
+Completed. Host, `bash:5` container and a sibling-free copy of `crew/`: ALL GREEN.

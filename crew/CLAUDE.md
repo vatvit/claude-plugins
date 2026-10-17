@@ -22,7 +22,7 @@ crew/
 └── scripts/
     ├── crew.sh             the one entry point; `help` is built from each script's `# help:` lines
     ├── lib.sh              the ONE place for project/state, config layers, identity, claims, locks, hook decisions
-    ├── whoami.sh config.sh status.sh msg.sh
+    ├── whoami.sh config.sh status.sh msg.sh active.sh end.sh
     ├── holds.sh slot.sh copy.sh tree.sh snapshot.sh land.sh inbox.sh watch.sh one area each: functions when sourced, CLI when executed
     ├── compose-report.awk  copy new's read-only Docker report (compose_report in lib.sh; fixtures in test/compose/)
     ├── status.d/  msg.d/   per-area parts, so adding an area never edits status.sh / msg.sh
@@ -33,10 +33,17 @@ crew/
 
 - **No crew, no cost.** Every hook exits early unless `<git-common-dir>/crew/` exists. In a repo
   without a crew the plugin prints nothing and adds no tokens. A crew starts with the first
-  `whoami`.
-- **State lives in `<git-common-dir>/crew/`.** Every session on the tree shares it, it is never
-  committed, and it needs no `.gitignore` entry. Every mutation goes through `with_lock` and
-  `replace_file` (temp + `mv`).
+  `whoami` and ends with `crew end` (PLUG-075), which removes that state again; `crew active` is the
+  same test for scripts (`crew_active`). `end` refuses while a crew worktree holds work (`crew_trees`
+  in tree.sh, also what `status` lists) or mail is unread, and never deletes a worktree; `--force`
+  is the user's word.
+- **State lives in `<git-common-dir>/crew/`**, except what guards the machine (below). Every
+  session on the tree shares it, it is never committed, and it needs no `.gitignore` entry. Every
+  mutation goes through `with_lock` (`with_lock_at` for a lock in another dir) and `replace_file`
+  (temp + `mv`).
+- **Crew-only project rules are crew's to show (PLUG-076).** `crewRules` names a file in the tree;
+  `crew_rules_print` shows it to a member on join and at SessionStart, never to a non-member, so a
+  project's rules for crew mode cost a solo session nothing.
 - **`ROOT` is the main tree, even from a linked worktree (PLUG-065).** `crew_try_init` reads
   `--show-toplevel --git-common-dir --git-dir` in its one `rev-parse`: `CREW_TREE` is the tree the
   session stands in, and `ROOT` is the main tree whenever the common dir is a `<main>/.git`. So a
@@ -90,14 +97,20 @@ crew/
   `CREW_AS=<name> crew` form instead. The live check is PLUG-040. `bin/crew` puts the command on PATH.
 - **Per account vs per machine** (the repo rule in the root `CLAUDE.md` Config convention):
   - The user config `crew.json` is per account. It follows `${CLAUDE_CONFIG_DIR:-~/.claude}`.
-  - The name registry (`CREW_HOME`, `~/.claude/crew`) is per machine. It deliberately ignores
-    `CLAUDE_CONFIG_DIR`, because SendMessage spans accounts.
-  - `core.test.sh` asserts both.
+  - `CREW_HOME` (`~/.claude/crew`) is per machine and deliberately ignores `CLAUDE_CONFIG_DIR`. It
+    holds the name registry (SendMessage spans accounts), the slot queue (PLUG-074: CPU and Docker
+    are the machine's, so every crew on it queues together) and the `ended` log.
+  - `core.test.sh` asserts both; `crosscrew.test.sh` the shared queue.
+- **Slots are machine-wide, decisions stay per crew.** One file, `$CREW_HOME/slots`, under its own
+  lock; the row carries the owner's crew id for display. `slots_plan` adds `ours` (field 15), the one
+  place that says whether a slot is this crew's: `release`, `slot clear` / the push hold and `watch`
+  act only on this crew's. A slot whose owner is no longer `reg_live` is reaped under the lock by the
+  next request, start or listing, so a vanished crew never holds the machine.
 - **Names are unique on the machine, not just in the crew.** SendMessage addresses sessions
   machine-wide, and several crews (one per repo) can run at once. `whoami` checks
   `~/.claude/crew/names/<name>` (`CREW_HOME`) and refuses a name a live session of another crew
-  holds. An entry is live while that crew's `sessions/<name>` still has the same sid; a stale one
-  is taken over silently. Every message and the SessionStart line carry `[<crewId>]`.
+  holds. An entry is live while that crew's `sessions/<name>` still has the same sid (`reg_live`, the
+  one liveness rule, also for slots); a stale one is taken over silently. Every message and the SessionStart line carry `[<crewId>]`.
 - **Nobody types a session id.** The pre-bash hook sees the session id of the
   `crew.sh whoami <name>` call and leaves it in `<git-common-dir>/crew-pending/<name>` for `whoami.sh` to bind. It is outside `crew/` on purpose:
   a join that never completes must not switch crew on for the repo and put peer sessions under the guard.
@@ -105,10 +118,9 @@ crew/
 - **Area scripts are dual-use.** `holds.sh`, `slot.sh` and the rest define functions when
   sourced (by hooks and other scripts) and run their CLI when executed (`is_main`). Hooks load
   them with `load_area`, so a missing area degrades instead of failing.
-- **Guard hooks deny, which is the plugin's exception to "hooks never block".** A warning
-  arrives after `git add -A` has already staged a peer's files. They still always exit 0: the
-  denial is a JSON `permissionDecision`, never an exit code. `hookMode=warn` turns them into
-  warnings.
+- **Guard hooks deny**: the repo's one exception to "hooks never block", with its why, is in the
+  root `CLAUDE.md` (Shell Conventions). Here: the denial is `hook_block` (lib.sh), and nothing else
+  emits a `permissionDecision`.
 - **Hooks pay nothing where there is nothing to do.** They run on every Bash call and every edit,
   in every repo. `hooks/fast.sh` reads the payload with `read` and walks up to `.git` with pure bash.
   With no `crew/` there, the hook exits without a single fork. pre-bash also exits early unless the
@@ -124,7 +136,7 @@ crew/
 - **Silence is measured, not guessed.** Every tool call bumps `<state>/seen/<sid>` (fast.sh: `crew_fast_seen`,
   a redirection on a builtin, so no fork), and `watch.sh` reads its mtime. A session counts as silent only
   while it owns something (hold, slot, claimed dirty path). An idle session that owns nothing is just idle.
-  The stale-slot rule lives once, in `slots_plan` (field 13); `slot list` and `watch` both read it.
+  The stale-slot rule lives once, in `slots_plan` (field 14); `slot list` and `watch` both read it.
 - **Mail is a file before it is a message.** `msg --send` files a copy under `<state>/mail/<name>/`,
   and the mail hooks repeat the notice until it is read. They find "no mail for me" without a fork:
   sending leaves `<state>/unread/<sid>` for the recipient (fast.sh: `crew_fast_unread`), and the slow

@@ -45,5 +45,39 @@ printf '{"crewId":"mine"}' > "$CREW_USER_CONFIG"
 rm -f "$A/.crew.json"
 out="$(crew_as s2 "$A" msg stop 22:59)"
 check "crewId in the user file is ignored" yes "$(contains "[alpha] s2" "$out")"
+rm -f "$CREW_USER_CONFIG"
+
+echo "-- PLUG-074: one slot queue for the machine"
+export CREW_NOW=1791028800 TZ=UTC                               # 12:00 UTC
+join "$B" b1 coordinator; join "$B" b2
+crew_as s2 "$A" slot request exclusive 10 --why e2e >/dev/null  # alpha's heavy run holds the machine
+out="$(crew_as b2 "$B" slot request cpu 3)"
+check "a cpu slot in another repo waits behind it" yes "$(contains "waiting · ETA 12:10" "$out")"
+out="$(crew_as b2 "$B" slot start 2)"; rc=$?
+check "…start refused, naming the other crew's run" 1:yes "$rc:$(contains "#1 s2 [alpha] exclusive 10m RUNNING" "$out")"
+out="$(crew_as s2 "$A" slot list)"
+check "alpha sees beta's slot tagged" yes "$(contains "#2 b2 [beta] cpu 3m waiting" "$out")"
+out="$(crew_as b1 "$B" slot release 1 2>&1)"; rc=$?
+check "beta's coordinator cannot release alpha's slot" yes:yes "$([ "$rc" -ne 0 ] && echo yes):$(contains "s2 of crew alpha — its coordinator releases it" "$out")"
+crew_as s2 "$A" slot done >/dev/null
+out="$(crew_as b2 "$B" slot start 2)"
+check "once alpha is done, beta starts" yes "$(contains "#2 started" "$out")"
+crew_as b2 "$B" slot done >/dev/null
+crew_as s2 "$A" slot request quiet 5 >/dev/null
+out="$(crew_as b1 "$B" slot clear)"; rc=$?
+check "another crew's quiet slot does not hold beta's pushes" 0 "$rc"
+out="$(crew_as b2 "$B" slot request cpu 1)"
+check "…but it still holds the machine" yes "$(contains "waiting" "$out")"
+(cd "$A" && bash "$C" whoami --leave s2) >/dev/null
+out="$(crew_as b2 "$B" slot start)"
+check "a slot whose owner left is reaped: beta runs" yes "$(contains "started" "$out")"
+check "…and gone from the machine queue" no "$(contains "quiet" "$(cat "$CREW_HOME/slots")")"
+crew_as b2 "$B" slot done >/dev/null
+join "$A" a3
+out="$(crew_as a3 "$A" slot request exclusive 5)"
+check "alpha's new member holds the machine" yes "$(contains "#5 started" "$out")"
+rm -rf "$A/.git/crew"                                         # alpha vanishes without ending
+out="$(crew_as b2 "$B" slot request cpu 1)"
+check "a vanished crew's slot is reaped" yes "$(contains "started" "$out")"
 
 finish

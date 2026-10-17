@@ -34,6 +34,38 @@ tree_clean() { # <dir> <id> <what is refused>
 }
 tree_merged() { git -C "$ROOT" merge-base --is-ancestor "task/$1" "$(shared_branch)" 2>/dev/null; }
 
+# crew_trees — every worktree of the repo except the main tree, one TSV line each:
+#   dir  rel  kind  branch  by  unmerged  behind  uncommitted
+# kind: "task <ID>" or "copy <name>" for crew's own (.worktrees/<repo>-* on task/<ID>, or detached with
+# a crew-copy record), "-" for any other (counted by status, judged by nobody). status lists them;
+# end refuses while one of crew's holds work.
+crew_trees() {
+    local br pre wt head b rel kind by
+    br="$(shared_branch)"; pre="$CREW_WT/${ROOT##*/}-"
+    while IFS=$'\t' read -r wt head b; do
+        [ -n "$wt" ] || continue
+        rel="${wt#"$ROOT"/}"; kind=-; by=""
+        case "$rel" in
+            "$pre"*)
+                case "$b" in
+                    task/*) kind="task ${b#task/}"; by="$(crew_wt_meta "$wt" by)" ;;
+                    -) [ -f "$(crew_wt_metafile "$wt")" ] && { kind="copy ${rel#"$pre"}"; by="$(crew_wt_meta "$wt" by)"; } ;;
+                esac ;;
+        esac
+        [ "$kind" != - ] || { printf '%s\t%s\t-\t%s\t-\t0\t0\t0\n' "$wt" "$rel" "$b"; continue; }
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$wt" "$rel" "$kind" "$b" "${by:-?}" \
+            "$(git -C "$ROOT" rev-list --count "$br..$head" 2>/dev/null || echo '?')" \
+            "$(git -C "$ROOT" rev-list --count "$head..$br" 2>/dev/null || echo '?')" \
+            "$(crew_wt_dirty "$wt" | wc -l | tr -d ' ')"
+    done <<EOF
+$(git -C "$ROOT" worktree list --porcelain 2>/dev/null | awk '
+    /^worktree / { if (k++ >= 2) print p "\t" h "\t" b; p = substr($0, 10); h = ""; b = "-" }   # the first is the main tree
+    /^HEAD /     { h = substr($0, 6) }
+    /^branch /   { b = substr($0, 8); sub(/^refs\/heads\//, "", b) }
+    END          { if (k > 1) print p "\t" h "\t" b }')
+EOF
+}
+
 tree_new() { # <id>
     local id="$1" br dir
     valid_name "$id" || die "tree new <task-id>: letters, digits, . _ -"

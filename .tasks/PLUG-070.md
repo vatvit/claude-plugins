@@ -66,8 +66,8 @@ Both plugins assume a project starts with them. Most real projects do not. Today
   the built-in `/init`. What still holds: bare *init* never goes into a `description:` trigger list (that
   would compete with `/init` at auto-activation). Natural-language triggers use per-plugin words
   (e.g. *onboard a legacy project* / *survey the existing docs* for docs-manager, *existing project* for
-  kickoff); *adopt* stays crew's. Refine the repo CLAUDE.md line "never says *init*" accordingly at
-  Reflection.
+  kickoff); *adopt* stays crew's. The repo CLAUDE.md line "never says *init*" was already refined
+  this way on 2026-10-17 (epic PLUG-073's reflection).
 - ~~**Who owns `docs/` layout.**~~ Decided 2026-10-17 (user agreed): docs-manager owns content and layout
   of `docs/`; kickoff writes only the charter and answers, and skips its K1 docs skeleton when `docs/`
   already exists. PLUG-052 (which changes that skeleton) must respect this. The epic split into

@@ -4,7 +4,7 @@
 R="$TMP/repo"; new_repo "$R"
 join "$R" s1 coordinator; join "$R" s2; join "$R" s3
 export CREW_NOW=1791028800 CREW_SLOT_POLL=0.2 TZ=UTC        # 2026-10-03 12:00:00 UTC
-field() { awk -F'\t' -v id="$1" -v f="$2" '$1 == id { print $f }' "$R/.git/crew/slots"; }
+field() { awk -F'\t' -v id="$1" -v f="$2" '$1 == id { print $f }' "$CREW_HOME/slots"; }
 
 echo "-- exclusive vs cpu"
 out="$(crew_as s1 "$R" slot request exclusive 10 --why e2e)"
@@ -74,7 +74,7 @@ echo "-- run"
 out="$(crew_as s2 "$R" slot run cpu 1 -- sh -c 'echo ran; exit 3' 2>/dev/null)"; rc=$?
 check "run runs the command" ran "$out"
 check "…returns its exit code" 3 "$rc"
-check "…and releases the slot" "" "$(awk -F'\t' '$7 != ""' "$R/.git/crew/slots")"
+check "…and releases the slot" "" "$(awk -F'\t' '$7 != ""' "$CREW_HOME/slots")"
 crew_as s1 "$R" slot request exclusive 1 >/dev/null                           # blocks the run below
 ( crew_as s2 "$R" slot run cpu 1 -- sh -c "echo started > '$TMP/ran'" >/dev/null 2>&1 ) &
 sleep 1

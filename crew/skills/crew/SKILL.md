@@ -1,6 +1,6 @@
 ---
 name: crew
-description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, assigning tasks to sessions (one task, one session), handing off a finished change, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "assign tasks to sessions", "two sessions on one task", "split work between sessions", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "work in a copy", "apply the copy", "rebase the copy", "remove the copy", "task worktree", "worktree per task", "tree new", "tree sync", "tree merge", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", "who commits", "who pushes", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
+description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, assigning tasks to sessions (one task, one session), handing off a finished change, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "assign tasks to sessions", "two sessions on one task", "split work between sessions", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "work in a copy", "apply the copy", "rebase the copy", "remove the copy", "task worktree", "worktree per task", "tree new", "tree sync", "tree merge", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", "who commits", "who pushes", "end the crew", "close the crew", "disband the crew", "crew end", "working solo", "is a crew running", "crew active", "crew-only rules", "slots across repos", "two repos on one machine", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
 ---
 
 # crew — parallel Claude sessions on one working tree
@@ -43,7 +43,8 @@ to it. Names must be unique on the machine, because another repo may run its own
   per task (`config set tree …`), and records a per-task exception only on their word (`tree allow`);
 - lands hand-offs (`land`), and pushes and checks the push only when `push` lets the crew push;
 - is the only one who changes task status, and only after the work is landed and verified;
-- records decisions in the task file as "the coordinator's" or "the user's".
+- records decisions in the task file as "the coordinator's" or "the user's";
+- ends the crew when the user says the parallel work is over (`crew end`, `references/solo.md`).
 
 **Worker.** It:
 - works on the one task assigned to it, and only that task;
@@ -96,7 +97,8 @@ Read only the reference for the area you are working in:
 | Full playbook: the why behind each rule, push checks, bulk syncs, messages, hard stops | `references/playbook.md` |
 | Config keys and layers; `config set` / `unset` | `references/config.md` |
 | Hot spots and holds | `references/holds.md` |
-| Slots: machine time | `references/slots.md` |
+| Slots: machine time, one queue for every crew on the machine | `references/slots.md` |
+| Working solo, `crew active`, ending a crew, project rules that apply only while a crew runs (`crewRules`) | `references/solo.md` |
 | Copy, rebase, apply | `references/copy-apply.md` |
 | Task worktrees: the `tree` decision, `tree new` / `sync` / `merge`, their guards, local files in a new worktree | `references/trees.md` |
 | Snapshots: recover an overwritten edit | `references/snapshots.md` |

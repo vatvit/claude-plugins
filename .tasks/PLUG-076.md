@@ -1,6 +1,6 @@
 ---
 title: crew — `crew active` probe, and the guide for working solo and per-mode project rules
-status: proposed
+status: completed
 type: feature
 epic: crew-solo
 priority: medium
@@ -10,17 +10,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | crew/CLAUDE.md, slots/adopt refs, field report |
+| 20 | Requirements | done | below |
+| 30 | Assessment | done | crew_active exists; whoami/SessionStart are the member touchpoints |
+| 40 | POC | skipped | no unknowns |
+| 50 | Domain | skipped | no domain model |
+| 60 | Architecture | done | active.sh; crewRules key + crew_rules_print |
+| 70 | Tests | done | active.test.sh, seen red |
+| 80 | Subtasks | skipped | small |
+| 90 | Implementation | done |  |
+| 100 | Tech Debt | done | none |
+| 110 | Reflection | done | crew/CLAUDE.md, root CLAUDE.md, solo.md |
 
 ## Description
 
@@ -51,6 +51,21 @@ them, and a hook or script has no clean way to ask "is a crew running here?".
 - PLUG-075 is referenced by the guide but not required: write the "ending a crew" part against what
   exists when this lands.
 
+## Outcome (2026-10-17, crew 2.2.0)
+
+- `crew active` (`scripts/active.sh`): exit 0 + `crew <id>: <members>[ · you: <name> (<role>)]`, exit 1
+  silent with no crew and outside git.
+- **Decision (the coordinator's, made at Architecture):** besides the guide, crew carries the per-mode
+  split itself. New project-only key `crewRules` names a file in the tree (checked like `treeLink`);
+  `crew_rules_print` (lib.sh) shows it to a member on join and at SessionStart, never to a non-member.
+  So crew-only rules cost a solo session nothing and need no project hook. (A project hook could not
+  rely on `crew` anyway: the plugin's `bin/` is on the Bash tool's PATH only.)
+- Guide `skills/crew/references/solo.md`: is a crew running, ending a crew, rules per mode (links
+  adopt.md for the rules crew enforces instead of repeating them), machine time when a repo has no crew.
+- Tests `active.test.sh` (17): exit codes, the one-liner, crewRules shown to members only, refused
+  outside the tree and in the user layer, and the guide's snippet run as written in both modes.
+  Seen red: before the code (9 failing), and with `crewRules` dropped from `cfg_project_only`.
+
 ## Current State
 
-Proposed 2026-10-17 (epic PLUG-073). Not started.
+Completed. Host, `bash:5` container and a sibling-free copy of `crew/`: ALL GREEN.

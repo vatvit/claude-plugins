@@ -10,6 +10,13 @@ failure from load.
 | `exclusive` | nothing | a browser/e2e run, anything load-sensitive |
 | `quiet` | nothing, and pushes and background jobs wait | timing measurements |
 
+**One queue for the machine.** CPU, memory and Docker belong to the Mac, not to a repo, so every
+crew on it shares the queue (`~/.claude/crew/slots`). An `exclusive` run in one repo makes a run in
+another repo wait. `slot list` and `status` show every slot, another crew's tagged `[crew]`. Each crew
+still decides only over its own: `release` takes only this crew's slots, and a `quiet` slot holds only
+this crew's pushes. A slot whose owner is gone (left, ended, replaced) is dropped by the next slot
+command. Only crew members queue; working alone, see [solo.md](solo.md).
+
 **Order:** first anything failing on the shared branch (`--prio failing`), then the user's
 critical asks (`--prio critical`), then the shortest first, then first come. A `cpu` slot never
 jumps ahead of a waiting `exclusive` or `quiet` slot.
@@ -21,7 +28,7 @@ jumps ahead of a waiting `exclusive` or `quiet` slot.
 | `slot list` | the queue with each slot's ETA. A slot running longer than its estimate plus `slotGraceMin` shows as **STALE** |
 | `slot cancel [id]` | leave the queue |
 | `slot clear` | exits 0 when no quiet slot is running. Put it in front of pushes, retries and watchers: `slot clear && git push` |
-| `slot release <id>` | coordinator only: remove a stale slot |
+| `slot release <id>` | coordinator only: remove a stale slot of this crew |
 | `msg queue-moved "<why>"` | the coordinator tells every waiting session its new time and why |
 
 - `slot run` blocks until the slot opens. If the wait may be long, start it with the Bash tool's

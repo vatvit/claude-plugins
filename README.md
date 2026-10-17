@@ -110,14 +110,16 @@ Sessions opt in with `crew whoami "<name>" [worker|coordinator]`. crew then adds
   the coordinator asks you once per project whether the crew may do either;
 - `crew status`: one screen showing every dirty path and who owns it;
 - hand-off messages with a durable mailbox;
-- **holds** on hot-spot files, and a **slot** queue for heavy runs;
+- **holds** on hot-spot files, and a **slot** queue for heavy runs, shared by every repo's crew
+  on the machine;
 - a snapshot before every edit, so an overwritten edit can be recovered;
 - **one tree or a worktree per task**: your call per project, asked once, with exceptions per
   task; a task worktree is merged back by the coordinator, and gets your local files linked in;
 - guard hooks that deny whole-index git commands (`add -A`, `stash`, `reset --hard`, …).
 
 A session that hasn't joined works as usual, and in a repo with no crew the plugin does nothing.
-Requires git 2.31 or later. [More →](crew/README.md)
+`crew end` closes a crew when the parallel work is over, and rules that apply only while a crew
+runs can live in their own file, shown to members only. Requires git 2.31 or later. [More →](crew/README.md)
 
 ### delay
 

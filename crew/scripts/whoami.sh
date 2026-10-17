@@ -16,6 +16,7 @@ if [ $# -eq 0 ]; then
 fi
 if [ "$1" = --leave ]; then
     need_active; n="$(name_for "${2:-}")"; valid_name "$n" && [ -f "$STATE/sessions/$n" ] || die "no session '$n'"
+    load_area slot; declare -F slots_drop >/dev/null && slots_drop "$n" >/dev/null   # its slots leave with it
     reg_drop "$n"; rm -f "$STATE/sessions/$n"; echo "crew: $n left"; exit 0
 fi
 
@@ -61,6 +62,7 @@ bind() {
 with_lock sessions bind
 echo "crew $(crew_id): you are $name ($role). Prefix every crew call with: $(prefix_for "$name")"
 echo "crew: $(crew_line)"
+crew_rules_print
 load_area watch; declare -F watch_stamp >/dev/null && watch_stamp "$sid"   # the watchdog counts silence from here
 # mail waiting for this name (sent before it joined, or to its previous session): say so, arm the notice
 load_area inbox; declare -F mail_start >/dev/null && mail_start "$name" "$sid"
