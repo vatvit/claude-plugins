@@ -34,6 +34,5 @@ When the user says epic (`/task create EPIC: Auth system`, or asks for one outri
 
 ## Creating a sub-task
 
-Set `epic: <epic-name>` in the frontmatter, then add the new id to the epic file's
-`## Sub-tasks` list — a bullet or a table row, since that is what counts as membership
-(`references/epics.md`).
+Set `epic: <epic-name>` in the frontmatter. That field is the whole membership: the epic file
+never lists its sub-tasks (`references/epics.md`).

@@ -1,6 +1,6 @@
 ---
 name: task
-description: Use for task management when user references task IDs (TASK-001, DOCS-004), creates/lists/shows tasks, updates task status, works on tasks, checks workflows, or invokes /task. Also invoke automatically when creating tech debt tickets, subtasks, or any task management during work. Manages task files for planning and tracking project work (storage location configurable per project).
+description: Use for task management when user references task IDs (TASK-001, DOCS-004), creates/lists/shows tasks, updates task status, works on tasks, works on or finishes a whole epic ("work on the epic", "finish the epic"), checks workflows, or invokes /task. Also invoke automatically when creating tech debt tickets, subtasks, or any task management during work. Manages task files for planning and tracking project work (storage location configurable per project).
 version: 1.1.0
 argument-hint: <create|list|show|do|finish|status|workflow> [args]
 disable-model-invocation: false
@@ -20,14 +20,16 @@ skill resolves per project. The file *is* the state — there is no database.
 /task list [<epic-id>|field=value] [group=field] [sort=field] [summary]  List tasks
                                (bare id = epic → its sub-tasks; no args = active epics' sub-tasks)
 /task show <id>                Show task details (id: number or full ID)
-/task do <id>                  Start working on task (id: number or full ID)
-/task finish [id]              Complete a task by running all remaining workflow steps
+/task do <id>                  Start working on task; an epic (id or epic-name) runs the
+                               whole epic: its planning, every open sub-task, its closing
+/task finish [id]              Complete a task by running all remaining workflow steps;
+                               an epic (id or epic-name) finishes every open sub-task, then itself
 /task status <id> [status]     Show or change task status
 /task workflow                 Show workflow steps
 /task                          Show this help
 ```
 
-**ID format:** either a number (`004` or `4`) or a full ID (`TASK-004`). A bare number is
+**ID format:** a number (`004` or `4`), a full ID (`TASK-004`), or, for an epic, its epic-name (`auth`). A bare number is
 completed with the project's prefix.
 
 ## Guardrails

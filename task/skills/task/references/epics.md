@@ -39,27 +39,21 @@ multi-tenancy, billing, and personalized features.
 - Users can register with email and log in
 - Sessions expire after 24h
 - Password reset works end-to-end
-
-## Sub-tasks
-
-- TASK-011: Registration endpoint
-- TASK-012: Login / logout endpoints
 ```
 
-An epic has its own `status`, and may have its own workflow table for planning steps.
+An epic has its own `status`, and may have its own workflow table. Working the epic
+(`/task do` or `/task finish` on it) runs that table's rows before `implementation`, then the
+sub-tasks, then the remaining rows (`commands/do.md`, Epic flow).
 
 ## What makes a task a sub-task
 
-Two things, kept in step by hand:
+Its frontmatter field `epic: <epic-name>`, and nothing else. The epic never lists its sub-tasks:
+a list is the same fact stored a second time, kept in step by hand, and once the two disagree no reader
+knows which is right. `/task list <epic>`, the Epic Dashboard and `/task do`/`finish` on an epic all
+read the field.
 
-- the sub-task's frontmatter: `epic: auth`
-- an entry in the epic's `## Sub-tasks` section
-
-**Only list items and table rows are entries.** A bullet (`- TASK-011: …`), a numbered item
-(`1. TASK-011 …`) or a table row (`| TASK-011 | … |`) makes a task a member; prose does not.
-So "TASK-011 remains a separate epic" or "TASK-011's scope shipped under TASK-012" is safe
-to write there — it reads as commentary. The id must be on the entry's own line, not on a
-wrapped continuation.
+Older epics may still carry a `## Sub-tasks` section. It is prose now: an id listed there and not
+carrying the `epic:` field is not a member. Leave the section as history; do not add one.
 
 ## Detecting an epic
 

@@ -16,7 +16,7 @@ task/
 └── scripts/              ← pure bash + awk, each standalone
     ├── resolve-config.sh     project → tasksDir / prefix
     ├── allocate-id.sh        the ONLY sanctioned way to get an id
-    ├── resolve-task.sh       id → metadata + current workflow step
+    ├── resolve-task.sh       id (or epic-name) → metadata + current workflow step
     ├── read-tasks.sh         the one frontmatter parser: JSON or TSV records
     ├── list-tasks.sh         the finished /task list output
     ├── list-render.awk       its renderer — grouping, sorting, collapsing, columns
@@ -24,7 +24,7 @@ task/
     ├── session-active.sh     the session's active-tasks list
     ├── resolve-epic.sh       epic-name or id → epic metadata
     ├── update-epic-index.sh  rebuilds _epic-index.json
-    ├── epic-dashboard.sh     epic + sub-task statuses + recommendation
+    ├── epic-dashboard.sh     epic + sub-tasks in work order + queue + recommendation
     ├── lib.sh                global roots: $CLAUDE_CONFIG_DIR, then ~/.claude
     └── test/*.test.sh
 ```
@@ -55,8 +55,9 @@ at all, whether to skip a step, append-or-switch when two tasks compete for a se
 - **The workflow table is the state.** Nothing else records which step a task reached.
 - **Status is never changed without the user asking.** This is a guardrail in prose
   precisely because it is a judgement call, not something a script can enforce.
-- **Epic membership is list items and table rows only.** Prose inside `## Sub-tasks` is
-  commentary — a sentence naming a task id must not make it a member. Regression-tested.
+- **Epic membership is the `epic:` field alone.** The epic never lists its sub-tasks; an
+  older epic's `## Sub-tasks` section is prose, and an id listed there without the field is not
+  a member. A second source of membership is what PLUG-077 removed. Regression-tested.
 - **session-storage is optional and detected, never required.** The skill finds it by a
   context string and skips silently when absent. Every command must work with it missing;
   that is the path most installs are in.
@@ -66,7 +67,7 @@ at all, whether to skip a step, append-or-switch when two tasks compete for a se
 ## Testing
 
 ```
-bash scripts/test/epic-dashboard.test.sh   # 11 cases — epic membership parsing
+bash scripts/test/epic-dashboard.test.sh   # 21 cases — membership, work order, epic-name resolution
 bash scripts/test/list-tasks.test.sh       # 41 cases — every documented list shape
 bash scripts/test/status-session.test.sh   # 26 cases — status writes, cascade, active-tasks
 bash scripts/test/port.test.sh             # 19 cases — packaging + standalone copy

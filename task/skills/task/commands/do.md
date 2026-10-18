@@ -9,10 +9,11 @@ set it `in-progress` — just do it. The only question this section may ask is t
 `active_status=conflict` one in step 5.
 
 1. `resolve-task.sh <tasksDir> <prefix> <id>` — id, file, frontmatter, the current workflow
-   step and its `step_file=` if one exists.
+   step and its `step_file=` if one exists. `<id>` may also be an epic-name; an unknown one
+   fails with the resolver's error: report it and stop.
 2. If the task's status is `rejected` or `completed`, do not start it: drop it from the
    list with `session-active.sh <tasksDir> <prefix> remove <id>` and tell the user. Stop.
-3. `type=epic` → this is the **Epic flow** below, not a workflow run.
+3. `type=epic` → this is the **Epic flow** below, not a plain workflow run.
 4. `set-status.sh <tasksDir> <prefix> <id> in-progress` — without asking, and harmless if
    it already is. It writes the status, cascades to the parent epic and updates
    `active-tasks` in one call — report its output as `commands/status.md` describes.
@@ -57,18 +58,35 @@ well-defined sub-task, `test-architect` for the tests step. Not for a single fil
 
 ## Epic flow
 
-`/task do <epic-id>` means "work on this epic", not "run the epic file's own steps".
+`/task do <epic>` (an epic id, number or epic-name) means "work this epic": its own planning, every open
+sub-task, then its own closing steps. A sub-task belongs to the epic through its `epic:` field alone
+(`references/epics.md`).
 
 ```
-<PLUGIN_ROOT>/scripts/epic-dashboard.sh <tasksDir> <prefix> <epic-id>
+<PLUGIN_ROOT>/scripts/epic-dashboard.sh <tasksDir> <prefix> <epic-ref>
 ```
 
-It returns the epic, every sub-task with its status and priority, and a `recommend` with a
-`recommend_reason`. No sub-tasks at all → **Kickoff** below.
+It returns the epic, every sub-task with its status and priority, a `queue` (the open, unblocked sub-tasks
+in work order: in-progress, approved, proposed, then priority, then id), and a `recommend` with a
+`recommend_reason`.
 
-Render it as the dashboard, grouping `in-progress → blocked → approved → proposed`, each
-task on its own line; fold `completed` and `rejected` into one line of ids with ✓ / ✗, since
-the focus is the remaining work. Omit empty groups.
+1. `set-status.sh <tasksDir> <prefix> <epic-id> in-progress` and read the epic file. Its Goal, Scope, Out
+   of Scope and Success Criteria constrain every sub-task.
+2. Show the dashboard (below).
+3. **Planning.** Work the epic's own workflow rows *before* `implementation`, the same way as a task's
+   (**Work the step**). Its `subtasks` step is **Kickoff** below when the epic has no sub-tasks yet. Rows
+   already `done` are left alone.
+4. **Sub-tasks.** Take the head of `queue` and run it as `/task do <that id>`, pausing before each of its
+   steps. When it is `completed`, update the epic's "Current State" (which sub-task is done, which one is
+   next), re-run the dashboard and go straight on to the next queue head without asking. Blocked sub-tasks
+   are never in the queue; name them when the queue runs out.
+5. **Closing.** Queue empty → work the epic's remaining rows (tech-debt, reflection). The epic is completed
+   only when `recommend_reason=all-done` and the user agrees; with blocked sub-tasks left it stays
+   `in-progress`, and say why.
+
+Render the dashboard grouping `in-progress → blocked → approved → proposed`, each task on its own line;
+fold `completed` and `rejected` into one line of ids with ✓ / ✗, since the focus is the remaining work.
+Omit empty groups.
 
 ```
 TASK-010: User Authentication System [Epic]
@@ -87,28 +105,23 @@ Sub-tasks:
   completed/rejected (1):
     TASK-011 ✓
 
-Recommendation: Continue with TASK-012 (in-progress)
+Next: TASK-012 (in-progress), then TASK-013, TASK-014
 ```
 
-The `recommend_reason` says how to phrase the recommendation: `in-progress` continue it,
-`blocked` name the blocker and offer another, `approved` start it, `proposed` start it but
-note it may need approval, `all-done` suggest completing the epic. Then ask which sub-task
-to work on, pre-selecting the recommendation, and continue as `/task do <that id>`.
+## Kickoff: an epic with no sub-tasks
 
-## Kickoff — an epic with no sub-tasks
+Turns an empty epic into a planned set of tasks. It is the epic's `subtasks` step, or the whole of
+planning when the epic has no workflow table.
 
-Turns an empty epic into a planned set of tasks. The epic stays `in-progress` throughout.
-
-1. `set-status.sh <tasksDir> <prefix> <epic-id> in-progress`.
-2. Read the epic file; note which of Goal / Why / Scope / Out of Scope / Success Criteria
+1. Read the epic file; note which of Goal / Why / Scope / Out of Scope / Success Criteria
    are missing or vague.
-3. Run the workflow's orientation step for the epic — the step named `context` in the
+2. Run the workflow's orientation step for the epic: the step named `context` in the
    project's WORKFLOW.md (some projects name it differently). Its output becomes the epic's
    `## Context`. The step definition owns the procedure; do not improvise one.
-4. Ask the user 2–4 targeted questions about the gaps — scope boundaries, priorities,
+3. Ask the user 2–4 targeted questions about the gaps: scope boundaries, priorities,
    constraints, dependencies. Wait for the answers.
-5. Write the sharpened sections back to the epic file before going on.
-6. Propose the breakdown — title, type, priority and one line each — and get approval:
+4. Write the sharpened sections back to the epic file before going on.
+5. Propose the breakdown (title, type, priority and one line each) and get approval:
 
 ```
 Proposed sub-tasks for TASK-010 (User Authentication System):
@@ -121,8 +134,7 @@ Proposed sub-tasks for TASK-010 (User Authentication System):
 Approve this plan, adjust, or add tasks?
 ```
 
-   Do not show ids you have not been given — they do not exist until step 7.
-7. On approval create each one (`commands/create.md`), with `epic: <epic-name>` set, then
-   list the new ids in the epic's `## Sub-tasks` and run `update-epic-index.sh`.
-8. Recommend starting the first one — and let the user invoke it. The epic stays
-   `in-progress` alongside it.
+   Do not show ids you have not been given — they do not exist until step 6.
+6. On approval create each one (`commands/create.md`) with `epic: <epic-name>` set. That field is
+   the whole membership: do not list the ids in the epic file.
+7. Continue the Epic flow with the sub-tasks.

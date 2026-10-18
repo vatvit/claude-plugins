@@ -20,6 +20,7 @@ Runtime-free: pure bash + awk, no dependencies, no network.
 /task show <id>             Full task content, with its epic's goal for context
 /task do <id>               Start work: loads context, runs the current workflow step
 /task finish [id]           Run every remaining workflow step to completion
+                            (an epic, by id or name: every open sub-task, then the epic)
 /task status <id> [status]  Show or change status (cascades to the parent epic)
 /task workflow              Show the project's workflow steps
 ```
@@ -32,7 +33,8 @@ IDs accept either form: `4`, `004` or `TASK-004`.
   reads it to know where the task got to, and updates it as steps complete. There is no
   database and no sidecar file.
 - **Epics are documents, not labels.** A `type: epic` task holds the goal, scope, out-of-scope
-  and success criteria; sub-tasks reference it by `epic-name` and inherit that context. An
+  and success criteria; sub-tasks reference it by `epic-name`, which is their whole membership
+  (the epic never lists them), and inherit that context. An
   `_epic-index.json` gives O(1) epic lookups and is rebuilt, never hand-edited.
 - **ID allocation is safe across parallel sessions.** `allocate-id.sh` reserves the id and the
   file together under a `mkdir` mutex, computes `max(nextId, highest existing + 1)` so a lost
@@ -71,7 +73,7 @@ the global `project-tasks/_workflow/` (same lookup). `/task workflow init` seeds
 ## Testing
 
 ```
-bash scripts/test/epic-dashboard.test.sh   # epic membership parsing
+bash scripts/test/epic-dashboard.test.sh   # epic membership, work order, epic-name resolution
 bash scripts/test/list-tasks.test.sh       # every documented /task list shape
 bash scripts/test/status-session.test.sh   # status writes, epic cascade, active tasks
 bash scripts/test/port.test.sh             # packaging, independence, standalone copy

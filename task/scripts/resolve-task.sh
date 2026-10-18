@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Resolve a task ID and extract metadata + workflow state.
 # Usage: resolve-task.sh <tasksDir> <prefix> <id>
-#   id: number (4 or 004) or full ID (TASK-004)
+#   id: number (4 or 004), full ID (TASK-004) or an epic-name (auth)
 # Output (key=value, one per line):
 #   id=TASK-004
 #   file=/path/to/TASK-004.md
@@ -19,12 +19,18 @@ PREFIX="${2:?}"
 RAW_ID="${3:?}"
 
 # --- Resolve full ID ---
+# Anything that is neither PREFIX-NNN nor a number is an epic-name. Its lookup
+# (index, then scan) lives in resolve-epic.sh, which comes back here with the id.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if echo "$RAW_ID" | grep -qE '^[A-Z]+-[0-9]+$'; then
     FULL_ID="$RAW_ID"
-else
+elif echo "$RAW_ID" | grep -qE '^[0-9]+$'; then
     NUM=$(echo "$RAW_ID" | sed 's/^0*//')
     : "${NUM:=0}"
     FULL_ID=$(printf "%s-%03d" "$PREFIX" "$NUM")
+else
+    "$SCRIPT_DIR/resolve-epic.sh" "$TASKS_DIR" "$PREFIX" "$RAW_ID"
+    exit $?
 fi
 
 FILE="$TASKS_DIR/$FULL_ID.md"
@@ -39,7 +45,6 @@ echo "file=$FILE"
 # --- Extract frontmatter ---
 # Parsing lives in read-tasks.sh; this script adds id resolution and the
 # workflow table on top. `id` is dropped because it was printed above.
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=lib.sh
 . "$SCRIPT_DIR/lib.sh"
 "$SCRIPT_DIR/read-tasks.sh" "$TASKS_DIR" "$PREFIX" --all --records --id="$FULL_ID" \

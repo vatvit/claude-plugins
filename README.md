@@ -46,9 +46,9 @@ outside the repo.
 Each task is a `PREFIX-NNN.md` file with YAML frontmatter and a **workflow table**: the steps a
 task goes through (context, requirements, tests, implementation, reflection, …) and where it
 stands. The table *is* the state. `/task do` reads it and continues from the current step.
-Epics group sub-tasks. ID allocation is atomic and lock-guarded, so parallel sessions never
-take the same number. Listing is scripted, with filters, grouping, sorting and epic views that
-collapse closed work.
+Epics group sub-tasks, and `/task do` or `/task finish` on an epic works the whole of it. ID
+allocation is atomic and lock-guarded, so parallel sessions never take the same number.
+Listing is scripted, with filters, grouping, sorting and epic views that collapse closed work.
 
 ```
 /task create <title>   /task list [filters]   /task show <id>

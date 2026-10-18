@@ -1,31 +1,41 @@
 #!/usr/bin/env bash
-# Gather epic sub-task data for the Epic Dashboard.
-# Usage: epic-dashboard.sh <tasksDir> <prefix> <epic-id>
-#   epic-id: number (10) or full ID (TASK-010)
-# Output: JSON object with epic info + sub-task statuses + recommendation
+# Gather epic sub-task data for the Epic Dashboard and the epic work flow.
+# Usage: epic-dashboard.sh <tasksDir> <prefix> <epic-ref>
+#   epic-ref: number (10), full ID (TASK-010) or epic-name (auth)
+# Output: JSON object with epic info + sub-task statuses + work queue + recommendation
 # {
 #   "id":"TASK-010","title":"...","status":"...","priority":"...",
-#   "goal":"first line of Goal section",
+#   "epic-name":"auth","goal":"first line of Goal section",
 #   "subtasks":[
 #     {"id":"TASK-011","title":"...","status":"...","priority":"..."},
 #     ...
 #   ],
+#   "queue":["TASK-012","TASK-013"],
 #   "recommend":"TASK-012","recommend_reason":"in-progress"
 # }
-# recommend_reason values: in-progress, blocked, approved, proposed, all-done
-# Exit 1 if file not found or not an epic.
+# subtasks: every member, in work order (closed ones last).
+# queue:    the members still to work, in work order — in-progress, approved,
+#           proposed, then priority, then id. Blocked and closed are left out.
+# recommend_reason values: in-progress, approved, proposed, blocked (queue is
+#   empty but something is blocked), all-done; absent when there are no sub-tasks.
+# Exit 1 if the epic is not found or the task is not an epic.
+#
+# Membership is the sub-task's `epic: <epic-name>` field and nothing else. An
+# epic's `## Sub-tasks` section, where older epics have one, is prose: listing
+# the ids there as well stored one fact twice, and the dashboard read the list
+# while `/task list` read the field, so the two views of one epic could disagree.
 set -euo pipefail
 
-TASKS_DIR="${1:?Usage: epic-dashboard.sh <tasksDir> <prefix> <epic-id>}"
+TASKS_DIR="${1:?Usage: epic-dashboard.sh <tasksDir> <prefix> <epic-ref>}"
 PREFIX="${2:?}"
-RAW_ID="${3:?}"
+EPIC_REF="${3:?}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# --- Resolve the epic, via the shared resolver ---
-epic_out=$("$SCRIPT_DIR/resolve-task.sh" "$TASKS_DIR" "$PREFIX" "$RAW_ID") || exit 1
+# --- Resolve the epic: id, number or name, one resolver for all three ---
+epic_out=$("$SCRIPT_DIR/resolve-epic.sh" "$TASKS_DIR" "$PREFIX" "$EPIC_REF") || exit 1
 
-epic_title="" epic_status="" epic_priority="" epic_type="" FULL_ID="" EPIC_FILE=""
+epic_title="" epic_status="" epic_priority="" epic_name="" FULL_ID="" EPIC_FILE=""
 while IFS='=' read -r key val; do
     case "$key" in
         id) FULL_ID="$val" ;;
@@ -33,159 +43,91 @@ while IFS='=' read -r key val; do
         title) epic_title="$val" ;;
         status) epic_status="$val" ;;
         priority) epic_priority="$val" ;;
-        type) epic_type="$val" ;;
+        epic-name) epic_name="$val" ;;
     esac
 done <<EOF
 $epic_out
 EOF
 
-if [ "$epic_type" != "epic" ]; then
-    echo "ERROR: $FULL_ID is not an epic (type=${epic_type:-unset})" >&2
-    exit 1
-fi
+# JSON string escaping — one home for every string this script prints.
+json_escape() { printf %s "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 
-# --- Extract goal (first non-empty line after ## Goal) ---
+# --- Goal: first non-empty line after ## Goal ---
 epic_goal=$(awk '
 /^## Goal/ { in_goal=1; next }
 in_goal && /^##/ { exit }
-in_goal && /[^ \t]/ {
-    gsub(/\\/, "\\\\")
-    gsub(/"/, "\\\"")
-    print
-    exit
-}
+in_goal && /[^ \t]/ { print; exit }
 ' "$EPIC_FILE")
 
-# --- Extract sub-task IDs from ## Sub-tasks section ---
-#
-# Only ENTRIES name a sub-task: a bullet item ("- TASK-011: ..."), a numbered
-# item ("1. TASK-011 ...") or a table row ("| TASK-011 | ... |"). Prose in this
-# section is commentary — a sentence like "TASK-011's scope shipped under
-# TASK-012's banner" names tasks without listing them.
-#
-# This used to print every line, so such a sentence registered as membership and
-# the epic reported phantom sub-tasks. It failed silently and plausibly: a
-# duplicated row reads as a sloppy list rather than a parser bug, so the wrong
-# count went uninvestigated.
-#
-# Note "[-*+] " requires the space — that is what distinguishes a bullet from
-# **bold** prose, which is how most such sentences begin.
-#
-# Ids are also de-duplicated: one task listed twice is still one sub-task.
-subtask_ids=()
-seen_ids=" "
-while IFS= read -r line; do
-    id=$(echo "$line" | grep -oE '[A-Z]+-[0-9]+' | head -1 || true)
-    [ -n "$id" ] || continue
-    case "$seen_ids" in *" $id "*) continue ;; esac
-    seen_ids="$seen_ids$id "
-    subtask_ids+=("$id")
-done < <(awk '
-    /^## Sub-tasks/ { found=1; next }
-    found && /^## [^#]/ { exit }
-    found && /^[[:space:]]*([-*+][[:space:]]|[0-9]+\.[[:space:]]|\|)/ { print }
-' "$EPIC_FILE")
+# --- Members, in work order ---
+# awk emits one row per member: rank, priority rank, id number, id, title
+# (JSON-escaped), status, priority; one sort orders them. An epic with no
+# epic-name (the legacy `EPIC:` title form) has no members: an empty name
+# would otherwise match every untagged task.
+rows=""
+if [ -n "$epic_name" ]; then
+    rows=$("$SCRIPT_DIR/read-tasks.sh" "$TASKS_DIR" "$PREFIX" --all --records \
+      | awk -F'\t' -v ename="$epic_name" -v self="$FULL_ID" '
+        # A character loop, not gsub: busybox reads a backslash in a gsub
+        # replacement differently from gawk and BSD awk.
+        function esc(s,  o, c, i) {
+            o = ""
+            for (i = 1; i <= length(s); i++) {
+                c = substr(s, i, 1)
+                if (c == "\\" || c == "\"") o = o "\\"
+                o = o c
+            }
+            return o
+        }
+        function flush(  r, p, n) {
+            if (cur == "" || cur == self || ep != ename) return
+            if (st == "") st = "proposed"
+            r = (st == "in-progress") ? 1 : (st == "approved") ? 2 : (st == "blocked") ? 4 \
+              : (st == "completed" || st == "rejected") ? 5 : 3
+            p = (pr == "critical") ? 1 : (pr == "high") ? 2 : (pr == "medium") ? 3 : (pr == "low") ? 4 : 5
+            n = cur; sub(/.*-/, "", n)
+            printf "%d\t%d\t%d\t%s\t%s\t%s\t%s\n", r, p, n + 0, cur, esc(ti), st, pr
+        }
+        { if ($1 != cur) { flush(); cur = $1; ep = ""; ti = ""; st = ""; pr = "" }
+          if ($2 == "epic") ep = $3
+          else if ($2 == "title") ti = $3
+          else if ($2 == "status") st = $3
+          else if ($2 == "priority") pr = $3 }
+        END { flush() }
+      ' | sort -t "$(printf '\t')" -k1,1n -k2,2n -k3,3n || true)
+fi
 
-# --- Read each sub-task's frontmatter ---
-# JSON string escaping — one home for both the epic and its sub-tasks.
-json_escape() { printf %s "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
-
-# Priority rank for recommendation sorting
-prio_rank() {
-    case "$1" in
-        critical) echo 1 ;; high) echo 2 ;; medium) echo 3 ;; low) echo 4 ;; *) echo 5 ;;
-    esac
-}
-
-best_ip_rank=99 best_ip_id=""
-best_bl_rank=99 best_bl_id=""
-best_ap_rank=99 best_ap_id=""
-best_pr_rank=99 best_pr_id=""
-all_done=true
-has_subtasks=false
-
-subtasks_json=""
-first=true
-
-for sid in ${subtask_ids[@]+"${subtask_ids[@]}"}; do
-    sfile="$TASKS_DIR/$sid.md"
-    [ -f "$sfile" ] || continue
-    has_subtasks=true
-
-    stitle="" sstatus="" spriority=""
-    while IFS='=' read -r key val; do
-        case "$key" in
-            title) stitle="$val" ;;
-            status) sstatus="$val" ;;
-            priority) spriority="$val" ;;
-        esac
-    done <<EOF
-$("$SCRIPT_DIR/resolve-task.sh" "$TASKS_DIR" "$PREFIX" "$sid")
-EOF
-    stitle=$(json_escape "$stitle")
-
-    [ -z "$sstatus" ] && sstatus="proposed"
-
-    # Build JSON entry
+subtasks_json="" queue_json="" recommend_id="" recommend_reason="" first_blocked=""
+while IFS=$'\t' read -r rank _prio _num sid stitle sstatus spriority; do
+    [ -n "$sid" ] || continue
     entry=$(printf '{"id":"%s","title":"%s","status":"%s"' "$sid" "$stitle" "$sstatus")
     [ -n "$spriority" ] && entry=$(printf '%s,"priority":"%s"' "$entry" "$spriority")
-    entry="$entry}"
-
-    if [ "$first" = true ]; then
-        subtasks_json="$entry"
-        first=false
-    else
-        subtasks_json="$subtasks_json,$entry"
-    fi
-
-    # Recommendation tracking
-    rank=$(prio_rank "$spriority")
-    case "$sstatus" in
-        completed|rejected) ;;
-        in-progress)
-            all_done=false
-            if [ "$rank" -lt "$best_ip_rank" ] || { [ "$rank" -eq "$best_ip_rank" ] && [[ "$sid" < "$best_ip_id" || -z "$best_ip_id" ]]; }; then
-                best_ip_rank=$rank; best_ip_id=$sid
+    subtasks_json="${subtasks_json:+$subtasks_json,}$entry}"
+    case "$rank" in
+        1|2|3)
+            queue_json="${queue_json:+$queue_json,}\"$sid\""
+            if [ -z "$recommend_id" ]; then
+                recommend_id="$sid"; recommend_reason="$sstatus"
+                case "$sstatus" in in-progress|approved) ;; *) recommend_reason="proposed" ;; esac
             fi ;;
-        blocked)
-            all_done=false
-            if [ "$rank" -lt "$best_bl_rank" ] || { [ "$rank" -eq "$best_bl_rank" ] && [[ "$sid" < "$best_bl_id" || -z "$best_bl_id" ]]; }; then
-                best_bl_rank=$rank; best_bl_id=$sid
-            fi ;;
-        approved)
-            all_done=false
-            if [ "$rank" -lt "$best_ap_rank" ] || { [ "$rank" -eq "$best_ap_rank" ] && [[ "$sid" < "$best_ap_id" || -z "$best_ap_id" ]]; }; then
-                best_ap_rank=$rank; best_ap_id=$sid
-            fi ;;
-        *)  # proposed or other
-            all_done=false
-            if [ "$rank" -lt "$best_pr_rank" ] || { [ "$rank" -eq "$best_pr_rank" ] && [[ "$sid" < "$best_pr_id" || -z "$best_pr_id" ]]; }; then
-                best_pr_rank=$rank; best_pr_id=$sid
-            fi ;;
+        4)  [ -n "$first_blocked" ] || first_blocked="$sid" ;;
     esac
-done
+done <<EOF
+$rows
+EOF
 
-# --- Determine recommendation ---
-recommend_id="" recommend_reason=""
-if [ -n "$best_ip_id" ]; then
-    recommend_id="$best_ip_id"; recommend_reason="in-progress"
-elif [ -n "$best_bl_id" ]; then
-    recommend_id="$best_bl_id"; recommend_reason="blocked"
-elif [ -n "$best_ap_id" ]; then
-    recommend_id="$best_ap_id"; recommend_reason="approved"
-elif [ -n "$best_pr_id" ]; then
-    recommend_id="$best_pr_id"; recommend_reason="proposed"
-elif [ "$all_done" = true ] && [ "$has_subtasks" = true ]; then
+if [ -z "$recommend_id" ] && [ -n "$first_blocked" ]; then
+    recommend_id="$first_blocked"; recommend_reason="blocked"
+elif [ -z "$recommend_id" ] && [ -n "$subtasks_json" ]; then
     recommend_reason="all-done"
 fi
 
 # --- Output JSON ---
-esc_title=$(json_escape "$epic_title")
-
-printf '{"id":"%s","title":"%s","status":"%s"' "$FULL_ID" "$esc_title" "$epic_status"
+printf '{"id":"%s","title":"%s","status":"%s"' "$FULL_ID" "$(json_escape "$epic_title")" "$epic_status"
 [ -n "$epic_priority" ] && printf ',"priority":"%s"' "$epic_priority"
-[ -n "$epic_goal" ] && printf ',"goal":"%s"' "$epic_goal"
-printf ',"subtasks":[%s]' "$subtasks_json"
+[ -n "$epic_name" ] && printf ',"epic-name":"%s"' "$(json_escape "$epic_name")"
+[ -n "$epic_goal" ] && printf ',"goal":"%s"' "$(json_escape "$epic_goal")"
+printf ',"subtasks":[%s],"queue":[%s]' "$subtasks_json" "$queue_json"
 [ -n "$recommend_id" ] && printf ',"recommend":"%s"' "$recommend_id"
 [ -n "$recommend_reason" ] && printf ',"recommend_reason":"%s"' "$recommend_reason"
 printf '}\n'
