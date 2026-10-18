@@ -7,12 +7,12 @@ it differently.
 ## Steps
 
 1. context - Orient: epic, docs, prior tasks, code touched; record findings
-2. requirements - What, not how: acceptance criteria and the E2E success scenario. INVEST: more than one behaviour → split into vertical slices; note any coupling a shared dependency forces
+2. requirements - What, not how: acceptance criteria and the E2E success scenario. INVEST: more than one behaviour → split into vertical slices; note any coupling a shared dependency forces.
 3. assessment - Check codebase readiness
-4. architecture - Design decisions, written into docs/. SOLID: one responsibility per module, depend on abstractions. DRY: reuse the existing helper, never clone it
-5. tests - Tests first; watch each one fail before the code exists
-6. implementation - Write the code. DRY: refactor duplication now, or file it as a debt task — never leave it unflagged
-7. tech-debt - Create debt tickets for shortcuts and for any duplication left in place
+4. architecture - Design decisions, written into docs/. SOLID: one responsibility per module, depend on abstractions. DRY: reuse the existing helper, never clone it.
+5. tests - Write the tests. Tests first: watch each one fail before the code exists.
+6. implementation - Write the code. DRY: refactor duplication now, or file it as a debt task — never leave it unflagged.
+7. tech-debt - Create debt tickets for shortcuts. DRY: duplication left in place gets a ticket too.
 8. reflection - Update docs/ and CLAUDE.md with what was learned
 9. draft - Write the doc (docs tasks)
 10. review - Check it against the code and the related docs (docs tasks)

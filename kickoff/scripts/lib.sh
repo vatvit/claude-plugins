@@ -47,13 +47,37 @@ defaults_tsv() {
     return 0
 }
 
+# installed_plugins <root> — the plugins Claude Code has enabled for this project, space-separated
+# names without their marketplace: user-scoped ones, and local- or project-scoped ones installed for
+# <root>. Read from Claude Code's own record; nothing when it is absent. KICKOFF_PLUGINS, when set
+# (even empty), replaces the lookup — the tests pin it that way. Conditions `<plugin> installed`.
+installed_plugins() {
+    if [ -n "${KICKOFF_PLUGINS+set}" ]; then printf '%s\n' "$KICKOFF_PLUGINS"; return 0; fi
+    local f="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json"
+    [ -f "$f" ] || { echo; return 0; }
+    awk -v root="$1" '
+        function val(s) { sub(/^[^:]*:[ \t]*"/, "", s); sub(/".*/, "", s); return s }
+        /^    "[^"]+@[^"]+": \[/ { name = $0; sub(/^    "/, "", name); sub(/@.*/, "", name); next }
+        name != "" && /"scope":/       { scope = val($0) }
+        name != "" && /"projectPath":/ { path = val($0) }
+        name != "" && /^      \}/ {
+            if (scope != "" && scope != "local" && scope != "project") on[name] = 1
+            else if (path == root) on[name] = 1
+            scope = ""; path = ""
+        }
+        /^    \]/ { name = "" }
+        END { for (n in on) out = out (out == "" ? "" : " ") n; print out }' "$f"
+    return 0
+}
+
 # kickoff_awk <program.awk> <root> [awk args...] — run a program over the model. The answers file
 # and the user layer are passed as files; an absent one becomes /dev/null.
 kickoff_awk() {
-    local prog="$1" root="$2" ans defs; shift 2
+    local prog="$1" root="$2" ans defs plugins; shift 2
     ans="$(answers_file "$root")"; [ -f "$ans" ] || ans=/dev/null
     defs="$(mktemp)"; defaults_tsv > "$defs"
-    awk "$@" -f "$KICKOFF_LIB_AWK" -f "$KICKOFF_SCRIPTS/$prog" "$ans" "$defs" "$KICKOFF_QUESTIONNAIRE"
+    plugins="$(installed_plugins "$root")"
+    awk -v plugins="$plugins" "$@" -f "$KICKOFF_LIB_AWK" -f "$KICKOFF_SCRIPTS/$prog" "$ans" "$defs" "$KICKOFF_QUESTIONNAIRE"
     local rc=$?; rm -f "$defs"; return $rc
 }
 

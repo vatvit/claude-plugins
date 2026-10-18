@@ -11,10 +11,6 @@
 
 function cell(s) { gsub(/\|/, "\\|", s); return s }
 
-# values(id) — the answer; several values become a "; " list.
-function values(id,   v, k) {
-    v = ansv[id, 1]; for (k = 2; k <= ansn[id]; k++) v = v "; " ansv[id, k]; return v
-}
 
 # route(goes) — "overview", "decision", "S:<name>", or "" when the charter is not a target.
 # The marker is ASCII on purpose: § is two bytes in byte-oriented awks (busybox, mawk), and
@@ -43,11 +39,11 @@ END {
         if (s != "answered" || id == "A1" || id == "A2") continue
         if (not_applicable(ans[id])) continue
         r = route(qgoes[i]); if (r == "") continue
-        if (undecided(ans[id]) || r == "S:Open questions") { open[++no] = "**" qtext[i] "** " values(id); continue }
-        if (r == "overview") { ov[++nov] = "- **" qtext[i] "** " values(id); continue }
+        if (undecided(ans[id]) || r == "S:Open questions") { open[++no] = "**" qtext[i] "** " joined(id, "; "); continue }
+        if (r == "overview") { ov[++nov] = "- **" qtext[i] "** " joined(id, "; "); continue }
         if (r == "decision") {
             nd++   # its own statement: whether a subscript ++ runs before the right-hand side differs between awks
-            dec[nd] = "| D" nd " | **" cell(qtext[i]) "** " cell(values(id)) " | " (why[id] != "" ? cell(why[id]) : "—") " |"
+            dec[nd] = "| D" nd " | **" cell(qtext[i]) "** " cell(joined(id, "; ")) " | " (why[id] != "" ? cell(why[id]) : "—") " |"
             # a decision that holds only until a trigger (C5 "Later — from …") is revisited then
             if (later_trigger(ans[id]) != "") { no++; open[no] = "**" qtext[i] "** revisit at: " later_trigger(ans[id]) }
             continue

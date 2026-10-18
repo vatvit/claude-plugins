@@ -1,19 +1,29 @@
 # kickoff
 
-Start every project with the same questionnaire. The questions are always the same; the answers
-may or may not be.
+Start every project with the same questionnaire. Kickoff collects what is known about the project
+and makes its starting decisions with you. The questions are always the same; the answers may or
+may not be. It is generic: it names no language, stack, vendor or tool. Those come from your
+answers, and Claude proposes the options that depend on them.
 
 - **Branching.** The next question depends on the earlier answers: a library is not asked about
   login, and a demo is asked whether it has a gate.
 - **Pre-defined options.** You pick an answer instead of typing one, so the question can't be read
   two ways and the answer can't be misread.
 - **Defaults.** The likely answer is offered first, and a whole section can be accepted in one go.
-  Some defaults follow earlier answers: a client's project keeps its tasks outside the repo.
-  A question with a real trade-off (when backward compatibility starts to apply) is never accepted
-  in one go: it is asked on its own, the recommendation first, and you pick.
+  Some defaults follow earlier answers: a client's project keeps its tasks outside the repo. A
+  question is asked only after the ones it depends on. A question with a real trade-off (the
+  quality level, when backward compatibility starts to apply) is never accepted in one go: it is
+  asked on its own, the recommendation first, and you pick.
+- **Quality as a level, then the difference.** One question sets the level (None, Basic,
+  Standard, Full), which decides the generic checks for each aspect: tests, code checks,
+  non-functional, test strength, automation, plus domain checks Claude proposes. Each aspect then
+  asks only what to DROP or ADD. The tools for the stack are named last, in one table.
+- **Only the plugins you have.** Questions about crew, task and task-roadmap are asked only when
+  that plugin is installed.
 - **Answers in files, not in chat.** They are recorded in `.kickoff-answers`, and
-  `docs/project/charter.md` is generated from them. The charter holds an overview, the goal, scope,
-  non-goals, a numbered decisions table with the reason for each, and the open questions.
+  `docs/project/charter.md` and `docs/project/quality.md` are generated from them. The charter holds
+  an overview, the goal, scope, non-goals, a numbered decisions table with the reason for each, and
+  the open questions.
 
 ## Use
 
@@ -26,7 +36,7 @@ The scripts can also be run directly:
 bash kickoff/scripts/plan.sh  [project] [--next | --review]   # what to ask now, with defaults
 bash kickoff/scripts/answer.sh --root <project> [--add|--clear] <ID> "<value>"
 bash kickoff/scripts/charter.sh [project] [--force | --stdout]
-bash kickoff/scripts/scaffold.sh [project] [--diff | --force]   # docs/ skeleton, CLAUDE.md, task config
+bash kickoff/scripts/scaffold.sh [project] [--diff | --force]   # CLAUDE.md, quality doc, task config
 bash kickoff/scripts/inspect.sh [project]                     # existing project: proposed answers + evidence
 bash kickoff/scripts/ports.sh next | allocate <name> | set <name> <port> | release <name> | list [--all]
 bash kickoff/scripts/defaults.sh list | set <ID> <value> | unset <ID>   # your own defaults
@@ -34,19 +44,21 @@ bash kickoff/scripts/defaults.sh list | set <ID> <value> | unset <ID>   # your o
 
 ## Setup
 
-After the charter, `scaffold.sh` sets the project up from the answers. It writes the `docs/` skeleton
-(one `_index.md` per folder, its description stating the folder's one purpose), a small CLAUDE.md that
-holds only this project's instructions (git, entry point, crew, tasks, backward compatibility,
-approvals, exceptions to the global rules), and the task config and workflow, whose steps check INVEST
-when a task is shaped and SOLID and DRY at architecture and implementation. In your own project the
-tasks are in the repo. In a client's they are kept outside it, in the
+After the charter, `scaffold.sh` sets the project up from the answers. It writes a small CLAUDE.md
+that holds only this project's instructions (git, identity, how development runs, entry point, crew,
+tasks, backward compatibility, the quality level and what a red check stops, approved services, and
+how this project differs from how you usually work), `docs/project/quality.md`, and, when you chose
+markdown task files, the task config and workflow. The workflow carries the practices you keep:
+INVEST when a task is shaped, tests first, SOLID and DRY at architecture and implementation. The
+layout of the rest of `docs/` is docs-manager's. In your own project the tasks are in the repo. In
+a client's they are kept outside it, in the
 task skill's registry, so the client's repo carries neither your tasks nor your home path.
 Seeded files are never overwritten; a hand-edited CLAUDE.md is refused rather than replaced.
 
 ## An existing project
 
 kickoff also works on a project that already has code or a partial setup. `inspect.sh` reads what is
-there (the git remote and branches, the task config, the compose services and ports, the docs folders, the
+there (the git remote and branches, the task config, the compose services and ports, the
 entry-point script) and proposes answers with their evidence; nothing is recorded until you confirm.
 A project kicked off before is asked nothing and changed in nothing. A file edited since is shown as a
 diff (`--diff`) and replaced only when you agree (`--force`).

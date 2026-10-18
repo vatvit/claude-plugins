@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
-# scaffold.sh [project-root] — write the project setup from the answers (questionnaire R and K).
+# scaffold.sh [project-root] — write the project setup from the answers.
 #
-#   docs/ skeleton     K1: an _index.md per folder, with the frontmatter docs-manager expects.
-#                      docs-manager, when installed, fills in their AUTO-INDEX blocks.
-#   CLAUDE.md          instructions only: git, the entry point, crew, tasks, approvals, exceptions
-#   task config        R6–R8: .task-config.json in the repo, or, for tasks outside the repo, an
-#                      entry in the task skill's per-account registry, plus the task workflow
+#   quality doc        §F: docs/project/quality.md (quality.awk), when §F was answered
+#   CLAUDE.md          instructions only: git, identity, dev environment, entry point, crew, tasks,
+#                      quality, approvals, rules that differ here
+#   task config        R7–R10, when the task plugin is installed: .task-config.json in the repo, or,
+#                      for tasks outside the repo, an entry in the task skill's per-account registry,
+#                      plus the task workflow with the practices R10 kept
+#
+# The rest of docs/ is not kickoff's: docs-manager sets it up, when installed.
 #
 # One line per file: created | exists | unchanged | updated | refused <path>. Files that only seed a
-# folder are written once and then left alone. CLAUDE.md is regenerated, but a version edited
-# since is refused (exit 3) unless --force. Refuses to run while questions are still open.
+# folder are written once and then left alone. CLAUDE.md and the quality doc are regenerated, but a
+# version edited since is refused (exit 3) unless --force. Refuses to run while questions are still open.
 #
-#   --diff    write nothing: report what would happen, and show how CLAUDE.md would change (diff -u)
-#   --force   replace a CLAUDE.md that was edited since (after the user has seen --diff)
+#   --diff    write nothing: report what would happen, and show how a generated file would change (diff -u)
+#   --force   replace a generated file that was edited since (after the user has seen --diff)
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
@@ -25,12 +28,10 @@ root="$(project_root "$root")"
 open="$(bash "$KICKOFF_SCRIPTS/plan.sh" "$root" --next)"
 [ -z "$open" ] || { echo "scaffold.sh: questions are still open — see plan.sh --next" >&2; exit 1; }
 
-{ read -r A1; read -r A3; read -r C3; read -r K1; read -r R6; read -r R7; read -r R8; } \
-    < <(kickoff_awk get.awk "$root" -v ids="A1 A3 C3 K1 R6 R7 R8")
+{ read -r A1; read -r R7; read -r R8; read -r R9; } < <(kickoff_awk get.awk "$root" -v ids="A1 R7 R8 R9")
 name="${A1:-$(basename "$root")}"
 slug="$(printf '%s' "$name" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9._-' '-')"
 rc=0
-
 report() { printf '%-9s %s\n' "$1" "${2#"$root"/}"; }
 
 # once <dest> <tmp> — seed a file that is the user's from then on.
@@ -49,30 +50,12 @@ guarded() {
     fi
     r="$(write_if_changed "$1" "$2" "$force")" || rc=3; report "$r" "$1"
 }
-index_md() { # index_md <folder> <title> <description>
-    local t; t="$(mktemp)"
-    printf -- '---\ntitle: %s\ndescription: %s\n---\n\n# %s\n' "$2" "$3" "$2" > "$t"
-    once "$root/docs${1:+/$1}/_index.md" "$t"
-}
 
-# --- docs/ skeleton (K1) ----------------------------------------------------------------------
-if [ -n "$K1" ]; then
-    index_md "" "$name docs" "Everything known about $name, starting from the charter"
-    index_md project "Project" "What $name is and why: the charter, its decisions and open questions"
-    case "$K1" in
-        Minimal*) ;;
-        *)  index_md architecture "Architecture" "How $name is built: its shape, its modules, and the decisions behind them"
-            index_md dev "Development" "How to run, build and test $name, all in Docker"
-            case "$C3" in Client*) index_md external "External" "Source material from outside the project, kept as received and catalogued" ;; esac
-            case "$A3" in Game*) index_md design "Design" "How the game plays and looks" ;; esac ;;
-    esac
-fi
-
-# --- task config and workflow (R6–R8) ---------------------------------------------------------
+# --- task config and workflow (R7–R10), only with the task plugin: R7 is asked only then ---------
 tasks_where=""
-if [ -n "$R6" ]; then
-    [ -n "$R7" ] || { echo "scaffold.sh: R6 is answered but the task prefix R7 is not" >&2; exit 1; }
-    case "$R6" in
+if [ -n "$R7" ]; then
+    [ -n "$R8" ] || { echo "scaffold.sh: R7 is answered but the task prefix R8 is not" >&2; exit 1; }
+    case "$R7" in
         Outside*)
             # Per account, like the task skill itself: $CLAUDE_CONFIG_DIR first, then ~/.claude.
             G="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/project-tasks"; tdir="$G/$slug"; reg="$G/config.json"
@@ -84,22 +67,26 @@ if [ -n "$R6" ]; then
             else
                 t="$(mktemp)"
                 in=/dev/null; [ -f "$reg" ] && in="$reg"
-                KO_ROOT="$root" KO_DIR="$tdir" KO_PREFIX="$R7" \
+                KO_ROOT="$root" KO_DIR="$tdir" KO_PREFIX="$R8" \
                     awk -f "$KICKOFF_SCRIPTS/json.awk" -f "$KICKOFF_SCRIPTS/registry-insert.awk" "$in" > "$t" || {
                     rm -f "$t"; report refused "$reg"; rc=3; t=""; }
                 if [ -n "$t" ]; then [ -f "$reg" ] && r=updated || r=created; mv "$t" "$reg"; report "$r" "$reg"; fi
             fi ;;
         *)
             tdir="$root/tasks"; tasks_where='in `tasks/`'
-            t="$(mktemp)"; printf '{\n  "tasksDir": "tasks",\n  "prefix": "%s",\n  "nextId": 1\n}\n' "$R7" > "$t"
+            t="$(mktemp)"; printf '{\n  "tasksDir": "tasks",\n  "prefix": "%s",\n  "nextId": 1\n}\n' "$R8" > "$t"
             once "$root/.task-config.json" "$t" ;;
     esac
-    case "$R8" in
+    case "$R9" in
         One*|Minimal*) wf=workflow-minimal.md ;;
         *) wf=workflow-profiles.md ;;
     esac
-    t="$(mktemp)"; cp "$KICKOFF_SCRIPTS/../templates/$wf" "$t"; once "$tdir/_workflow/WORKFLOW.md" "$t"
+    t="$(mktemp)"; kickoff_awk workflow.awk "$root" -v template="$KICKOFF_SCRIPTS/../templates/$wf" > "$t"; once "$tdir/_workflow/WORKFLOW.md" "$t"
 fi
+
+# --- quality doc (§F) -------------------------------------------------------------------------
+t="$(mktemp)"; kickoff_awk quality.awk "$root" > "$t"
+if [ -s "$t" ]; then guarded "$root/docs/project/quality.md" "$t"; else rm -f "$t"; fi
 
 # --- CLAUDE.md ----------------------------------------------------------------------------------
 t="$(mktemp)"; kickoff_awk claude.awk "$root" -v tasks="$tasks_where" > "$t"; guarded "$root/CLAUDE.md" "$t"

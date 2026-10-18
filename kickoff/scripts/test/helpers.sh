@@ -4,6 +4,9 @@ S="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 pass=0 fail=0
+# Which plugins count as installed is pinned, never read from the machine running the tests.
+# The sibling plugins kickoff can set up are on; a test that needs them off sets KICKOFF_PLUGINS="".
+export KICKOFF_PLUGINS="crew task task-roadmap docs-manager"
 
 check() { # check <name> <expected> <actual>
     if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "  ok   $1"
@@ -19,11 +22,14 @@ summary() { echo; echo "passed: $pass  failed: $fail"; [ "$fail" -eq 0 ]; }
 # settled by accepting defaults, so it takes an override or autofill fails. Bounded, so a plan that
 # never settles fails the test instead of hanging it.
 autofill() {
-    local p="$1" rounds=0 rows id st val o given left n; shift
+    local p="$1" rounds=0 rows row id st val o given left n; shift
     while rows="$(bash "$S/plan.sh" "$p" --next)"; [ -n "$rows" ]; do
         rounds=$((rounds + 1)); [ "$rounds" -le 30 ] || { echo "autofill: plan never settles" >&2; return 1; }
         left="" n=0
-        while IFS=$'\t' read -r _ id st val _; do
+        # Not `IFS=$'\t' read`: tab is IFS whitespace, so an empty value column would collapse and
+        # the question text would be read as the value.
+        while IFS= read -r row; do
+            id="$(echo "$row" | cut -f2)"; st="$(echo "$row" | cut -f3)"; val="$(echo "$row" | cut -f4)"
             given=0
             for o in "$@"; do case "$o" in "$id="*) val="${o#*=}"; given=1 ;; esac; done
             if [ "$st" = explicit ] && [ "$given" = 0 ]; then left="$left $id"; continue; fi

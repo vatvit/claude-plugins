@@ -23,7 +23,7 @@ END {
         print "|----|----------|--------|"
         for (i = 1; i <= nq; i++) {
             s = state_of(i); if (s != "answered" && s != "stale") continue
-            v = ansv[qid[i], 1]; for (k = 2; k <= ansn[qid[i]]; k++) v = v "; " ansv[qid[i], k]
+            v = joined(qid[i], "; ")
             gsub(/\|/, "\\|", v)
             printf "| %s | %s | %s%s |\n", qid[i], qtext[i], v, (s == "stale" ? " *(no longer applies)*" : "")
         }

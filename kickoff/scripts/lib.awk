@@ -8,6 +8,7 @@
 #   1. the answers file   (`ID: value` lines; may be /dev/null)
 #   2. the defaults file   (`ID<TAB>value` lines from the user layer; may be /dev/null)
 #   3. the questionnaire
+# and -v plugins="<installed plugin names>" (lib.sh installed_plugins), for `<plugin> installed`.
 # Programs call load() on every record and get the arrays below filled by END.
 #
 #   nq            number of questions; qid[i], qsec[i], qsectitle[i], qtext[i], qopts[i], qwhen[i], qgoes[i]
@@ -50,26 +51,60 @@ function load(   id, v, n, c, i) {
     }
 }
 
+# atom(p) — one condition without and/or: "1", "0", "judge" or "pending" (see cond).
+# `plugins` (awk -v, from kickoff_awk) is the space-separated list of installed plugins.
+function atom(p,   id, val, st, k) {
+    p = trim(p)
+    if (p == "always" || p == "explicitly") return "1"
+    if (match(p, /^[a-z][a-z0-9-]* installed$/)) { id = substr(p, 1, index(p, " ") - 1); return index(" " plugins " ", " " id " ") ? "1" : "0" }
+    if (p !~ /^[A-Z][0-9]+ /) return "judge"
+    id = substr(p, 1, index(p, " ") - 1)
+    if (ans[id] == "" && (id in qidx)) { st = state_of(qidx[id]); if (to_ask(st) || st == "pending") return "pending" }
+    if (p ~ /^[A-Z][0-9]+ answered$/) return (ans[id] != "") ? "1" : "0"
+    if (match(p, /^[A-Z][0-9]+ = /)) { val = substr(p, RLENGTH + 1); return starts_ci(ans[id], val) ? "1" : "0" }
+    if (match(p, /^[A-Z][0-9]+ ≠ /)) { val = substr(p, RLENGTH + 1); return starts_ci(ans[id], val) ? "0" : "1" }
+    if (match(p, /^[A-Z][0-9]+ has /)) {
+        val = substr(p, RLENGTH + 1)
+        for (k = 1; k <= ansn[id]; k++) if (starts_ci(ansv[id, k], val)) return "1"
+        return "0"
+    }
+    return "judge"
+}
+
 # cond(c) — "1", "0", "judge" (wording outside the grammar: Claude decides), or "pending"
 # (it depends on a question that is still to be asked, so it is decided after that one).
-function cond(c,   parts, n, i, p, r, id, val, judge, pend, st) {
-    n = split(c, parts, / or /); judge = 0; pend = 0
-    for (i = 1; i <= n; i++) {
-        p = trim(parts[i]); r = ""
-        if (p ~ /^[A-Z][0-9]+ /) {
-            id = substr(p, 1, index(p, " ") - 1)
-            if (ans[id] == "" && (id in qidx)) {
-                st = state_of(qidx[id]); if (to_ask(st) || st == "pending") { pend = 1; continue }
-            }
+# ` or ` joins groups, ` and ` joins atoms inside a group; a false atom makes its group false
+# even when another atom of it is still pending.
+function cond(c,   groups, ng, g, atoms, na, k, r, gr, judge, pend) {
+    ng = split(c, groups, / or /); judge = 0; pend = 0
+    for (g = 1; g <= ng; g++) {
+        na = split(groups[g], atoms, / and /); gr = "1"
+        for (k = 1; k <= na; k++) {
+            r = atom(atoms[k])
+            if (r == "0") { gr = "0"; break }
+            if (r == "pending") gr = "pending"
+            else if (r == "judge" && gr == "1") gr = "judge"
         }
-        if (p == "always" || p == "explicitly") r = 1
-        else if (p ~ /^[A-Z][0-9]+ answered$/) { id = substr(p, 1, index(p, " ") - 1); r = (ans[id] != "") }
-        else if (match(p, /^[A-Z][0-9]+ = /)) { id = substr(p, 1, index(p, " ") - 1); val = substr(p, RLENGTH + 1); r = starts_ci(ans[id], val) }
-        else if (match(p, /^[A-Z][0-9]+ ≠ /)) { id = substr(p, 1, index(p, " ") - 1); val = substr(p, RLENGTH + 1); r = !starts_ci(ans[id], val) }
-        else judge = 1
-        if (r == 1) return "1"
+        if (gr == "1") return "1"
+        if (gr == "pending") pend = 1
+        if (gr == "judge") judge = 1
     }
     return pend ? "pending" : (judge ? "judge" : "0")
+}
+
+# default_waits(i) — a (★ if …) default of question i depends on a question still to be asked, so
+# the default cannot be offered yet. The user layer's default does not wait: it is fixed.
+function default_waits(i,   o, n, k, t, c) {
+    if (qid[i] in udef) return 0
+    n = split(qopts[i], o, / · /)
+    for (k = 1; k <= n; k++) {
+        t = trim(o[k])
+        if (match(t, /\(★ if [^)]*\)$/)) {
+            c = substr(t, RSTART, RLENGTH); sub(/^\(★ if /, "", c); sub(/\)$/, "", c)
+            if (cond(c) == "pending") return 1
+        }
+    }
+    return 0
 }
 
 # option_text(o) — an option without its ★ markers.
@@ -86,13 +121,16 @@ function clean_options(opts,   o, n, i, out) {
     return out
 }
 
-# computed_of(i, v) — the computed option (*italics*) of question i that v is, with or without its
-# asterisks; "" when v is not one. Such an option says how to work a value out, never the value.
+# computed_of(i, v) — the computed or proposed option (*italics*, possibly followed by an example)
+# of question i that v is, with or without its asterisks; "" when v is not one. Such an option says
+# how to work a value out, never the value.
 function computed_of(i, v,   o, n, k, t) {
     n = split(qopts[i], o, / · /)
     for (k = 1; k <= n; k++) {
         t = option_text(o[k])
-        if (t ~ /^\*.+\*$/ && (tolower(v) == tolower(t) || tolower("*" v "*") == tolower(t))) return t
+        if (!match(t, /^\*[^*]+\*/)) continue
+        t = substr(t, 1, RLENGTH)
+        if (tolower(v) == tolower(t) || tolower("*" v "*") == tolower(t)) return t
     }
     return ""
 }
@@ -122,6 +160,7 @@ function to_ask(s) { return s == "ask" || s == "explicit" || s == "judge" }
 function state_of(i,   c) {
     c = cond(qwhen[i])
     if (ans[qid[i]] != "") return c == "0" ? "stale" : "answered"
+    if (c == "1" && default_waits(i)) return "pending"     # A6 waits for A4: its default needs it
     if (c == "1") return qwhen[i] == "explicitly" ? "explicit" : "ask"
     if (c == "pending") return "pending"
     return c == "judge" ? "judge" : "skip"
@@ -145,3 +184,8 @@ function settled(id,   i) {
 # later_trigger(v) — the trigger of a "Later — from <trigger>" answer (C5), "" for any other answer.
 # Matched by pattern: the dash is several bytes in byte-oriented awks, so no offsets are counted past it.
 function later_trigger(v) { if (!match(tolower(v), /^later[^a-z]*from /)) return ""; return substr(v, RLENGTH + 1) }
+
+# joined(id, sep) — every value of id's answer, joined by sep (a multi-select answer has several).
+function joined(id, sep,   v, k) {
+    v = ansv[id, 1]; for (k = 2; k <= ansn[id]; k++) v = v sep ansv[id, k]; return v
+}

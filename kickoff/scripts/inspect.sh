@@ -33,28 +33,30 @@ if [ -f "$G/config" ]; then
     fi
 fi
 
-# --- tasks (R6, R7) ---------------------------------------------------------------------------
+# --- tasks (R6 tracking, R7 where, R8 prefix) -------------------------------------------------
 if [ -f "$root/.task-config.json" ]; then
     td="$(grep -o '"tasksDir"[ \t]*:[ \t]*"[^"]*"' "$root/.task-config.json" | sed 's/.*"\([^"]*\)"$/\1/' || true)"
     px="$(grep -o '"prefix"[ \t]*:[ \t]*"[^"]*"' "$root/.task-config.json" | sed 's/.*"\([^"]*\)"$/\1/' || true)"
-    case "$td" in /*|~*) hint R6 "Outside the repo" ".task-config.json: tasksDir $td" ;; ?*) hint R6 "In the repo" ".task-config.json: tasksDir $td" ;; esac
-    [ -z "$px" ] || hint R7 "$px" ".task-config.json: prefix"
+    hint R6 "Markdown task files" ".task-config.json exists"
+    case "$td" in /*|~*) hint R7 "Outside the repo" ".task-config.json: tasksDir $td" ;; ?*) hint R7 "In the repo" ".task-config.json: tasksDir $td" ;; esac
+    [ -z "$px" ] || hint R8 "$px" ".task-config.json: prefix"
 else
     for reg in "${CLAUDE_CONFIG_DIR:-}/project-tasks/config.json" "$HOME/.claude/project-tasks/config.json"; do
         [ -f "$reg" ] && grep -qF "\"$root\":" "$reg" || continue
         px="$(awk -v r="\"$root\":" 'index($0, r) { o = 1 } o && /"prefix"/ { sub(/.*"prefix"[ \t]*:[ \t]*"/, ""); sub(/".*/, ""); print; exit }' "$reg")"
-        hint R6 "Outside the repo" "the task registry lists this project"
-        [ -z "$px" ] || hint R7 "$px" "the task registry: prefix"
+        hint R6 "Markdown task files" "the task registry lists this project"
+        hint R7 "Outside the repo" "the task registry lists this project"
+        [ -z "$px" ] || hint R8 "$px" "the task registry: prefix"
         break
     done
 fi
-[ -f "$root/.task-roadmap.json" ] || [ -f "$root/tasks/roadmap.html" ] && hint R9 "Yes" "a task roadmap exists"
+[ -f "$root/.task-roadmap.json" ] || [ -f "$root/tasks/roadmap.html" ] && hint R11 "Yes" "a task roadmap exists"
 [ -f "$root/.crew.json" ] && hint R5 "Yes" ".crew.json exists"
 
-# --- commands and infra (R4, I2, I5) ----------------------------------------------------------
-if [ -f "$root/scripts/dev.sh" ]; then hint R4 '`scripts/dev.sh`' "scripts/dev.sh exists"
+# --- commands and infra (R4, I0, I2, I6) -----------------------------------------------------
+if [ -f "$root/scripts/dev.sh" ]; then hint R4 "One script" "scripts/dev.sh exists"
 elif [ -f "$root/dev.sh" ]; then hint R4 '`./dev.sh`' "dev.sh exists at the root"
-elif [ -f "$root/Makefile" ]; then hint R4 '`make`' "a Makefile exists"; fi
+elif [ -f "$root/Makefile" ]; then hint R4 "A task runner" "a Makefile exists"; fi
 compose="$(ls "$root"/compose*.y*ml "$root"/docker-compose*.y*ml "$root"/docker/compose*.y*ml 2>/dev/null | head -1 || true)"
 if [ -n "$compose" ]; then
     # Services that start by default; ones behind `profiles:` (test runners, tools) are not the app.
@@ -64,17 +66,10 @@ if [ -n "$compose" ]; then
         s && cur != "" && /^    profiles:/ { prof[cur] = 1 }
         END { for (k in svc) { t++; if (k in prof) p++ } print t - p, p + 0 }' "$compose")
     ev="${compose#"$root"/}: $n service(s) by default"; [ "$np" = 0 ] || ev="$ev, $np behind profiles"
-    if [ "$n" = 1 ]; then hint I2 "One container" "$ev"; elif [ "$n" -gt 1 ]; then hint I2 "A few services" "$ev"; fi
-    [ -f "$root/scripts/dev.sh" ] || [ -f "$root/dev.sh" ] || [ -f "$root/Makefile" ] || hint R4 '`docker compose`' "$ev, no wrapper script"
+    if [ "$n" = 1 ]; then hint I2 "One deployable" "$ev"; elif [ "$n" -gt 1 ]; then hint I2 "A few services" "$ev"; fi
+    hint I0 "In containers" "$ev"
     port="$(KICKOFF_PROJECTS_DIR="$(dirname "$compose")" bash "$KICKOFF_SCRIPTS/ports.sh" list --all | awk -F'\t' -v f="$compose" '$1 == f { print $2; exit }')"
-    [ -z "$port" ] || hint I5 "$port" "the first port $(basename "$compose") publishes"
-fi
-
-# --- docs (K1, C3) ----------------------------------------------------------------------------
-if [ -d "$root/docs" ]; then
-    if [ -d "$root/docs/architecture" ] || [ -d "$root/docs/dev" ]; then hint K1 '`project/`' "docs/ has more than project/"
-    else hint K1 "Minimal" "docs/ has project/ only"; fi
-    [ -d "$root/docs/external" ] && hint C3 "Client documents" "docs/external/ exists"
+    [ -z "$port" ] || hint I6 "$port" "the first port $(basename "$compose") publishes"
 fi
 
 kickoff_awk infer.awk "$root" -v raw="$raw"

@@ -90,13 +90,17 @@ Nothing is rendered by default, because GitHub, IDEs and Obsidian already draw f
 **For:** starting every project from the same questions, so nothing important is left unasked.
 
 Ask Claude to *kick off this project*. It walks a branching questionnaire one section at a time.
-Every question has pre-defined options and a default, so a whole section can be accepted at once,
-and later questions depend on earlier answers. The answers are saved in `.kickoff-answers`. From
-them kickoff generates `docs/project/charter.md` (overview, goal, scope, non-goals, numbered
-decisions with their reasons, open questions) and can scaffold the project: a `docs/` skeleton, a
-small instructions-only `CLAUDE.md` and the task config, with a workflow whose steps check INVEST,
-SOLID and DRY. A question with a real trade-off, such as when backward compatibility starts to apply,
-is always asked on its own, never accepted as a default. It also works on an existing project,
+The questionnaire is generic: it names no language, stack or vendor, and Claude proposes the options
+that depend on your answers. Every question has pre-defined options and a default, so a whole
+section can be accepted at once, and later questions depend on earlier answers. A quality level
+(None, Basic, Standard, Full) sets the generic checks, and each aspect then asks only what to drop
+or add. Questions about crew, task and task-roadmap are asked only when they are installed. The
+answers are saved in `.kickoff-answers`. From them kickoff generates `docs/project/charter.md`
+(overview, goal, scope, non-goals, numbered decisions with their reasons, open questions) and
+`docs/project/quality.md`, and sets the project up: a small instructions-only `CLAUDE.md` and the
+task config, with a workflow carrying the practices you keep (INVEST, tests first, SOLID, DRY).
+A question with a real trade-off, such as the quality level or when backward compatibility starts
+to apply, is always asked on its own, never accepted as a default. It also works on an existing project,
 proposing answers from what it finds there, and keeps a machine-wide registry of dev ports.
 [More →](kickoff/README.md)
 
@@ -153,7 +157,7 @@ works now, and crew runs several sessions in parallel, each on its own task.
 ![Spec-driven development with Claude Code: docs-manager keeps the docs, the task is the spec, crew builds tasks in parallel sessions, and reflection updates the docs](docs/images/spec-driven-development.svg)
 
 ```
-kickoff ──scaffolds──▶ docs/ (docs-manager)  +  task config (task)
+kickoff ──writes──▶ docs/project/ (laid out by docs-manager)  +  task config (task)
 task ──task files──▶ task-roadmap (the chart)
 task ──optional──▶ session-storage (this session's active tasks)
 crew + delay: parallel sessions share one tree; slow suites go to the night
