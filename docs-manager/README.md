@@ -31,6 +31,11 @@ small set of conventions that keep docs DRY and always reflecting the current st
   card, cards gone stale since the file changed, and cards whose file is gone — and under a changed
   file, every doc that depends on it. A `.docx` or `.xlsx` is read with `unzip` + awk (headings,
   sheets, header rows, plain text); anything unreadable falls back to a card written from what you say.
+- **Onboarding a legacy project** — `survey` finds the docs a project already has (README, `doc/`,
+  ADRs, notes beside the code, OpenAPI files, vendor PDFs) and prints a plan; nothing is touched until
+  you approve it. `onboard` then builds `docs/`: moves with `git mv` so history follows, rewrites the
+  links both ways, adds frontmatter, lists what stays in place, and names the docs still to write from
+  the code. Run it again and it proposes nothing.
 - **Conventions** — docs reflect current state (history lives in tasks), single source of truth,
   cross-link instead of duplicate, frontmatter on every doc, and SOLID read for docs (one purpose per
   doc and folder, grow by adding, one shape per kind, entry points per reader).
@@ -73,6 +78,10 @@ bash scripts/docs.sh external text docs/external/law/contract.docx
 
 # All checks
 bash scripts/docs.sh check
+
+# Legacy project: print a plan of its existing docs (writes nothing), then apply the approved plan
+bash scripts/docs.sh survey /path/to/project > /tmp/plan.tsv
+bash scripts/docs.sh onboard /tmp/plan.tsv /path/to/project
 ```
 
 Pass a different root as the last argument, e.g. `bash scripts/docs.sh check documentation`.
@@ -287,6 +296,19 @@ docs/external/
 
 Card format and the cataloguing procedure: [`how-to-external-docs.md`](skills/docs-manager/references/how-to-external-docs.md).
 
+## Onboarding a legacy project
+
+Invoke it as `/docs-manager:docs-manager init`, or ask Claude to *onboard this legacy project*.
+`survey` prints one row per source: `move` into `docs/`, `link` (it stays, e.g. the README),
+`ignore`, `adopt` (already under `docs/`, no frontmatter), `write` (a doc to write from the code) and
+`cite` (Makefile, compose, CI: evidence for those). Claude reviews the defaults, shows you the plan,
+and runs `onboard` only on the plan you approved. A bad row rejects the whole plan before anything
+moves.
+
+What stays in place is listed in a sources block in `docs/_index.md`, so the link check guards it and
+a second survey proposes nothing. Respects `.gitignore`; skips dot-folders and dependency, build and
+fixture folders. Procedure and checklist: [`how-to-onboard.md`](skills/docs-manager/references/how-to-onboard.md).
+
 ## The agent instruction file (CLAUDE.md / AGENTS.md)
 
 That file is read **in full, before every task**, which is both its value and the reason it decays:
@@ -319,7 +341,7 @@ that decision repeated is how the large problem is built.
 ```bash
 bash scripts/test/diagram.test.sh                                    # host
 docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/diagram.test.sh   # container
-# same two targets for scripts/test/external.test.sh
+# same two targets for scripts/test/external.test.sh and scripts/test/onboard.test.sh
 ```
 
 Run both: the host target (macOS `bash` 3.2 + BSD userland) and the container target (bash 5 + GNU

@@ -10,6 +10,8 @@
 #   external related <file> [root]    Docs that depend on a file: its card's relates-to + back-links
 #   external outline|text <file>      docx/xlsx headings or sheets / plain text; see extract.sh
 #   check  [root]                     Run every --check above + links; non-zero exit on any issue
+#   survey [project]                  Legacy project: list its doc sources as a plan; writes nothing
+#   onboard <plan> [project]          Apply an approved plan: build docs/ from those sources; see survey.sh
 #
 # Default root is "docs". Conventions assumed:
 #   - Every doc and _index.md starts with YAML frontmatter containing `title:` and `description:`.
@@ -30,6 +32,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/extract.sh"
 # shellcheck source=diagram.sh
 . "$SCRIPT_DIR/diagram.sh"
+# shellcheck source=survey.sh
+. "$SCRIPT_DIR/survey.sh"
 
 list_subdirs() { docs_find "$1" 1 -type d | sort; }
 # Diagram sources and cards are not documents: a source is the input to a generated block,
@@ -211,5 +215,7 @@ case "$sub" in
   diagram)  cmd_diagram "$@" ;;
   external) cmd_external "$@" ;;
   check)    cmd_check "$@" ;;
-  *) echo "Usage: docs.sh {index [--write|--check]|links|diagram index [--write|--check]|external {status|check|stamp|move|related|outline|text}|check} [root]" >&2; exit 2 ;;
+  survey)   cmd_survey "$@" ;;
+  onboard)  cmd_onboard "$@" ;;
+  *) echo "Usage: docs.sh {index [--write|--check]|links|diagram index [--write|--check]|external {status|check|stamp|move|related|outline|text}|check} [root] | survey [project] | onboard <plan> [project]" >&2; exit 2 ;;
 esac

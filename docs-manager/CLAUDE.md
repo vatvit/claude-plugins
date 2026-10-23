@@ -18,6 +18,7 @@ docs-manager/
 │   ├── diagram.sh               ← diagram sources → generated blocks, staleness
 │   ├── external.sh              ← external files (pdf, docx, …) and their cards
 │   ├── extract.sh               ← docx/xlsx → outline / plain text (unzip + awk)
+│   ├── survey.sh                ← legacy project: survey its doc sources, onboard a plan
 │   └── test/
 │       ├── *.test.sh            ← the suites (no framework, no dependencies)
 │       └── fixtures/            ← built OOXML fixtures; XML sources in src/, rebuilt by build.sh
@@ -30,7 +31,8 @@ docs-manager/
 │       ├── how-to-erd.md
 │       ├── how-to-claude-md.md
 │       ├── how-to-render.md
-│       └── how-to-external-docs.md
+│       ├── how-to-external-docs.md
+│       └── how-to-onboard.md
 ├── README.md
 └── CLAUDE.md                    ← this file
 ```
@@ -77,8 +79,8 @@ associative arrays.
 
 ## scripts/docs.sh
 
-Subcommands: `index [--write|--check]`, `links`, `diagram …`, `external …`, `check`.
-Default root `docs`.
+Subcommands: `index [--write|--check]`, `links`, `diagram …`, `external …`, `check`,
+`survey [project]`, `onboard <plan> [project]`. Default root `docs`.
 
 Key behaviors (don't regress these):
 - **Deepest-first** directory processing so a parent `_index.md` reads freshly-written child
@@ -219,6 +221,30 @@ with `RS = "<"` (one tag per record). Sourced by `docs.sh`.
   `ENVIRON`, not `-v`, which would interpret backslashes.
 - Nothing here writes. Callers keeping output put it in a temp dir, never the repo.
 
+## scripts/survey.sh
+
+`survey [project]` prints a plan (`action kind source destination bytes`, tab-separated);
+`onboard <plan> [project]` applies one. Both `cd` into the project, so every path is
+project-relative. Sourced by `docs.sh`.
+
+Key behaviors (don't regress these):
+- **`survey` writes nothing.** Not a plan file, not a temp file in the project (S2 compares the tree).
+- **`onboard` checks the whole plan before touching anything** (`plan_check`); one bad row and the
+  tree stays as it was (P4). An unknown action is an error, never a guess.
+- **Handled = under `docs/` with frontmatter, or linked from a doc under `docs/`.** There is no other
+  record. `link` and `ignore` rows become links in the sources block of `docs/_index.md` (its own
+  markers, beside AUTO-INDEX), which is what makes a second survey propose nothing (A2). The block
+  only grows; a stale row is a `BROKEN LINK`, reported by `links`.
+- **`write`/`cite` rows only before the first onboard** (no sources block yet), or a user who dropped
+  one would see it again forever.
+- **`project_files` is the one project walk**: `git ls-files` (so `.gitignore` holds) or `find`, then
+  the same exclusions, sorted with `LC_ALL=C` so a plan lists identically on every machine. It is not
+  `docs_find`, which walks the docs tree.
+- **Link rewriting reads destinations from `md_link_dests`**, the one parser, and replaces only those,
+  only inside `](…)`. A link that was already dead is left as written, so the report names it (O12).
+- `git mv` for a tracked file, so history follows (G2); a plain `mv` removes the folders it emptied,
+  as `git mv` does.
+
 ## skills/docs-manager/references/
 
 Long-form guidance that is only worth context when a specific job comes up. `SKILL.md` points at a
@@ -247,6 +273,10 @@ source of truth, and it is the copy that gets acted on, so it is the copy that d
   `## Where to look` rows point at the right pages. `check` proves a card exists and is current, not
   that it is true.
 
+- `how-to-onboard.md` — the plan format and the procedure for onboarding a legacy project. It exists
+  because the script only moves and links: **what to move, what a source really is, and writing the
+  missing docs from the code without inventing a fact** are judgement no command can check.
+
 Adding a reference means: the file, a pointer from `SKILL.md`, trigger phrases in the skill
 `description:` (or it is unreachable), and a row here.
 
@@ -257,7 +287,12 @@ bash scripts/test/diagram.test.sh                                             # 
 docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/diagram.test.sh   # container
 bash scripts/test/external.test.sh                                            # host (also index/check: dot-folders)
 docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/external.test.sh  # container
+bash scripts/test/onboard.test.sh                                             # host (git cases too)
+docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/onboard.test.sh   # container
 ```
+
+`bash:5` has no git, so `onboard.test.sh` reports its git cases (history kept, `.gitignore`
+respected) as **skipped** there; the host run covers them.
 
 **Run both, always.** The host target (macOS bash 3.2 + BSD userland) catches `declare -A`,
 `globstar` and GNU-only flags; the container target (bash 5 + GNU coreutils) catches BSD-only

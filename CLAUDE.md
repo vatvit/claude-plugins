@@ -174,7 +174,7 @@ forget because neither is exercised by any test.
 **Check trigger phrases against the other plugins' skill descriptions.** Two plugins
 competing for the same words is a coin flip at activation time. Today the vocabularies are
 disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.md / AGENTS.md /
-external docs / catalogue / ingest / reference material*, task-roadmap owns *roadmap / gantt /
+external docs / catalogue / ingest / reference material / onboard / survey / legacy project / scattered docs*, task-roadmap owns *roadmap / gantt /
 timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
 tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
 hand off / hold / hot spot / slot / land / copy / snapshot / inbox / mailbox / watchdog / adopt / import holds / end the crew / disband / working solo / crew active* and says *slot*, never *job* or *queue* alone,

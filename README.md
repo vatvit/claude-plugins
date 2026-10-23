@@ -83,6 +83,8 @@ A hook regenerates it whenever a task file changes. [More →](task-roadmap/READ
 - **External reference files:** a PDF, Word or Excel file dropped into `docs/external/` gets a
   **card** saying what it holds and where inside it to look, and `check` reports files with no
   card or a stale one.
+- **Legacy projects:** surveys the docs a project already has and, once you approve the plan,
+  builds `docs/` from them, keeping git history and links.
 
 Nothing is rendered by default, because GitHub, IDEs and Obsidian already draw fenced diagrams.
 [More →](docs-manager/README.md)
