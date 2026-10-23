@@ -31,9 +31,12 @@ The questions are the same every time; the answers may or may not be.
 
 - **Pre-defined options** keep both sides precise. "Other" (free text) is always available on top.
 - **★ marks the default** — offered first, so a typical answer is one click.
-- **Collect before asking.** For an existing project, what can be read from the project (inspect.sh)
-  and from the user's standing instructions is shown as proposed answers with their evidence; the
-  user confirms them in one go. Only the rest is asked.
+- **Collect before asking.** For an existing project, what can be read from the project's files
+  (inspect.sh), from its README, docs and code (Claude's judged pass) and from the user's standing
+  instructions is shown as proposed answers with their evidence; the user confirms them in one go, and
+  each confirmed one keeps its evidence. Only the rest is asked.
+- **Then the project follows the answers.** On an existing project kickoff ends by closing the gaps
+  between the answers and the code: each one done now, made a task, or left by the user's choice.
 - **One section at a time.** Show the section's defaults together; the user accepts them all or picks
   which to change.
 - **Asked explicitly** (`explicitly` in *Ask when*): a real trade-off, never part of "accept all

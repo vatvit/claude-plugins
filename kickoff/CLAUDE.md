@@ -18,6 +18,7 @@ kickoff/
 │   ├── charter.awk / charter.sh  ← docs/project/charter.md from the answers
 │   ├── scaffold.sh               ← CLAUDE.md (claude.awk), quality doc (quality.awk), task config + workflow (workflow.awk)
 │   ├── inspect.sh / infer.awk    ← existing project: proposed answers with evidence (writes nothing)
+│   ├── gaps.sh / settled.awk     ← existing project: what the answers say is missing (writes nothing)
 │   ├── get.awk                   ← settled answers for shell scripts
 │   ├── computed.awk              ← answer.sh: is this value a computed default (*italics*)?
 │   ├── defaults.sh               ← the user layer: per-account defaults (kickoff.json)
@@ -65,6 +66,17 @@ real file, so a broken edit fails them.
 - **inspect.sh proposes, never records.** It writes nothing (2l), skips answered questions (2m), and
   maps each hint to the questionnaire's option text via infer.awk, so no option wording lives in the
   shell script. It reads `.git` as files: no git binary, so it runs in a bare container.
+- **One hint per question, the first.** inspect.sh hints the stronger evidence first and infer.awk keeps
+  the first per id (existing 6l): serverless.yml before compose for I2, the dev script before a Makefile.
+- **A confirmed proposal keeps its evidence** as `<ID>.from`, and the charter marks it *recovered* (7d–7g).
+  A decision taken at kickoff is never marked.
+- **gaps.sh reports, never fixes**, and a closed gap disappears (8h, 8i). Fixes depend on the stack, so
+  Claude makes them; kickoff names no stack. A tool counts as set up only when a manifest, config,
+  script or CI file names it; prose (a README) does not. The `docs/` gap exists only with docs-manager
+  installed: `docs/` is docs-manager's (8j).
+- **`set -e` and `$( … grep … )`.** An assignment from a substitution whose last command is a missed
+  `grep` kills inspect.sh. End such a substitution with `; true`. And `[ \t]` in a `sed` bracket is
+  space, backslash or `t` on BSD sed: use `[[:space:]]` (it cut `vitest` to `vites`, host only).
 - **`starts_ci` lowercases whole strings.** macOS awk cuts `substr` by bytes but `tolower` rejects
   a broken UTF-8 sequence, so `tolower(substr(…))` aborted with "illegal byte sequence" whenever a prefix
   cut through `—`. Only the host target sees it (existing test 2c–2j).

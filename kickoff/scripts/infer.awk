@@ -10,7 +10,8 @@
 END {
     while ((getline l < raw) > 0) {
         n = split(l, f, "\t"); id = f[1]; hint = f[2]; ev = f[3]
-        if (!(id in qidx) || ans[id] != "") continue
+        if (!(id in qidx) || ans[id] != "" || (id in seen)) continue   # the first hint for an id wins
+        seen[id] = 1
         v = hint; k = split(qopts[qidx[id]], o, / · /)
         for (j = 1; j <= k; j++) { t = option_text(o[j]); if (starts_ci(t, hint)) { v = t; break } }
         printf "%s\t%s\t%s\n", id, v, ev

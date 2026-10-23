@@ -38,6 +38,7 @@ bash kickoff/scripts/answer.sh --root <project> [--add|--clear] <ID> "<value>"
 bash kickoff/scripts/charter.sh [project] [--force | --stdout]
 bash kickoff/scripts/scaffold.sh [project] [--diff | --force]   # CLAUDE.md, quality doc, task config
 bash kickoff/scripts/inspect.sh [project]                     # existing project: proposed answers + evidence
+bash kickoff/scripts/gaps.sh [project]                        # existing project: what the answers say is missing
 bash kickoff/scripts/ports.sh next | allocate <name> | set <name> <port> | release <name> | list [--all]
 bash kickoff/scripts/defaults.sh list | set <ID> <value> | unset <ID>   # your own defaults
 ```
@@ -57,9 +58,17 @@ Seeded files are never overwritten; a hand-edited CLAUDE.md is refused rather th
 
 ## An existing project
 
-kickoff also works on a project that already has code or a partial setup. `inspect.sh` reads what is
-there (the git remote and branches, the task config, the compose services and ports, the
-entry-point script) and proposes answers with their evidence; nothing is recorded until you confirm.
+kickoff also works on a project that already has code or a partial setup (`/kickoff:kickoff init`).
+`inspect.sh` reads what is there (the git remote, branches and commit style, the task config, the
+manifests' description, stack and test tools, the compose services, stores and ports, deploy and locale
+files, the entry point) and Claude reads the README, `docs/` and the code for the rest. Every proposal
+comes with its evidence; nothing is recorded until you confirm, and the charter marks the answers that
+were recovered from the project.
+
+Then kickoff **closes the gaps**: `gaps.sh` lists what the answers say the project has and it does
+not (the entry point, containers, tests, E2E, CI, a tool, the quality doc, `docs/`), Claude adds what
+only the code shows, and for each one you pick *do it now* (done and shown working), *make it a task*,
+or *leave it*. With docs-manager installed, the docs are onboarded first.
 A project kicked off before is asked nothing and changed in nothing. A file edited since is shown as a
 diff (`--diff`) and replaced only when you agree (`--force`).
 

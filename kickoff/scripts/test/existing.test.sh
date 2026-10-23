@@ -75,4 +75,102 @@ check "5g ... and writes nothing" "my decision" "$(tail -1 "$P/docs/project/char
 P2=$(fresh fresh2); bash "$S/answer.sh" --root "$P2" A1 x
 check "5h charter --diff on a new project" "would-create docs/project/charter.md" "$(bash "$S/charter.sh" "$P2" --diff)"
 
+echo "== a legacy project: manifests, compose, deploy, locales, the commit log =="
+# legacy <dir> — a project grown without kickoff. Fake data only.
+legacy() {
+    local P="$1" i
+    mkdir -p "$P/.git/logs" "$P/locales/en" "$P/locales/de" "$P/src" "$P/migrations"   # migrations: a second I3 hint
+    printf '[core]\n\tbare = false\n' > "$P/.git/config"
+    for i in 1 2 3 4 5; do
+        printf '%040d %040d Dev <dev@example.com> 170000000%s +0000\tcommit: feat(cart): step %s\n' 0 "$i" "$i" "$i" >> "$P/.git/logs/HEAD"
+    done
+    printf '%040d %040d Dev <dev@example.com> 1700000009 +0000\tcommit: wip\n' 0 9 >> "$P/.git/logs/HEAD"
+    cat > "$P/package.json" <<'JSON'
+{
+  "name": "shop",
+  "description": "A small shop for second-hand bikes",
+  "private": true,
+  "scripts": { "dev": "next dev", "test": "jest" },
+  "dependencies": { "next": "14.0.0", "react": "18.2.0" },
+  "devDependencies": { "jest": "29.0.0", "eslint": "8.0.0", "typescript": "5.0.0" }
+}
+JSON
+    echo '{}' > "$P/tsconfig.json"
+    printf 'services:\n  app:\n    build: .\n    ports:\n      - "3077:3000"\n  db:\n    image: postgres:16\n  cache:\n    image: "redis:7"\n  worker:\n    image: x\n    runtime: nvidia\n' > "$P/compose.yaml"
+    echo 'app = "shop"' > "$P/fly.toml"
+    echo 'export default {}' > "$P/src/index.ts"
+}
+P=$(fresh legacy); legacy "$P"
+check "6a the one-liner from the manifest" "A small shop for second-hand bikes" "$(inferred A2)"
+check "6b the stack from the manifests" "TypeScript / Node.js — next, react" "$(inferred I4)"
+check "6c the tools from the manifests" "jest, eslint" "$(inferred F12)"
+check "6d a database beside a cache, in the questionnaire's words" "yes" "$(has 'Several stores' "$(inferred I3)")"
+check "6e the engines from the images" "postgres:16, redis:7" "$(inferred I5)"
+check "6f an nvidia device means GPUs" "yes" "$(has 'GPUs' "$(inferred I7)")"
+check "6g a deploy file means a cloud" "A cloud" "$(inferred I1)"
+check "6h two locales mean several languages" "yes" "$(has 'Several' "$(inferred D3)")"
+check "6i 5 of 6 commits conventional" "yes" "$(has 'Conventional Commits' "$(inferred R2)")"
+check "6j package.json scripts mean the stack's own tool" "yes" "$(has "The stack's own tool" "$(inferred R4)")"
+check "6k every proposal carries its evidence" "0" "$(inspect | awk -F'\t' '$3 == ""' | wc -l | tr -d ' ')"
+check "6l one proposal per question" "0" "$(inspect | cut -f1 | sort | uniq -d | wc -l | tr -d ' ')"
+check "6m 16 questions proposed on this project (6 before PLUG-072)" "16" "$(inspect | wc -l | tr -d ' ')"
+check "6n inspecting writes nothing" "no" "$(exists "$P/.kickoff-answers")"
+
+P=$(fresh pylib); mkdir -p "$P/migrations"
+printf '[project]\nname = "geo"\ndescription = "Geocoding helpers"\ndependencies = ["fastapi>=0.1"]\n[project.optional-dependencies]\ndev = ["pytest", "ruff"]\n' > "$P/pyproject.toml"
+printf '{\n  "name": "acme/geo",\n  "type": "library"\n}\n' > "$P/composer.json"
+check "6o pyproject: the one-liner" "Geocoding helpers" "$(inferred A2)"
+check "6p a library manifest proposes the kind" "yes" "$(has 'Library' "$(inferred A3)")"
+check "6q two manifests, two stacks" "PHP + Python — fastapi" "$(inferred I4)"
+check "6r a migrations folder means a database" "yes" "$(has 'A database' "$(inferred I3)")"
+
+echo "== confirming proposals: recorded with their evidence, only the rest is asked =="
+P=$(fresh confirm); legacy "$P"
+proposed="$(inspect | cut -f1 | sort)"
+while IFS= read -r row; do
+    id="$(echo "$row" | cut -f1)"
+    bash "$S/answer.sh" --root "$P" "$id" "$(echo "$row" | cut -f2)"
+    bash "$S/answer.sh" --root "$P" "$id.from" "$(echo "$row" | cut -f3)"
+done <<< "$(inspect)"
+check "7a nothing proposed is asked again" "" "$(bash "$S/plan.sh" "$P" --next | cut -f2 | sort | comm -12 - <(echo "$proposed"))"
+check "7b the evidence is kept with the answer" "package.json: description" "$(sed -n 's/^A2\.from: //p' "$P/.kickoff-answers")"
+check "7c nothing left to propose" "" "$(inspect)"
+autofill "$P" A4=Mine A5="No remote yet" R8=SHP K2=English I6=n/a C4=n/a C5="Never — always free to break" F1="Basic" >/dev/null
+bash "$S/charter.sh" "$P" >/dev/null; ch="$(cat "$P/docs/project/charter.md")"
+check "7d the charter marks the one-liner recovered" "yes" "$(has 'A small shop for second-hand bikes *(recovered from package.json: description)*' "$ch")"
+check "7e ... and a recovered decision, in its Why column" "yes" "$(echo "$ch" | grep -F 'TypeScript / Node.js' | grep -qF 'recovered from package.json' && echo yes || echo no)"
+check "7f ... and says what the mark means" "yes" "$(has 'Marked recovered' "$ch")"
+check "7g a decision taken at kickoff is not marked" "no" "$(echo "$ch" | grep -F 'Quality level' | grep -qF recovered && echo yes || echo no)"
+
+echo "== closing the gaps =="
+P=$(fresh gaps); legacy "$P"
+for a in "A1=shop" "A3=Product / app / service" 'R4=One script, `scripts/dev.sh` (up, down, test, sh)' \
+         "I0=In containers — nothing installed on the machine but the container runtime" \
+         "I4=TypeScript / Node.js — next, react" "F1=Basic — unit tests, E2E success path, formatter and linter, one command runs them"; do
+    bash "$S/answer.sh" --root "$P" "${a%%=*}" "${a#*=}"
+done
+bash "$S/answer.sh" --root "$P" F2 "Unit"; bash "$S/answer.sh" --root "$P" --add F2 "E2E success path"
+bash "$S/answer.sh" --root "$P" F7 "CI on push and merge request"; bash "$S/answer.sh" --root "$P" F12 "jest, eslint, vitest"
+before=$(cd "$P" && find . -type f | sort | while read -r f; do echo "$f $(cksum < "$f")"; done)
+g="$(bash "$S/gaps.sh" "$P")"
+gapof() { echo "$g" | awk -F'\t' -v id="$1" '$1 == id { print $3 }' | paste -sd'|' -; }
+check "8a the entry point the answer names" "no scripts/dev.sh" "$(gapof R4)"
+check "8b no tests, no E2E" "no tests|no E2E test" "$(gapof F2)"
+check "8c no CI" "no CI configuration" "$(gapof F7)"
+check "8d a tool named but not set up; one set up is not a gap" "vitest is not set up" "$(gapof F12)"
+check "8e no quality doc, no CLAUDE.md, no docs/" "no quality doc|no CLAUDE.md|docs/ is not set up" "$(gapof F1)|$(gapof -)"
+check "8f in containers: compose is there, no gap" "" "$(gapof I0)"
+check "8g every gap says where it looked" "0" "$(echo "$g" | awk -F'\t' '$4 == ""' | wc -l | tr -d ' ')"
+after=$(cd "$P" && find . -type f | sort | while read -r f; do echo "$f $(cksum < "$f")"; done)
+check "8h gaps.sh writes nothing" "$before" "$after"
+# close them, as Claude would after the user said "do it now"
+mkdir -p "$P/scripts" "$P/tests" "$P/e2e" "$P/.github/workflows" "$P/docs/project"
+echo '#!/usr/bin/env bash' > "$P/scripts/dev.sh"; echo 'test("x", () => {})' > "$P/tests/cart.test.ts"
+echo 'test("home", () => {})' > "$P/e2e/home.spec.ts"; printf 'on: push\njobs: {}\n' > "$P/.github/workflows/ci.yml"
+echo 'export default { test: {} } // vitest' > "$P/vitest.config.ts"
+echo '# shop' > "$P/CLAUDE.md"; echo '# quality' > "$P/docs/project/quality.md"; echo '# docs' > "$P/docs/_index.md"
+check "8i closed gaps are not reported again" "" "$(bash "$S/gaps.sh" "$P")"
+P=$(fresh nodocsmgr); legacy "$P"; bash "$S/answer.sh" --root "$P" A1 x
+check "8j without docs-manager, docs/ is not kickoff's gap" "no" "$(KICKOFF_PLUGINS="" bash "$S/gaps.sh" "$P" | grep -q 'docs/' && echo yes || echo no)"
+
 summary

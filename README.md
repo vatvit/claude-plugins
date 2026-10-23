@@ -104,8 +104,10 @@ answers are saved in `.kickoff-answers`. From them kickoff generates `docs/proje
 `docs/project/quality.md`, and sets the project up: a small instructions-only `CLAUDE.md` and the
 task config, with a workflow carrying the practices you keep (INVEST, tests first, SOLID, DRY).
 A question with a real trade-off, such as the quality level or when backward compatibility starts
-to apply, is always asked on its own, never accepted as a default. It also works on an existing project,
-proposing answers from what it finds there, and keeps a machine-wide registry of dev ports.
+to apply, is always asked on its own, never accepted as a default. It also works on an existing project:
+it proposes answers from what it finds there, with evidence, then closes the gaps between the answers
+and the code, each one done now, made a task or left by your choice. It also keeps a machine-wide
+registry of dev ports.
 [More →](kickoff/README.md)
 
 ### crew

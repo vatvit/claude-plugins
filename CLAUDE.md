@@ -179,7 +179,7 @@ timeline*, session-storage owns *storage / session data*, delay owns *delay / ru
 tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
 hand off / hold / hot spot / slot / land / copy / snapshot / inbox / mailbox / watchdog / adopt / import holds / end the crew / disband / working solo / crew active* and says *slot*, never *job* or *queue* alone,
 kickoff owns *kickoff / kick off / new project / start a project / bootstrap / questionnaire / charter /
-quality level / quality gate* (delay says *run the tests later*; kickoff says *which tests to have*).
+quality level / quality gate / existing project / close the gaps* (delay says *run the tests later*; kickoff says *which tests to have*).
 No plugin puts a bare *init* in its trigger phrases: that is the built-in `/init`. An explicit
 argument such as `/kickoff:kickoff init` is namespaced and fine (PLUG-070).
 Bare *pdf / word / excel / docx /

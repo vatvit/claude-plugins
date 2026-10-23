@@ -1,7 +1,7 @@
 ---
 name: kickoff
-description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (generic for any language or stack; questions branch on earlier answers, each with pre-defined options and a default; sibling plugins asked about only when installed) and turn the answers into decisions: the project's charter, its quality level and checks, and its CLAUDE.md. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "run kickoff on this existing project", "what is missing from this project's setup", "starting context for this project", "which quality level should this project have", "which tests and checks should this project have", "quality gate for a new project", "which dev port should this project use", "port registry", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
-version: 0.7.0
+description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (generic for any language or stack; questions branch on earlier answers, each with pre-defined options and a default; sibling plugins asked about only when installed) and turn the answers into decisions: the project's charter, its quality level and checks, and its CLAUDE.md. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "run kickoff on this existing project", "kick off an existing project", "what is missing from this project's setup", "close the gaps", "bring this project in line with the answers", "/kickoff:kickoff init", "starting context for this project", "which quality level should this project have", "which tests and checks should this project have", "quality gate for a new project", "which dev port should this project use", "port registry", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
+version: 0.8.0
 ---
 
 # Kickoff
@@ -21,14 +21,33 @@ history.
 
 `<PLUGIN_ROOT>` below is this plugin's directory. Resolve it relative to this file.
 
+## Commands
+
+| Argument | Does |
+|---|---|
+| `init` | Kickoff for an **existing project**: the loop below, with step 0 in full and step 7 at the end |
+| _(none)_ | The loop below; step 0 runs whenever the directory already has files |
+
+Any other argument: say which ones exist, and do nothing else.
+
 ## The loop
 
-0. **Collect before asking.** For an existing project (the directory already has files), run
-   `bash <PLUGIN_ROOT>/scripts/inspect.sh <project>`. Each row is `id · proposed answer · evidence`. It
-   is read from the project and covers only unanswered questions. Add what the user's standing
-   instructions (their CLAUDE.md) already settle, with that as the evidence. Show the rows as one
-   table and ask the user to *confirm all* or *change some*. Record only what is confirmed. An
-   inference is never an answer until then. inspect.sh writes nothing.
+0. **Collect before asking.** For an existing project (the directory already has files):
+   - **With docs-manager installed and no `docs/_index.md` yet, onboard the docs first**
+     (`/docs-manager:docs-manager init`): the judged pass below reads what it builds.
+   - **Script pass:** `bash <PLUGIN_ROOT>/scripts/inspect.sh <project>`. Each row is
+     `id · proposed answer · evidence`, read from files (git, task setup, manifests, compose, deploy and
+     locale files), only for unanswered questions. It writes nothing.
+   - **Judged pass:** for every question still without a proposal that the project can answer (the
+     one-liner and kind, the goal, the users and non-goals, the data, login, outbound effects,
+     external services, languages, constraints), read the README, `docs/` and the code, and propose
+     an answer with the file and line it came from. Add what the user's standing instructions (their
+     CLAUDE.md) already settle, with that as the evidence. Never propose from a guess: no evidence, no
+     row.
+   - **One table** for both passes: `id · proposal · evidence · script | judged`. Ask the user to
+     *confirm all* or *change some*. An inference is never an answer until then.
+   - **Record each confirmed row with its evidence:** `answer.sh --root <project> <ID> "<value>"`, then
+     `answer.sh --root <project> <ID>.from "<evidence>"`. The charter marks those answers *recovered*.
 
 1. **See what to ask now:**
    `bash <PLUGIN_ROOT>/scripts/plan.sh <project> --next`. Each row is
@@ -88,6 +107,26 @@ history.
      regenerate the indexes (`docs.sh index --write`); kickoff writes only into `docs/project/`;
    - create the first tasks that the output names with `/task create`, if the task plugin is installed.
      Their ids come from the task plugin, never from kickoff.
+7. **Close the gaps.** The answers are decisions; on an existing project the code may not follow them
+   yet. Kickoff is not done while it does not, unless the user chose to leave a gap.
+   - `bash <PLUGIN_ROOT>/scripts/gaps.sh <project>`: `id · answer · gap · where it looked`, one row per
+     gap a file can show (the entry point, containers, tests, E2E, CI, pre-commit, each F12 tool, the
+     quality doc, CLAUDE.md, `docs/`). It writes nothing.
+   - Add the gaps only reading the code shows: a check in `docs/project/quality.md` that nothing runs,
+     an answer the code contradicts (*no login* with a login form), one command that does not run every
+     check. Each names its answer and the file it is seen in.
+   - **One table:** `id · answer · gap · proposed action`, the action concrete for this stack ("add
+     `scripts/dev.sh` with up, down, test, sh"; "add the test runner and one E2E test of the success
+     path"). For each the user picks **do it now**, **make it a task**, or **leave it**. Ask about
+     details when an action has a real choice in it.
+   - **Do it now:** make the change, run it, and show it working: the test runs, the script starts the
+     app, CI parses. A gap is closed when it is verified, not when a file exists.
+   - **Make it a task:** `/task create` when the task plugin is installed; otherwise add it to the
+     charter's *Open questions* by hand (the charter is the user's from now on).
+   - **Leave it:** record why with `answer.sh <ID>.why` (a gap with id `-` has no question: say it in
+     chat), so the charter says it was a decision.
+   - Run `gaps.sh` again at the end. What it still prints must be exactly what the user chose to
+     leave or to make a task.
 
 ## Rules
 

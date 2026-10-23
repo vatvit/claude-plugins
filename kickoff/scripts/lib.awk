@@ -14,6 +14,7 @@
 #   nq            number of questions; qid[i], qsec[i], qsectitle[i], qtext[i], qopts[i], qwhen[i], qgoes[i]
 #   ans[id]       first answer for id ("" when unanswered); ansn[id] the count; ansv[id, k] k-th value
 #   why[id]       the recorded reason, if any
+#   from[id]      the evidence the answer was recovered from (existing project), if any
 #   udef[id]      the user layer's default for id, if any
 
 function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
@@ -27,6 +28,9 @@ function load(   id, v, n, c, i) {
     if (FILENAME == ARGV[1]) {                       # the answers file
         if ($0 ~ /^[A-Z][0-9]+\.why: /) {
             id = substr($0, 1, index($0, ".") - 1); why[id] = substr($0, index($0, ": ") + 2); return
+        }
+        if ($0 ~ /^[A-Z][0-9]+\.from: /) {
+            id = substr($0, 1, index($0, ".") - 1); from[id] = substr($0, index($0, ": ") + 2); return
         }
         if ($0 ~ /^[A-Z][0-9]+: /) {
             id = substr($0, 1, index($0, ":") - 1); v = substr($0, index($0, ": ") + 2)

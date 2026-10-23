@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # answer.sh [--root DIR] [--add] <ID> <value> — record one answer in <root>/.kickoff-answers.
 #
-#   <ID>        a question id from the questionnaire (A3), or <ID>.why for the reason behind it
+#   <ID>        a question id from the questionnaire (A3), <ID>.why for the reason behind it, or
+#               <ID>.from for the evidence an answer was recovered from (an existing project)
 #   --add       append another value instead of replacing (lists: C2, E4 …)
 #   --clear     remove the answer (and nothing else); no value then
 #
@@ -27,7 +28,7 @@ fi
 case "$value" in *$'\n'*) echo "answer.sh: a value is one line" >&2; exit 2 ;; esac
 root="$(project_root "$root")"
 
-base="${id%.why}"
+base="${id%.why}"; base="${base%.from}"
 grep -q "^| $base |" "$KICKOFF_QUESTIONNAIRE" || { echo "answer.sh: no question $base in the questionnaire" >&2; exit 2; }
 
 if [ "$clear" = 0 ] && [ "$base" = "$id" ]; then
