@@ -1,6 +1,6 @@
 ---
 title: adopt a legacy project — docs and kickoff as if they had been there from the start
-status: proposed
+status: completed
 type: epic
 epic-name: legacy-onboarding
 priority: medium
@@ -10,17 +10,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | below |
+| 20 | Requirements | done | open questions settled 2026-10-17; per-plugin requirements in PLUG-071/072 |
+| 30 | Assessment | skipped | per sub-task: the two touch disjoint plugins |
+| 40 | POC | skipped | no risky unknown at epic level |
+| 50 | Domain | skipped | bash plugins, no domain model |
+| 60 | Architecture | done | cross-plugin flow fixed in Scope/Out of Scope: no shared code, flow described in each SKILL.md |
+| 70 | Tests | skipped | per sub-task |
+| 80 | Subtasks | done | PLUG-071, PLUG-072 |
+| 90 | Implementation | done | PLUG-071 (docs-manager 1.9.0), PLUG-072 (kickoff 0.8.0) |
+| 100 | Tech Debt | done | PLUG-083 (docs-manager onboard shortcuts); none from PLUG-072 |
+| 110 | Reflection | done | both plugin CLAUDE.md files, root CLAUDE.md trigger vocabulary, root README |
 
 ## Goal
 
@@ -73,6 +73,23 @@ Both plugins assume a project starts with them. Most real projects do not. Today
   already exists. PLUG-052 (which changes that skeleton) must respect this. The epic split into
   PLUG-071/072 is also agreed.
 
+## Context
+
+**Since the epic was written (2026-10-17):**
+- PLUG-078 (kickoff 0.7.0, completed) rewrote the questionnaire: K1 docs skeleton and C3 source material
+  are **removed**, ids renumbered, scaffold writes no docs skeleton, `docs/` layout is docs-manager's and
+  kickoff writes only `docs/project/` (charter, quality.md). So PLUG-072's "skip K1 when docs/ predates
+  kickoff" note is already resolved, and its "14 of 46" count must be re-measured on the new ids.
+- PLUG-049 and PLUG-052 are completed: no kickoff release to bundle with.
+- PLUG-079 (docs-manager 1.8.1): every docs walk goes through `docs_find` in `docs-manager/scripts/lib.sh`;
+  a survey of the whole project must not reuse it blindly (it walks `docs/`, not the project).
+
+**Versions now:** docs-manager 1.8.1, kickoff 0.7.0.
+
+**Parallel-session collisions:** crew lists `claude-plugins-kickoff` (worker) and `claude-plugins-delay`
+(coordinator), both silent for ~2 weeks, no holds, tree clean. PLUG-071 touches only `docs-manager/`,
+PLUG-072 only `kickoff/`.
+
 ## Success Criteria
 
 - On a fixture legacy project (fake data, generated in tests — no real project named; the repo is
@@ -88,9 +105,19 @@ Both plugins assume a project starts with them. Most real projects do not. Today
 - PLUG-071: docs-manager — survey existing docs and build `docs/` from them
 - PLUG-072: kickoff — answer the questionnaire from the existing project
 
+## Results
+
+- **Scope grew on the way (the user, 2026-10-23):** onboarding must not end in documents. docs-manager's
+  `onboard` already acts (moves, links, then Claude writes the missing docs); kickoff gained **close the
+  gaps** (PLUG-072 requirement 5): `gaps.sh` + SKILL step 7, each gap done now and verified, made a
+  task, or left by the user's choice.
+- Success criteria: fake legacy fixtures generated in the tests (no real project named); docs-manager
+  builds `docs/` whose `check` passes after Claude's follow-up, and a second survey is empty; kickoff
+  proposes 16 instead of 6 answers on its fixture, each with evidence; nothing is moved before a plan is
+  approved (S2, P4) and inspect/gaps write nothing (6n, 8h); both suites green on host, `bash:5` and
+  from a standalone copy; one bump per plugin with plugin.json, marketplace.json, SKILL.md, root README.
+
 ## Current State
 
-Proposed 2026-10-17. Not started. PLUG-071 and PLUG-072 touch disjoint plugins and can run in parallel
-sessions; PLUG-072 only *reads* `docs/` if present, so it does not wait on PLUG-071. Naming (`init`
-argument) and docs-layout ownership are decided (see above). Note: PLUG-049 (kickoff-next) also edits kickoff — release
-both kickoff epics in one bump if they land close together.
+2026-10-23: all sub-tasks completed; epic rows done. Nothing committed: the change set awaits the
+user's review (docs-manager 1.9.0, kickoff 0.8.0, PLUG-083 proposed).
