@@ -290,7 +290,7 @@ cmd_diagram_render() {
       rc=1
     fi
   done <<EOF
-$(find "$root" -type f -name '*.diagram.md' | sort)
+$(docs_find "$root" "" -type f -name '*.diagram.md' | sort)
 EOF
   return $rc
 }
@@ -303,7 +303,7 @@ find_source() {
     */*) [ -f "$name" ] && { printf '%s\n' "$name"; return 0; } ;;
   esac
   case "$name" in *.diagram.md) : ;; *) name="$name.diagram.md" ;; esac
-  matches="$(find "$root" -type f -name "$name" | sort)"
+  matches="$(docs_find "$root" "" -type f -name "$name" | sort)"
   # `grep -c` exits non-zero on a zero count, which under `set -e` would abort the run
   # instead of reaching the "not found" message below. Zero matches is a normal input.
   n="$(printf '%s\n' "$matches" | grep -c . || true)"
@@ -325,7 +325,7 @@ cmd_diagram_check() {
     reason="$(stale_reason "$src")"
     [ -n "$reason" ] && { echo "STALE: $src ($reason)"; rc=1; }
   done <<EOF
-$(find "$root" -type f -name '*.diagram.md' | sort)
+$(docs_find "$root" "" -type f -name '*.diagram.md' | sort)
 EOF
   return $rc
 }
@@ -406,7 +406,7 @@ cmd_diagram_index() {
       write_if_changed "$tmp" "$doc" "UPDATED" >/dev/null && echo "UPDATED: $doc"
     fi
   done <<EOF
-$(find "$root" -type f -name '*.md' ! -name '*.diagram.md' | sort)
+$(docs_find "$root" "" -type f -name '*.md' ! -name '*.diagram.md' | sort)
 EOF
 
   rm -f "$blockfile"

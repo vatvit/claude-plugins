@@ -47,6 +47,11 @@ Sourced, never executed. Holds what more than one script in *this* plugin needs:
 - `fm_parse <file>` — one awk pass over frontmatter, emitting tab-separated typed records
   (`scalar|list|map<TAB>key<TAB>…`) in author order. `fm_field`, `fm_list` and `fm_map` are thin
   wrappers over it — **do not add a second frontmatter reader.**
+- `docs_find <root> <maxdepth|""> <tests…>` — **every walk of the docs tree goes through it**, so
+  all commands skip the same things: any dot-entry at any depth (`.git/` when `docs/` is its own
+  repository, `.obsidian/`, a hidden file), pruned with what is under it; the root itself is never
+  pruned. Do not add a bare `find` over the docs tree. The one exception is `diagram.sh`'s walk of a
+  ref's *target* folder, which is usually code and feeds stored digests (PLUG-079).
 - `normalize_path`, `block_rewrite`, `has_marker`, `write_if_changed`.
 - `relpath <from-dir> <to-path>` — lexical relative path. Exists because a ref is written relative
   to the source but must link correctly from every doc that embeds it, at any depth.
@@ -250,7 +255,7 @@ Adding a reference means: the file, a pointer from `SKILL.md`, trigger phrases i
 ```bash
 bash scripts/test/diagram.test.sh                                             # host
 docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/diagram.test.sh   # container
-bash scripts/test/external.test.sh                                            # host
+bash scripts/test/external.test.sh                                            # host (also index/check: dot-folders)
 docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/external.test.sh  # container
 ```
 

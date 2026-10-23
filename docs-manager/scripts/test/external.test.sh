@@ -326,6 +326,43 @@ check "R2a nothing depends on it" "0:" "$rc:$out"
 bash "$DOCS" external related "$R/external/none.pdf" "$R" >/dev/null 2>&1
 check "R2b neither file nor card is an error" "1" "$?"
 
+echo "== dot-folders (PLUG-079) =="
+
+# --- D1: a docs folder that is itself a git repository, plus other dot-folders ---
+dotted() { # dotted <root> -> a docs tree with .git/, .obsidian/ and a hidden file in it
+    doc "$1/guide/intro.md" "Intro" </dev/null
+    mkdir -p "$1/.git/refs/heads" "$1/.git/objects/ab"
+    printf 'ref: refs/heads/main\n' > "$1/.git/HEAD"
+    printf 'abc\n' > "$1/.git/refs/heads/main"
+    bin "$1/.git/objects/ab/blob.pdf"
+    doc "$1/.obsidian/notes.md" "Editor notes" <<'EOF'
+[gone](nowhere.md)
+EOF
+    doc "$1/.obsidian/x.diagram.md" "stray source" </dev/null
+    doc "$1/.hidden.md" "Hidden" </dev/null
+}
+R=$(fresh d1); dotted "$R"
+out=$(bash "$DOCS" index --write "$R" 2>&1)
+check "D1a no _index.md written into .git"      "" "$(find "$R/.git" -name _index.md)"
+check "D1b none into another dot-folder"        "" "$(find "$R/.obsidian" -name _index.md)"
+idx=$(cat "$R/_index.md")
+check "D1c real sub-folder listed"              "yes" "$(has "$idx" 'guide/')"
+check "D1d .git not listed"                     "no"  "$(has "$idx" '.git')"
+check "D1e .obsidian not listed"                "no"  "$(has "$idx" '.obsidian')"
+check "D1f hidden file not listed"              "no"  "$(has "$idx" '.hidden.md')"
+out=$(bash "$DOCS" check "$R" 2>&1); rc=$?
+check "D1g check passes"                        "0" "$rc"
+check "D1h no MISSING for .git"                 "no" "$(has "$out" 'MISSING')"
+check "D1i link in a dot-folder not checked"    "no" "$(has "$out" 'nowhere.md')"
+check "D1j external in .git not reported"       "no" "$(has "$out" 'blob.pdf')"
+
+# --- D2: a root whose own name starts with a dot is still walked ------------
+R=$(fresh d2)/.site-docs; mkdir -p "$R"; dotted "$R"
+bash "$DOCS" index --write "$R" >/dev/null 2>&1
+check "D2a dot-named root indexed"              "yes" "$([ -f "$R/_index.md" ] && [ -f "$R/guide/_index.md" ] && echo yes || echo no)"
+out=$(bash "$DOCS" check "$R" 2>&1); rc=$?
+check "D2b check passes on a dot-named root"    "0" "$rc"
+
 echo
 echo "passed: $pass   failed: $fail"
 [ "$fail" -eq 0 ]

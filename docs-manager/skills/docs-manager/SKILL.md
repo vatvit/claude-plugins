@@ -42,6 +42,8 @@ that make it work.
 - **Every folder and sub-folder has an `_index.md`.** It carries a generated `AUTO-INDEX` block that
   lists the folder's sub-folders (name + description) and docs (filename + description). Prose you
   write outside the markers is preserved; only the block between the markers is regenerated.
+  Dot-entries are not docs: `.git/` (a docs folder that is its own repository), `.obsidian/`, a
+  hidden file — every command skips them, and everything under them, at any depth.
 
 ## Tool
 

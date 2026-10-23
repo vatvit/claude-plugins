@@ -31,7 +31,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=diagram.sh
 . "$SCRIPT_DIR/diagram.sh"
 
-list_subdirs() { find "$1" -mindepth 1 -maxdepth 1 -type d | sort; }
+list_subdirs() { docs_find "$1" 1 -type d | sort; }
 # Diagram sources and cards are not documents: a source is the input to a generated block,
 # and a card is listed under the external file it describes.
 list_docs() {
@@ -39,7 +39,7 @@ list_docs() {
   while IFS= read -r f; do
     [ -n "$f" ] && ! is_card "$f" && printf '%s\n' "$f"
   done <<EOF
-$(find "$1" -mindepth 1 -maxdepth 1 -type f -name '*.md' ! -name '_index.md' ! -name '*.diagram.md' | sort)
+$(docs_find "$1" 1 -type f -name '*.md' ! -name '_index.md' ! -name '*.diagram.md' | sort)
 EOF
   return 0
 }
@@ -121,7 +121,7 @@ cmd_index() {
       write_if_changed "$tmp" "$idx" "UPDATED" || true
     fi
   done <<EOF
-$(find "$root" -type d | sort -r)
+$({ printf '%s\n' "$root"; docs_find "$root" "" -type d; } | sort -r)
 EOF
   rm -f "$blockfile"
   return $rc
@@ -157,7 +157,7 @@ EOF2
 $(fm_map "$srcfile" refs)
 EOF2
   done <<EOF
-$(find "$root" -type f -name '*.diagram.md' | sort)
+$(docs_find "$root" "" -type f -name '*.diagram.md' | sort)
 EOF
 
   # Third pass: `relates-to:` in external cards, relative to the card. `external related`

@@ -6,7 +6,8 @@ small set of conventions that keep docs DRY and always reflecting the current st
 ## What it gives you
 
 - **`_index.md` navigation tree** — every folder gets an auto-generated index of its sub-folders and
-  docs (with one-line descriptions harvested from frontmatter).
+  docs (with one-line descriptions harvested from frontmatter). Dot-folders such as `.git/` are
+  skipped, so `docs/` can be a git repository of its own.
 - **Link checking** — finds broken relative cross-doc links.
 - **Diagrams** — a diagram lives in a text `*.diagram.md` source; the tool copies it into every
   doc that asks for it and keeps it current. Nothing is rendered and nothing is installed: a

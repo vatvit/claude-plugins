@@ -47,7 +47,7 @@ list_externals() {
     [ -f "${f%.*}.diagram.md" ] && continue
     printf '%s\n' "$f"
   done <<EOF
-$(find "$1" ${2:+-maxdepth "$2"} -type f ! -name '.*' ! -name '*.md' | sort)
+$(docs_find "$1" "${2:-}" -type f ! -name '*.md' | sort)
 EOF
   return 0
 }
@@ -58,7 +58,7 @@ list_cards() {
   while IFS= read -r f; do
     [ -n "$f" ] && is_card "$f" && printf '%s\n' "$f"
   done <<EOF
-$(find "$1" ${2:+-maxdepth "$2"} -type f -name '*.md' | sort)
+$(docs_find "$1" "${2:-}" -type f -name '*.md' | sort)
 EOF
   return 0
 }

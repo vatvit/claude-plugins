@@ -9,6 +9,23 @@
 # Pure bash 3.2 + POSIX awk. No associative arrays, no GNU-only flags, no `sed -i`.
 
 # ---------------------------------------------------------------------------
+# Walking the docs tree
+# ---------------------------------------------------------------------------
+
+# docs_find <root> <maxdepth|""> <find tests...> -> matching paths below <root>, unsorted
+#
+# Every walk of the docs tree goes through here, so all of them skip the same things:
+# any dot-entry at any depth — `.git/` (a docs folder that is its own repository),
+# `.obsidian/`, `.vitepress/`, a hidden file — is pruned with everything under it. The
+# root itself is never pruned (`-mindepth 1`), so a root named `.site-docs` still works,
+# and is not printed: callers that want it add it. The tests are fixed strings from
+# this plugin's own scripts, never user input.
+docs_find() {
+  local root="$1" depth="$2"; shift 2
+  find "$root" -mindepth 1 ${depth:+-maxdepth "$depth"} -name '.*' -prune -o \( "$@" -print \)
+}
+
+# ---------------------------------------------------------------------------
 # Frontmatter
 # ---------------------------------------------------------------------------
 
@@ -221,7 +238,7 @@ doc_links() {
 $(md_link_dests "$file")
 EOF
   done <<EOF
-$(find "$1" -type f -name '*.md' | sort)
+$(docs_find "$1" "" -type f -name '*.md' | sort)
 EOF
   return 0
 }
