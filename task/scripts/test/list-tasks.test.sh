@@ -5,24 +5,8 @@
 # Run: bash scripts/test/list-tasks.test.sh   (from the plugin root)
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-SC="$ROOT/scripts"
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
-pass=0 fail=0
-
-check() { # check <name> <expected> <actual>
-    if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "  ok   $1"
-    else fail=$((fail+1)); echo "  FAIL $1"; echo "         expected: [$2]"; echo "         actual:   [$3]"; fi
-}
-contains() { # contains <name> <needle> <haystack>
-    case "$3" in *"$2"*) pass=$((pass+1)); echo "  ok   $1" ;;
-    *) fail=$((fail+1)); echo "  FAIL $1"; echo "         missing: [$2]"; echo "         in:"; printf '%s\n' "$3" | sed 's/^/           /' ;; esac
-}
-lacks() { # lacks <name> <needle> <haystack>
-    case "$3" in *"$2"*) fail=$((fail+1)); echo "  FAIL $1"; echo "         unexpected: [$2]" ;;
-    *) pass=$((pass+1)); echo "  ok   $1" ;; esac
-}
+# shellcheck source=lib.sh
+. "$(dirname "$0")/lib.sh"
 
 D="$TMP/tasks"; mkdir -p "$D"
 task() { # task <id> <status> <priority> <epic|-> <type|-> <title>
@@ -38,7 +22,7 @@ task() { # task <id> <status> <priority> <epic|-> <type|-> <title>
     } > "$D/TST-$1.md"
 }
 
-# TST-001 is the epic; 002-012 are its sub-tasks; 020+ are untagged.
+# TST-001 is the epic; 002-012 are its sub-tasks; 020+ have no epic.
 { echo '---'; echo 'title: Alpha epic'; echo 'status: in-progress'; echo 'type: epic'
   echo 'epic-name: alpha'; echo 'priority: high'; echo '---'; echo
   echo '## Goal'; echo; echo 'Ship alpha.'; } > "$D/TST-001.md"
@@ -52,9 +36,9 @@ task 007 proposed    low    alpha feature "Sub proposed three"
 task 008 completed   high   alpha feature "Sub done one"
 task 009 completed   low    alpha feature "Sub done two"
 task 010 rejected    low    alpha feature "Sub rejected"
-task 020 proposed    high   -     feature "Untagged rate limiting"
-task 021 proposed    medium -     bugfix  "Untagged dark mode"
-task 022 blocked     high   -     feature "Untagged payment flow"
+task 020 proposed    high   -     feature "Loose rate limiting"
+task 021 proposed    medium -     bugfix  "Loose dark mode"
+task 022 blocked     high   -     feature "Loose payment flow"
 
 echo "-- flat table --"
 out=$(bash "$SC/list-tasks.sh" "$D" TST)
@@ -74,11 +58,11 @@ echo "-- filters --"
 out=$(bash "$SC/list-tasks.sh" "$D" TST type=bugfix)
 contains "type filter keeps bugfix" "Sub blocked" "$out"
 lacks    "type filter drops feature" "Sub in progress" "$out"
-out=$(bash "$SC/list-tasks.sh" "$D" TST title~untagged)
-contains "partial match is case-insensitive" "Untagged dark mode" "$out"
+out=$(bash "$SC/list-tasks.sh" "$D" TST title~loose)
+contains "partial match is case-insensitive" "Loose dark mode" "$out"
 lacks    "partial match excludes others" "Sub blocked" "$out"
 out=$(bash "$SC/list-tasks.sh" "$D" TST epic=_)
-contains "epic=_ keeps untagged" "Untagged dark mode" "$out"
+contains "epic=_ keeps tasks without an epic" "Loose dark mode" "$out"
 lacks    "epic=_ drops members" "Sub blocked" "$out"
 out=$(bash "$SC/list-tasks.sh" "$D" TST status=completed)
 contains "explicit status filter reaches closed tasks" "Sub done one" "$out"
@@ -93,14 +77,14 @@ check    "open sub-tasks are never collapsed" "7" \
   "$(printf '%s\n' "$out" | grep -c '^  TST-')"
 check    "open order: in-progress then blocked then approved" "TST-002 TST-003 TST-004" \
   "$(printf '%s\n' "$out" | grep '^  TST-' | sed -n '2,4p' | awk '{print $1}' | tr '\n' ' ' | sed 's/ $//')"
-lacks    "bare id stays strict — no untagged group" "no epic" "$out"
+lacks    "bare id stays strict — no no-epic group" "no epic" "$out"
 
 echo "-- epic filter (smart ,_ default) --"
 out=$(bash "$SC/list-tasks.sh" "$D" TST epic=alpha)
-contains "epic= adds the untagged group" "── no epic (3) ──" "$out"
-contains "untagged task listed" "Untagged payment flow" "$out"
+contains "epic= adds the no-epic group" "── no epic (3) ──" "$out"
+contains "task without an epic listed" "Loose payment flow" "$out"
 out=$(bash "$SC/list-tasks.sh" "$D" TST epic=alpha --strict-epic)
-lacks "--strict-epic drops the untagged group" "no epic" "$out"
+lacks "--strict-epic drops the no-epic group" "no epic" "$out"
 
 echo "-- grouping and collapsing --"
 i=30
@@ -139,6 +123,4 @@ check "non-epic id is rejected as an epic reference" "1" "$?"
 out=$(bash "$SC/list-tasks.sh" "$D" TST type=nothing-matches)
 check "empty result is not an error" "No matching tasks." "$out"
 
-echo
-echo "passed: $pass   failed: $fail"
-[ "$fail" -eq 0 ]
+report list-tasks

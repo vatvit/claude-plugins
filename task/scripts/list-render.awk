@@ -8,7 +8,7 @@
 #
 # and prints the finished listing. Output shapes are the ones /task list
 # documents: flat table, grouped table, epic group with its closed sub-tasks
-# collapsed to a count, and summary.
+# collapsed to a count, summary, and digest (one block per task).
 
 function max(a, b)      { return a > b ? a : b }
 function status_of(id,   s) { s = V[id, "status"]; return s == "" ? "proposed" : s }
@@ -39,14 +39,46 @@ function srank(s) {
     if (s == "rejected")    return 7
     return 5
 }
-function passes(id,   i, f, op, n, a, j, val, ok) {
+# A list field holds several values; `tags` is the only one. read-tasks.sh
+# gives it in the canonical `["a", "b"]`, which splits on `", "`.
+function is_list(f)     { return f == "tags" }
+function listof(id, f, arr,   s) {
+    s = V[id, f]
+    if (s == "") return 0
+    sub(/^\["/, "", s); sub(/"\]$/, "", s)
+    return split(s, arr, /", "/)
+}
+function tags_col(id,   n, t, i, s) {
+    n = listof(id, "tags", t); s = ""
+    for (i = 1; i <= n; i++) s = s (i > 1 ? ", " : "") t[i]
+    return s
+}
+# Filter values split on commas, except inside double quotes, which are dropped.
+function fvals(s, arr,   i, c, e, q, n) {
+    n = 0; e = ""; q = 0
+    for (i = 1; i <= length(s) + 1; i++) {
+        c = (i <= length(s)) ? substr(s, i, 1) : ","
+        if (c == "\"") { q = !q; continue }
+        if (c != "," || q) { e = e c; continue }
+        arr[++n] = e; e = ""
+    }
+    return n
+}
+function matches(val, op, want) {
+    if (op == "=") return val == want
+    return val != "" && index(tolower(val), tolower(want)) > 0
+}
+# skip names a field whose filter the caller applies itself.
+function passes(id, skip,   i, f, op, n, a, j, val, ok, nt, t, k) {
     for (i = 1; i <= nf; i++) {
         f = FF[i]; op = FO[i]; val = V[id, f]
-        n = split(FV[i], a, ","); ok = 0
+        if (f == skip) continue
+        n = fvals(FV[i], a); ok = 0
+        if (is_list(f)) nt = listof(id, f, t)
         for (j = 1; j <= n; j++) {
-            if (a[j] == "_")       { if (val == "") ok = 1 }
-            else if (op == "=")    { if (val == a[j]) ok = 1 }
-            else                   { if (val != "" && index(tolower(val), tolower(a[j])) > 0) ok = 1 }
+            if (a[j] == "_")   { if (val == "") ok = 1 }
+            else if (is_list(f)) { for (k = 1; k <= nt; k++) if (matches(t[k], op, tolower(a[j]))) ok = 1 }
+            else if (matches(val, op, a[j])) ok = 1
         }
         if (!ok) return 0
     }
@@ -74,7 +106,11 @@ function out_row(id) { no++; OT[no] = "row";  OA[no] = id }
 function pad(s, w,   r) { r = s; while (length(r) < w) r = r " "; return r }
 
 function group_label(v, field) { return v == "" ? "(no " field ")" : v }
-function group_hint(v, field) { return "/task list " field "=" (v == "" ? "_" : v) }
+function group_hint(v, field) {
+    if (v == "") v = "_"
+    else if (v ~ /[ ,]/) v = "\"" v "\""
+    return "/task list " field "=" v
+}
 
 BEGIN { FS = "\t" }
 $1 == "#C" { C[$2] = $3; next }
@@ -91,6 +127,7 @@ END {
     if (C["active"] != "") { n = split(C["active"], aa, ","); for (i = 1; i <= n; i++) ACT[aa[i]] = 1 }
 
     if (C["mode"] == "summary")      render_summary()
+    else if (C["mode"] == "digest")  render_digest()
     else if (nv > 0)                 render_epics()
     else                             render_classic()
 
@@ -199,8 +236,42 @@ function render_classic(   i, id, n, gf, gn, gname, j, hidden, cnt) {
     }
 }
 
+# --- digest ---------------------------------------------------------------
+# Membership of an epic view is applied here, as render_epics does, so an
+# epic's own task is in its view although its `epic` field is empty.
+function in_views(id,   v) {
+    for (v = 1; v <= nv; v++) if (id == VI[v] || V[id, "epic"] == VN[v]) return 1
+    if (C["noepic"] == "1" && V[id, "epic"] == "" && !is_epic(id)) return 1
+    return 0
+}
+function render_digest(   i, id, n, line, e, t) {
+    n = 0
+    for (i = 1; i <= nids; i++) {
+        id = ids[i]
+        if (nv > 0) { if (!in_views(id) || !passes(id, "epic")) continue }
+        else if (!passes(id)) continue
+        if (is_closed(id) && !expand) continue
+        n++; SEL[n] = id; SELK[n] = id
+    }
+    if (n == 0) { out_text("No matching tasks."); return }
+    ssort(SEL, SELK, n)
+    for (i = 1; i <= n; i++) {
+        id = SEL[i]
+        if (i > 1) out_text("")
+        line = id "  " status_of(id)
+        if (V[id, "type"] != "")     line = line "  " V[id, "type"]
+        if (V[id, "priority"] != "") line = line "  " V[id, "priority"]
+        e = is_epic(id) ? V[id, "epic-name"] : V[id, "epic"]
+        if (e != "")                 line = line "  epic: " e
+        if ((t = tags_col(id)) != "") line = line "  tags: " t
+        out_text(line)
+        out_text("  " V[id, "title"])
+        if (V[id, "excerpt"] != "")  out_text("  " V[id, "excerpt"])
+    }
+}
+
 # --- summary --------------------------------------------------------------
-function render_summary(   i, id, n, gf, gn, j, gname, cnt, line, shown, total) {
+function render_summary(   i, id, n, gf, gn, j, gname, cnt, line, shown) {
     n = 0
     for (i = 1; i <= nids; i++) {
         id = ids[i]
@@ -212,7 +283,7 @@ function render_summary(   i, id, n, gf, gn, j, gname, cnt, line, shown, total) 
     gn = collect_groups(SEL, n, gf)
     total = 0
     for (j = 1; j <= gn; j++) {
-        gname = GN[j]; cnt = GC[gname]; total += cnt
+        gname = GN[j]; cnt = GC[gname]
         line = "── " group_label(gname, gf) " (" cnt ") ── "
         shown = cnt > 5 ? 5 : cnt
         for (i = 1; i <= shown; i++) line = line GM[gname, i] (i < shown ? ", " : "")
@@ -220,17 +291,24 @@ function render_summary(   i, id, n, gf, gn, j, gname, cnt, line, shown, total) 
         out_text(line)
     }
     out_text("─────────────────")
-    out_text((expand ? "Total: " : "Total open: ") total)
+    # n, not the sum of the groups: a task with two tags sits in two of them.
+    out_text((expand ? "Total: " : "Total open: ") n)
 }
 
 # Buckets SEL[1..n] by field gf, sorted inside each bucket and between them.
-function collect_groups(SEL, n, gf,   i, id, gname, gn, j, k) {
+# A list field puts a task in the bucket of each of its values.
+function collect_groups(SEL, n, gf,   i, id, gname, gn, j, k, nt, t) {
     gn = 0
     for (i = 1; i <= n; i++) {
         id = SEL[i]
-        gname = V[id, gf]
-        if (!(gname in GC)) { GC[gname] = 0; GN[++gn] = gname }
-        GM[gname, ++GC[gname]] = id
+        if (is_list(gf)) nt = listof(id, gf, t)
+        else { nt = 1; t[1] = V[id, gf] }
+        if (nt == 0) { nt = 1; t[1] = "" }
+        for (k = 1; k <= nt; k++) {
+            gname = t[k]
+            if (!(gname in GC)) { GC[gname] = 0; GN[++gn] = gname }
+            GM[gname, ++GC[gname]] = id
+        }
     }
     for (j = 1; j <= gn; j++) {
         gname = GN[j]
@@ -246,8 +324,8 @@ function collect_groups(SEL, n, gf,   i, id, gname, gn, j, k) {
 }
 
 # --- printing -------------------------------------------------------------
-function print_out(   i, id, wid, wst, wpr, wep, anyp, anye, line, ind, mk, wmk) {
-    wid = 2; wst = 6; wpr = 8; wep = 4; anyp = 0; anye = 0; wmk = 0
+function print_out(   i, id, wid, wst, wpr, wep, wtg, anyp, anye, anyt, line, ind, mk, wmk) {
+    wid = 2; wst = 6; wpr = 8; wep = 4; wtg = 4; anyp = 0; anye = 0; anyt = 0; wmk = 0
     for (i = 1; i <= no; i++) {
         if (OT[i] != "row") continue
         id = OA[i]
@@ -255,6 +333,7 @@ function print_out(   i, id, wid, wst, wpr, wep, anyp, anye, line, ind, mk, wmk)
         wst = max(wst, length(status_of(id)))
         if (V[id, "priority"] != "") { anyp = 1; wpr = max(wpr, length(V[id, "priority"])) }
         if (epic_col(id) != "")      { anye = 1; wep = max(wep, length(epic_col(id))) }
+        if (tags_col(id) != "")      { anyt = 1; wtg = max(wtg, length(tags_col(id))) }
     }
     if (C["active"] != "") wmk = 2
     ind = indent ? "  " : ""
@@ -266,6 +345,7 @@ function print_out(   i, id, wid, wst, wpr, wep, anyp, anye, line, ind, mk, wmk)
         if (!hidestatus) line = line pad("Status", wst + 2)
         if (anyp) line = line pad("Priority", wpr + 2)
         if (anye) line = line pad("Epic", wep + 2)
+        if (anyt) line = line pad("Tags", wtg + 2)
         line = line "Title"
         print line
     }
@@ -279,6 +359,7 @@ function print_out(   i, id, wid, wst, wpr, wep, anyp, anye, line, ind, mk, wmk)
         if (!hidestatus) line = line pad(status_of(id), wst + 2)
         if (anyp) line = line pad(V[id, "priority"], wpr + 2)
         if (anye) line = line pad(epic_col(id), wep + 2)
+        if (anyt) line = line pad(tags_col(id), wtg + 2)
         line = line V[id, "title"]
         sub(/[ \t]+$/, "", line)
         print line

@@ -9,16 +9,8 @@
 # Run: bash scripts/test/config.test.sh   (from the plugin root)
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-SC="$ROOT/scripts"
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
-pass=0 fail=0
-
-check() { # check <name> <expected> <actual>
-    if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "  ok   $1"
-    else fail=$((fail+1)); echo "  FAIL $1"; echo "         expected: [$2]"; echo "         actual:   [$3]"; fi
-}
+# shellcheck source=lib.sh
+. "$(dirname "$0")/lib.sh"
 
 H="$TMP/home"; ALT="$H/.claude-alt"
 PROJ="$TMP/proj"; mkdir -p "$PROJ" "$H/.claude/project-tasks" "$ALT/project-tasks"
@@ -77,6 +69,4 @@ check "step file from CLAUDE_CONFIG_DIR wins" "$ALT/project-tasks/_workflow/step
 mkdir -p "$T/_workflow/steps"; echo proj > "$T/_workflow/steps/assessment.md"
 check "project step file still wins" "$T/_workflow/steps/assessment.md" "$(step)"
 
-echo
-echo "passed: $pass   failed: $fail"
-[ "$fail" -eq 0 ]
+report config

@@ -51,3 +51,29 @@ task_project_dir() {
     if [ -n "$prefix" ]; then printf '%s/%s\n' "$main" "$prefix"; else printf '%s\n' "$main"; fi
     return 0
 }
+
+# task_fm_set <file> <key> <value> [--require] -> set `key: value` in the
+# frontmatter. An existing line is replaced, an absent key is added before the
+# closing `---`, an empty value removes the line. With --require an absent key
+# is an error (return 3) instead. The value goes through ENVIRON, not `awk -v`,
+# which would read its backslashes as escapes. Written via a temp file and mv,
+# skipped when nothing changed, so an unchanged file keeps its mtime.
+task_fm_set() {
+    local f="$1" k="$2" v="$3" req="${4:-}" tmp="$1.$$"
+    FM_KEY="$k" FM_VAL="$v" FM_REQ="$req" awk '
+    BEGIN { k = ENVIRON["FM_KEY"]; v = ENVIRON["FM_VAL"]; req = (ENVIRON["FM_REQ"] == "--require") }
+    NR == 1 && /^---[ \t]*$/ { infm = 1; print; next }
+    infm && /^---[ \t]*$/ {
+        if (!done && v != "" && !req) { print k ": " v; done = 1 }
+        infm = 0; print; next
+    }
+    infm && index($0, k ":") == 1 {
+        if (v != "") print k ": " v
+        done = 1; next
+    }
+    { print }
+    END { if (req && !done) exit 3 }
+    ' "$f" > "$tmp" || { rm -f "$tmp"; return 3; }
+    if cmp -s "$tmp" "$f"; then rm -f "$tmp"; else mv "$tmp" "$f"; fi
+    return 0
+}

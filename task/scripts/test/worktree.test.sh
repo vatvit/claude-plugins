@@ -11,16 +11,8 @@
 # Run: bash scripts/test/worktree.test.sh   (from the plugin root; needs git)
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-SC="$ROOT/scripts"
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
-pass=0 fail=0
-
-check() { # check <name> <expected> <actual>
-    if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "  ok   $1"
-    else fail=$((fail+1)); echo "  FAIL $1"; echo "         expected: [$2]"; echo "         actual:   [$3]"; fi
-}
+# shellcheck source=lib.sh
+. "$(dirname "$0")/lib.sh"
 
 command -v git >/dev/null 2>&1 || { echo "SKIP: git not installed"; exit 0; }
 
@@ -71,6 +63,4 @@ BARE="$TMP/bare.git"
     || { echo "FAIL: bare fixture"; exit 1; }
 check "a bare repo's worktree stays itself" "$TMP/bwt/.tasks" "$(rca "$TMP/bwt" tasksDir)"
 
-echo
-echo "worktree: $pass passed, $fail failed"
-[ "$fail" -eq 0 ]
+report worktree

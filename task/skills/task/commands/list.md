@@ -16,10 +16,13 @@ Pass the user's arguments through almost verbatim:
 | `/task list status=proposed` | `status=proposed` |
 | `/task list epic=auth group=type` | `epic=auth group=type` |
 | `/task list all` / `summary` | `all` / `summary` |
-| "only epic auth, no untagged tasks" | `epic=auth --strict-epic` |
+| "summarise the backlog", "what is each task about" | `digest` (or `digest=N` for longer excerpts) |
+| "only epic auth, no tasks without an epic" | `epic=auth --strict-epic` |
 
 Filter syntax (`=`, `~`, `,` for OR, `_` for unset, several fields ANDed) is the script's
-`--help`; it is the single source and does not need restating here.
+`--help`; it is the single source and does not need restating here. Filtering by tag
+(`tags=…`, quoting a tag with spaces or commas, AND by repeating `tags=`) is in
+`references/tags.md`.
 
 ## No arguments
 

@@ -17,16 +17,17 @@ task/
     ├── resolve-config.sh     project → tasksDir / prefix
     ├── allocate-id.sh        the ONLY sanctioned way to get an id
     ├── resolve-task.sh       id (or epic-name) → metadata + current workflow step
-    ├── read-tasks.sh         the one frontmatter parser: JSON or TSV records
+    ├── read-tasks.sh         the one frontmatter parser: JSON or TSV records (+ body excerpt)
     ├── list-tasks.sh         the finished /task list output
     ├── list-render.awk       its renderer — grouping, sorting, collapsing, columns
     ├── set-status.sh         status write + epic cascade + active-tasks
+    ├── tags.sh               tags in use; add / remove a task's tags; review candidates
     ├── session-active.sh     the session's active-tasks list
     ├── resolve-epic.sh       epic-name or id → epic metadata
     ├── update-epic-index.sh  rebuilds _epic-index.json
     ├── epic-dashboard.sh     epic + sub-tasks in work order + queue + recommendation
-    ├── lib.sh                global roots: $CLAUDE_CONFIG_DIR, then ~/.claude
-    └── test/*.test.sh
+    ├── lib.sh                global roots, worktree → main tree, task_fm_set (the one frontmatter writer)
+    └── test/*.test.sh        each sources test/lib.sh: TMP, counters, check/contains/lacks, report
 ```
 
 Scripts are referenced from the skill as `<PLUGIN_ROOT>/scripts/…`, and would be
@@ -61,6 +62,9 @@ at all, whether to skip a step, append-or-switch when two tasks compete for a se
 - **session-storage is optional and detected, never required.** The skill finds it by a
   context string and skips silently when absent. Every command must work with it missing;
   that is the path most installs are in.
+- **Claude never invents a tag.** `tags.sh add` refuses a tag no task uses yet unless given
+  `--new`, which stands for the user's OK; reusing a tag in use needs no asking
+  (`references/tags.md`). `tags` is decoded in `read-tasks.sh` only, into `["a", "b"]`.
 - **`.task-config.json` is a shared data contract.** `task-roadmap` reads `tasksDir` from
   it. Moving or renaming it breaks that plugin — the file stays where it is.
 
@@ -70,10 +74,15 @@ at all, whether to skip a step, append-or-switch when two tasks compete for a se
 bash scripts/test/epic-dashboard.test.sh   # 21 cases — membership, work order, epic-name resolution
 bash scripts/test/list-tasks.test.sh       # 41 cases — every documented list shape
 bash scripts/test/status-session.test.sh   # 26 cases — status writes, cascade, active-tasks
+bash scripts/test/tags.test.sh             # 48 cases — tags decoding, filter, group=tags, tags.sh
+bash scripts/test/review.test.sh           # 33 cases — digest excerpts and filters, candidates, epic hints
 bash scripts/test/port.test.sh             # 19 cases — packaging + standalone copy
 bash scripts/test/config.test.sh           # 13 cases — global registry + step lookup, CLAUDE_CONFIG_DIR
 bash scripts/test/worktree.test.sh         # 14 cases — a linked git worktree resolves to the main tree
 ```
+
+A new suite sources `scripts/test/lib.sh` and ends with `report <suite>`; it never defines
+its own assertions (PLUG-081 removed seven copies).
 
 Dual-target (host + `bash:5` container) per the repo convention, and the suite must pass
 from a copy of `task/` outside this repo with no siblings present. The container run is

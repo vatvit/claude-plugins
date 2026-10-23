@@ -15,6 +15,12 @@ increment `nextId`, do not compute an id from it, do not write to a path you bui
 
 Then ask: "Add more details?"
 
+## Tags
+
+Before writing the body, run `tags.sh <tasksDir> <prefix> list`. Put the tags in use that
+clearly fit into the body's `tags:` line, without asking; a new tag only with the user's OK.
+The rule and the syntax: `references/tags.md`.
+
 ## The body
 
 Format and fields: `references/task-format.md`. The minimum is `title` and `status`.
@@ -27,6 +33,8 @@ on. Take the step list from the project's WORKFLOW.md (`references/workflow-syst
 
 When the user says epic (`/task create EPIC: Auth system`, or asks for one outright):
 
+0. Check it is one: an epic is a finite batch of work that gets completed. A grouping with no
+   end ("everything about performance") is a tag — say so (`references/tags.md`).
 1. `type: epic` plus an `epic-name` — short kebab-case, e.g. `auth-system`.
 2. Ask for Goal, Scope, Out of scope, Success criteria and write them as sections; the
    layout is in `references/epics.md`.

@@ -49,21 +49,9 @@ OLD=$(printf '%s\n' "$meta"  | grep '^status=' | head -1 | cut -d= -f2- || true)
 ENAME=$(printf '%s\n' "$meta" | grep '^epic='  | head -1 | cut -d= -f2- || true)
 
 # --- write the frontmatter ------------------------------------------------
-# Only inside the frontmatter block, and written through a temp file: an
-# in-place edit flag is spelled one way on BSD and another on GNU.
-# bare `-i` is GNU-only.
-write_status() { # write_status <file> <new-status>
-    local f="$1" s="$2" tmp="$1.$$"
-    awk -v s="$s" '
-    NR == 1 && /^---[ \t]*$/ { infm = 1; print; next }
-    infm && /^---[ \t]*$/    { infm = 0; print; next }
-    infm && /^status:/       { print "status: " s; done = 1; next }
-    { print }
-    END { if (!done) exit 3 }
-    ' "$f" > "$tmp" || { rm -f "$tmp"; return 3; }
-    if cmp -s "$tmp" "$f"; then rm -f "$tmp"; else mv "$tmp" "$f"; fi
-    return 0
-}
+# shellcheck source=lib.sh
+. "$SCRIPT_DIR/lib.sh"
+write_status() { task_fm_set "$1" status "$2" --require; }
 
 if [ "$OLD" != "$NEW" ]; then
     if ! write_status "$FILE" "$NEW"; then

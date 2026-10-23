@@ -66,6 +66,7 @@ step is noise.
 | `type` | feature, bugfix, refactor, research, docs, epic |
 | `epic` | the `epic-name` of the epic this task belongs to |
 | `epic-name` | an epic's own short identifier, referenced by its children |
+| `tags` | optional labels, `["performance", "tech debt"]` — `references/tags.md` |
 
 Any other field is free — and any of them can be filtered on by `/task list`.
 

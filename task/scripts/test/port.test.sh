@@ -12,16 +12,10 @@
 # Run: bash scripts/test/port.test.sh   (from the plugin root)
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-SELF="scripts/test/port.test.sh"
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
-pass=0 fail=0
+# shellcheck source=lib.sh
+. "$(dirname "$0")/lib.sh"
 
-check() { # check <name> <expected> <actual>
-    if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "  ok   $1"
-    else fail=$((fail+1)); echo "  FAIL $1"; echo "         expected: [$2]"; echo "         actual:   [$3]"; fi
-}
+SELF="scripts/test/port.test.sh"
 
 # scan <extended-regex> [subdir] -> matching files, plugin-relative, one line.
 # This file necessarily contains every pattern it searches for, so it excludes
@@ -121,6 +115,4 @@ check "active-tasks is a no-op with no helper" "status=unavailable" \
 #     is the assertion: R3 holds if nothing above failed.
 check "end-to-end completed without session-storage" "0" "$fail"
 
-echo
-echo "passed: $pass   failed: $fail"
-[ "$fail" -eq 0 ]
+report port

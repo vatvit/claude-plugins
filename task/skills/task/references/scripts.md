@@ -11,9 +11,10 @@ is what each is *for*, and the guarantees that are not obvious from the usage li
 | `resolve-config.sh <project-dir>` | project → `tasksDir`, `prefix`, `nextId`, `configFile`, `configScope`, `projectDir`. A linked git worktree resolves to the main tree. Run before anything else. Exit 1 = unconfigured project. |
 | `allocate-id.sh <project-dir> [--count N \| --stdin]` | the only sanctioned way to get an id. Prints `TASK-205=/abs/path`. |
 | `resolve-task.sh <tasksDir> <prefix> <id>` | one id, or an epic-name (via `resolve-epic.sh`) → `id=`, `file=`, every frontmatter field, the current workflow step and its `step_file=`. Exit 1 = no such task or epic. |
-| `read-tasks.sh <tasksDir> <prefix> [flags]` | every task's frontmatter, as JSON or as TSV records. The plugin's only bulk reader. |
-| `list-tasks.sh <tasksDir> <prefix> [args]` | the finished `/task list` output — filters, grouping, sorting, collapsing, epic views. |
+| `read-tasks.sh <tasksDir> <prefix> [flags]` | every task's frontmatter, as JSON or as TSV records, plus with `--excerpt=N` the start of its summary. The plugin's only bulk reader. |
+| `list-tasks.sh <tasksDir> <prefix> [args]` | the finished `/task list` output — filters, grouping, sorting, collapsing, epic views; `digest` for one block per task with its excerpt. |
 | `set-status.sh <tasksDir> <prefix> <id> <status>` | status write + parent-epic cascade + `active-tasks` update, in one call. |
+| `tags.sh <tasksDir> <prefix> list \| add <id> [--new] <tag>... \| remove <id> <tag>...` | the tags in use with counts; adding or removing a task's tags. `add` refuses a tag not yet in use without `--new` (`tags.md`). `candidates <tag> [--match kw,...] [--all]` is a backlog review's shortlist; writes nothing. |
 | `session-active.sh <tasksDir> <prefix> <action> [id]` | the session's `active-tasks` list. No storage helper configured → `status=unavailable`, exit 0. |
 | `resolve-epic.sh <tasksDir> <prefix> <epic-ref>` | epic-name **or** id → epic metadata, same format as `resolve-task.sh`. Exit 1 = not found or not an epic. |
 | `update-epic-index.sh <tasksDir> <prefix>` | rebuilds `_epic-index.json`. Idempotent, diff-guarded. |
@@ -39,9 +40,13 @@ neither set it prints `status=unavailable` and exits 0, and `set-status.sh` carr
 **Membership is the `epic:` field.** `epic-dashboard.sh` joins on it in one `read-tasks.sh` pass,
 the same field `/task list <epic>` reads. A `## Sub-tasks` section is prose (`epics.md`).
 
-**Writes are atomic and diff-guarded.** `set-status.sh` and `update-epic-index.sh` write a
-temp file and `mv` it, and skip the `mv` when nothing changed, so an unchanged file keeps
-its mtime.
+**`tags` is decoded once.** `read-tasks.sh` turns the field into the canonical `["a", "b"]`
+(lowercased, repeats dropped); `list-tasks.sh` and `tags.sh` split that form and never read
+the raw YAML.
+
+**Writes are atomic and diff-guarded.** `set-status.sh`, `tags.sh` (both via `task_fm_set` in
+`lib.sh`) and `update-epic-index.sh` write a temp file and `mv` it, and skip the `mv` when
+nothing changed, so an unchanged file keeps its mtime.
 
 ## Tests
 
@@ -49,5 +54,7 @@ its mtime.
 bash scripts/test/epic-dashboard.test.sh   # epic membership, work order, epic-name resolution
 bash scripts/test/list-tasks.test.sh       # every documented /task list shape
 bash scripts/test/status-session.test.sh   # status writes, cascade, active-tasks
+bash scripts/test/tags.test.sh             # tags decoding, tags= filter, group=tags, tags.sh
+bash scripts/test/review.test.sh           # digest, tags.sh candidates, epic hints
 bash scripts/test/port.test.sh             # packaging + a standalone copy with no siblings
 ```

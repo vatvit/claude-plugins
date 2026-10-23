@@ -1,7 +1,8 @@
 # Epics
 
 An epic is a regular task file with `type: epic` and an `epic-name`. It is a document, not
-a label: it carries the goal, the scope and the reasoning that its sub-tasks inherit.
+a label: it carries the goal, the scope and the reasoning that its sub-tasks inherit. An epic
+is finite and gets completed; a topic that never ends is a tag (`tags.md`, *A tag is not an epic*).
 
 ```markdown
 ---

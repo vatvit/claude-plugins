@@ -63,7 +63,7 @@ in_goal && /[^ \t]/ { print; exit }
 # awk emits one row per member: rank, priority rank, id number, id, title
 # (JSON-escaped), status, priority; one sort orders them. An epic with no
 # epic-name (the legacy `EPIC:` title form) has no members: an empty name
-# would otherwise match every untagged task.
+# would otherwise match every task without an epic.
 rows=""
 if [ -n "$epic_name" ]; then
     rows=$("$SCRIPT_DIR/read-tasks.sh" "$TASKS_DIR" "$PREFIX" --all --records \

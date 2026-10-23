@@ -1,6 +1,6 @@
 ---
 name: task
-description: Use for task management when user references task IDs (TASK-001, DOCS-004), creates/lists/shows tasks, updates task status, works on tasks, works on or finishes a whole epic ("work on the epic", "finish the epic"), checks workflows, or invokes /task. Also invoke automatically when creating tech debt tickets, subtasks, or any task management during work. Manages task files for planning and tracking project work (storage location configurable per project).
+description: Use for task management when user references task IDs (TASK-001, DOCS-004), creates/lists/shows tasks, updates task status, works on tasks, works on or finishes a whole epic ("work on the epic", "finish the epic"), tags tasks or filters them by tag ("tag this task", "tagged", "list tasks with tag performance", "filter by tag", "review the backlog for a tag", "tag the backlog"), summarises the backlog ("backlog digest", "what is each task about"), checks workflows, or invokes /task. Also invoke automatically when creating tech debt tickets, subtasks, or any task management during work. Manages task files for planning and tracking project work (storage location configurable per project).
 version: 1.1.0
 argument-hint: <create|list|show|do|finish|status|workflow> [args]
 disable-model-invocation: false
@@ -110,6 +110,7 @@ working on?" — falling back to `/task list status=in-progress` when there is n
 |------|-------|
 | `references/task-format.md` | Task file format, workflow table, artifacts folder, reserved fields |
 | `references/epics.md` | Epic file format, sub-task ↔ epic relationship, the epic index |
+| `references/tags.md` | The `tags` field, when Claude may tag on its own, filtering by tag, reviewing the backlog for a tag |
 | `references/workflow-system.md` | How the workflow table drives work, step definition files |
 | `references/configuration.md` | Config resolution, directory layouts |
 | `references/scripts.md` | What each script does, its arguments and guarantees |

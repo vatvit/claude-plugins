@@ -14,3 +14,5 @@ Epic: TASK-010 — User Authentication System
 ```
 
 The goal line comes from the epic file's `## Goal` section — first line only.
+
+Adding or removing a tag on the task shown goes through `tags.sh` (`references/tags.md`).

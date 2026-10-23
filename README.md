@@ -49,6 +49,8 @@ stands. The table *is* the state. `/task do` reads it and continues from the cur
 Epics group sub-tasks, and `/task do` or `/task finish` on an epic works the whole of it. ID
 allocation is atomic and lock-guarded, so parallel sessions never take the same number.
 Listing is scripted, with filters, grouping, sorting and epic views that collapse closed work.
+Optional tags label tasks across epics, and the list filters and groups by them; Claude can
+review the backlog to apply a tag, from a short digest instead of every file.
 
 ```
 /task create <title>   /task list [filters]   /task show <id>

@@ -7,16 +7,8 @@
 # Run: bash scripts/test/status-session.test.sh   (from the plugin root)
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-SC="$ROOT/scripts"
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
-pass=0 fail=0
-
-check() {
-    if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "  ok   $1"
-    else fail=$((fail+1)); echo "  FAIL $1"; echo "         expected: [$2]"; echo "         actual:   [$3]"; fi
-}
+# shellcheck source=lib.sh
+. "$(dirname "$0")/lib.sh"
 
 D="$TMP/tasks"; mkdir -p "$D"
 { echo '---'; echo 'title: Alpha epic'; echo 'status: proposed'; echo 'type: epic'
@@ -115,6 +107,4 @@ before=$(cat "$D/TST-004.md")
 bash "$SC/set-status.sh" "$D" TST 4 blocked >/dev/null
 check "re-setting the same status leaves the file alone" "$before" "$(cat "$D/TST-004.md")"
 
-echo
-echo "passed: $pass   failed: $fail"
-[ "$fail" -eq 0 ]
+report status-session

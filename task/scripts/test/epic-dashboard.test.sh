@@ -10,10 +10,10 @@
 # Run: bash scripts/test/epic-dashboard.test.sh   (from the plugin root)
 set -uo pipefail
 
+# shellcheck source=lib.sh
+. "$(dirname "$0")/lib.sh"
+
 SCRIPT="$(cd "$(dirname "$0")/.." && pwd)/epic-dashboard.sh"
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
-pass=0 fail=0
 
 # json <epic-ref> -> the dashboard's raw output
 json() { bash "$SCRIPT" "$TMP" TST "$1" 2>/dev/null; }
@@ -28,11 +28,6 @@ queue() {
     json "$1" | grep -oE '"queue":\[[^]]*\]' | grep -oE 'TST-[0-9]+' | tr '\n' ' ' | sed 's/ $//'
 }
 field() { json "$1" | grep -oE "\"$2\":\"[^\"]*\"" | cut -d'"' -f4; }
-
-check() { # check <name> <expected> <actual>
-    if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "  ok   $1"
-    else fail=$((fail+1)); echo "  FAIL $1"; echo "         expected: [$2]"; echo "         actual:   [$3]"; fi
-}
 
 epic() { # epic <num> <epic-name>   (stdin: extra body)
     { printf -- '---\ntitle: "E %s"\nstatus: in-progress\ntype: epic\nepic-name: %s\npriority: high\n---\n\n## Goal\n\ng\n\n' "$2" "$2"
@@ -135,6 +130,4 @@ err=$(bash "$RT" "$TMP" TST nope 2>&1 >/dev/null)
 check "T13c unknown name says so" "yes" \
   "$(echo "$err" | grep -q "No epic found with name 'nope'" && echo yes)"
 
-echo
-echo "$pass passed, $fail failed"
-[ "$fail" -eq 0 ]
+report epic-dashboard
