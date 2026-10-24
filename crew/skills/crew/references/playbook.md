@@ -22,7 +22,10 @@ failure it prevents; every one of those failures happened at least once in pract
   of a task.
 - **Ownership moves by an explicit hand-over.** When a session stops before its task is done, it
   updates the task's Current State and tells the coordinator, who assigns the task to another
-  session. A task never has two owners at once.
+  session. A task never has two owners at once: `crew task <ID>` records the owner, shown by
+  `status`, and refuses the task to any other session. The hand-over is `crew task <ID> --take` by
+  the new owner (or `crew task <ID> --for <name> --take` by the coordinator), which mails the old
+  owner; `crew task --clear` when a session finishes or stops. `tree new <ID>` takes the task too.
 - **The user decides who commits and who pushes.** By default nobody in the crew does: `land`
   checks the paths and prints the commit for the user, and the user pushes. The coordinator asks
   the user once per project and records the answer (`committer`, `push`).

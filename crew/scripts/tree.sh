@@ -67,7 +67,7 @@ EOF
 }
 
 tree_new() { # <id>
-    local id="$1" br dir
+    local id="$1" br dir me
     valid_name "$id" || die "tree new <task-id>: letters, digits, . _ -"
     tree_allowed "$id" || die "this project works in one shared tree (tree=$(cfg tree)). A worktree for $id is the user's exception: ask them; on their word the coordinator runs crew tree allow $id"
     br="$(shared_branch)"; [ -n "$br" ] || die "no shared branch (detached HEAD?): set sharedBranch"
@@ -78,6 +78,10 @@ tree_new() { # <id>
     crew_wt_write_meta "$dir" "$(git -C "$ROOT" rev-parse "$br")" "$(now)" "$(caller_name)" "$id"
     echo "tree: $dir on task/$id (from $br) — work, test and commit there; bring in $br with: crew tree sync $id; hand off branch, sha and green tests"
     crew_wt_ready "$dir"
+    # one task = one worktree = one session: the session that makes it owns the task (PLUG-061)
+    me="$(caller_name)"
+    if [ -n "$me" ] && [ -f "$STATE/sessions/$me" ]; then load_area task; declare -F task_assign >/dev/null && { task_assign "$me" "$me" "$id" || true; }; fi
+    return 0
 }
 
 tree_sync() { # <id>

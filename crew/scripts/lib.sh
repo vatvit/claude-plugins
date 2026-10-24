@@ -332,6 +332,16 @@ sess_get() { # <name> <key>
     [ -f "$STATE/sessions/$1" ] || return 0
     sed -n "s/^$2=//p" "$STATE/sessions/$1" | head -1
 }
+sess_set() { # <name> <key> [value] — replace or add key=value; no value removes the key
+    [ -f "$STATE/sessions/$1" ] || return 1
+    { grep -v "^$2=" "$STATE/sessions/$1" || true; [ -z "${3:-}" ] || printf '%s=%s\n' "$2" "$3"; } \
+        | replace_file "$STATE/sessions/$1"
+}
+task_owner() { # <task id> -> the session that owns it (PLUG-061: one task, one session), or empty
+    local n
+    for n in $(sess_names); do [ "$(sess_get "$n" task)" = "$1" ] && { echo "$n"; return 0; }; done
+    return 0
+}
 display_of() { local d; d="$(sess_get "$1" display)"; printf '%s\n' "${d:-$1}"; }
 sess_names() { [ -d "$STATE/sessions" ] && ls "$STATE/sessions" 2>/dev/null; return 0; }
 name_of_sid() { # <sid> -> name, empty when unbound
@@ -346,9 +356,12 @@ coordinator() {
     for n in $(sess_names); do [ "$(sess_get "$n" role)" = coordinator ] && { echo "$n"; return 0; }; done
     return 0
 }
-crew_line() { # "Max Coordinator coordinator · PLUG-W1 worker"
-    local n out=""
-    for n in $(sess_names); do out="$out${out:+ · }$(display_of "$n") $(sess_get "$n" role)"; done
+crew_line() { # "Max Coordinator coordinator · PLUG-W1 worker on PLUG-61"
+    local n t out=""
+    for n in $(sess_names); do
+        t="$(sess_get "$n" task)"
+        out="$out${out:+ · }$(display_of "$n") $(sess_get "$n" role)${t:+ on $t}"
+    done
     printf '%s\n' "$out"
 }
 # caller_name — the caller's crew name, empty when unknown: CREW_AS (name or display name) wins,

@@ -37,7 +37,7 @@ rm -f "$CREW_PENDING/$name"
 mkdir -p "$STATE/sessions"          # only now: a failed join must not switch crew on for the repo
 
 bind() {
-    local old cur c o
+    local old cur c o t
     old="$(sess_get "$name" sid)"
     o="$(reg_other "$name")"
     if [ -n "$o" ] && [ "$take" -eq 0 ]; then
@@ -56,7 +56,9 @@ bind() {
             note "$c is now a worker"
         fi
     fi
-    printf 'sid=%s\nrole=%s\nsince=%s\ndisplay=%s\n' "$sid" "$role" "$(now)" "$display" | replace_file "$STATE/sessions/$name"
+    t="$(sess_get "$name" task)"     # a re-join (restart, --take) keeps the name's task
+    { printf 'sid=%s\nrole=%s\nsince=%s\ndisplay=%s\n' "$sid" "$role" "$(now)" "$display"; [ -z "$t" ] || printf 'task=%s\n' "$t"; } \
+        | replace_file "$STATE/sessions/$name"
     reg_set "$name" "$sid"
 }
 with_lock sessions bind

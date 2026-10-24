@@ -1,6 +1,6 @@
 ---
 name: crew
-description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, assigning tasks to sessions (one task, one session), handing off a finished change, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "assign tasks to sessions", "two sessions on one task", "split work between sessions", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "work in a copy", "apply the copy", "rebase the copy", "remove the copy", "task worktree", "worktree per task", "tree new", "tree sync", "tree merge", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", "who commits", "who pushes", "end the crew", "close the crew", "disband the crew", "crew end", "working solo", "is a crew running", "crew active", "crew-only rules", "slots across repos", "two repos on one machine", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
+description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, assigning tasks to sessions (one task, one session), handing off a finished change, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "assign tasks to sessions", "two sessions on one task", "crew task", "which session works on which task", "split work between sessions", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "work in a copy", "apply the copy", "rebase the copy", "remove the copy", "task worktree", "worktree per task", "tree new", "tree sync", "tree merge", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", "who commits", "who pushes", "end the crew", "close the crew", "disband the crew", "crew end", "working solo", "is a crew running", "crew active", "crew-only rules", "slots across repos", "two repos on one machine", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
 ---
 
 # crew — parallel Claude sessions on one working tree
@@ -47,7 +47,7 @@ to it. Names must be unique on the machine, because another repo may run its own
 - ends the crew when the user says the parallel work is over (`crew end`, `references/solo.md`).
 
 **Worker.** It:
-- works on the one task assigned to it, and only that task;
+- works on the one task assigned to it, and only that task, and says which with `crew task <ID>`;
 - builds each change in a copy, test-first, and lands it with `apply`;
 - holds a hot spot before editing it;
 - asks for a slot before any heavy run;
@@ -62,7 +62,9 @@ to it. Names must be unique on the machine, because another repo may run its own
    (`crew tree new <ID>`) and the coordinator merges it (`references/trees.md`).
 2. **One task, one session.** A task in progress has one owner session. To work on a task in
    parallel, split it into sub-tasks first (the task workflow's `subtasks` step); each session
-   owns one. Ownership moves only by an explicit hand-over (`references/playbook.md` §1).
+   owns one. `crew task <ID>` records the owner (the coordinator assigns with `--for <name>`) and
+   refuses a task another session owns. Ownership moves only by an explicit hand-over, on the
+   coordinator's word: `crew task <ID> --take` (`references/playbook.md` §1).
 3. **Never touch the whole index or tree.** No `git add -A` / `.` / `-u`, `commit -a`, `stash`,
    `checkout -- .`, `restore .`, `reset --hard`, `clean`. Use exact paths only. The guard hook
    denies these and tells you the alternative.

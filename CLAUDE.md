@@ -177,7 +177,7 @@ disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.m
 external docs / catalogue / ingest / reference material / onboard / survey / legacy project / scattered docs*, task-roadmap owns *roadmap / gantt /
 timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
 tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
-hand off / hold / hot spot / slot / land / copy / snapshot / inbox / mailbox / watchdog / adopt / import holds / end the crew / disband / working solo / crew active* and says *slot*, never *job* or *queue* alone,
+hand off / hold / hot spot / slot / land / copy / snapshot / inbox / mailbox / watchdog / adopt / import holds / end the crew / disband / working solo / crew active / crew task* and says *slot*, never *job* or *queue* alone,
 kickoff owns *kickoff / kick off / new project / start a project / bootstrap / questionnaire / charter /
 quality level / quality gate / existing project / close the gaps* (delay says *run the tests later*; kickoff says *which tests to have*).
 No plugin puts a bare *init* in its trigger phrases: that is the built-in `/init`. An explicit

@@ -23,7 +23,7 @@ crew/
     ├── crew.sh             the one entry point; `help` is built from each script's `# help:` lines
     ├── lib.sh              the ONE place for project/state, config layers, identity, claims, locks, hook decisions
     ├── whoami.sh config.sh status.sh msg.sh active.sh end.sh
-    ├── holds.sh slot.sh copy.sh tree.sh snapshot.sh land.sh inbox.sh watch.sh one area each: functions when sourced, CLI when executed
+    ├── holds.sh slot.sh copy.sh tree.sh snapshot.sh land.sh inbox.sh watch.sh task.sh one area each: functions when sourced, CLI when executed
     ├── compose-report.awk  copy new's read-only Docker report (compose_report in lib.sh; fixtures in test/compose/)
     ├── status.d/  msg.d/   per-area parts, so adding an area never edits status.sh / msg.sh
     └── test/               helpers.sh, run.sh, <area>.test.sh, Dockerfile (bash:5 + git)
@@ -88,13 +88,18 @@ crew/
   built, so a task in progress has one owner, and parallel work means separate tasks (the task
   plugin's sub-tasks). The words follow: crew speaks of tasks and changes, never of "slices", which
   read as pieces of one task shared out. `wording.test.sh` keeps the word out and the rule stated.
+  The owner is `task=` in `sessions/<name>` (PLUG-061), set by `task.sh` only (`task_assign`, under the
+  sessions lock; `tree new` calls it too) and kept across a re-join; `task_owner` finds it and
+  `crew_line` shows it, so status, SessionStart and whoami agree. A task another session owns is
+  refused, never shared; `--take` moves it and mails the old owner. Silence is not leaving: a silent
+  owner keeps its task until it leaves or the coordinator hands the task over.
 - **A crew name is the identity.** Holds, slots and claims are all keyed by name. The Claude
-  session id only maps a hook payload to a name (`sessions/<name>`: `sid= role= since= display=`).
+  session id only maps a hook payload to a name (`sessions/<name>`: `sid= role= since= display=`, and `task=` when set).
   Scripts learn the caller via `caller_name`, which takes `CREW_AS` (a name or a display name) when it
   is set, and otherwise `CREW_SID`. SessionStart exports `CREW_SID` through `CLAUDE_ENV_FILE`, the
-  preamble Claude Code runs before every Bash command. That mechanism is documented for SessionStart
-  hooks but not explicitly for plugin hooks, so when the file is absent SessionStart teaches the
-  `CREW_AS=<name> crew` form instead. The live check is PLUG-040. `bin/crew` puts the command on PATH.
+  preamble Claude Code runs before every Bash command. It is documented for SessionStart hooks, not
+  explicitly for plugin hooks; it works for crew's (checked live, PLUG-040). When the file is absent
+  SessionStart teaches the `CREW_AS=<name> crew` form instead. `bin/crew` puts the command on PATH.
 - **Per account vs per machine** (the repo rule in the root `CLAUDE.md` Config convention):
   - The user config `crew.json` is per account. It follows `${CLAUDE_CONFIG_DIR:-~/.claude}`.
   - `CREW_HOME` (`~/.claude/crew`) is per machine and deliberately ignores `CLAUDE_CONFIG_DIR`. It
@@ -161,6 +166,16 @@ Dockerfile. Hooks are tested by piping a JSON payload into them (`helpers.sh: pa
 `join` goes through the real path, so the hook leaves the id and `whoami` binds it. The suites
 never read the real `~/.claude/crew.json` (`CREW_USER_CONFIG` points into the fixture).
 
-What the suites cannot prove: that Claude Code honours the `permissionDecision: deny` JSON and
-injects SessionStart stdout. Both are documented hook contracts. Check them by hand once per
-Claude Code upgrade: join a crew in a scratch repo and try `git add -A`.
+What the suites cannot prove: that Claude Code honours the `permissionDecision: deny` JSON, injects
+SessionStart stdout and PostToolUse `additionalContext`, and runs the `CLAUDE_ENV_FILE` preamble for a
+plugin hook. Check them by hand once per Claude Code upgrade, in a session started *after* crew was
+installed (a plugin installed mid-session has no hooks in that session), in the repo the session runs
+in (the Bash tool returns to it after every call, so a scratch repo cannot host the check):
+`crew whoami <name>` binds without `--sid`; `git add -A -- <no such path>` is denied with crew's reason
+(`--dry-run` is let through on purpose, and a no-match pathspec stages nothing if the guard fails);
+a Write to a path another member holds is denied naming the holder; a `msg --send` to yourself shows
+the unread notice after the next tool call, and ending the turn with it unread is held by Stop; `crew active` names you with no `CREW_AS`. Then
+`whoami --leave <name>`.
+
+Last checked: Claude Code 2.1.307, crew 2.2.0 (2026-10-24, PLUG-040) — all of the above, plus the
+SessionStart line after `/compact` and the Stop hold with unread mail.
