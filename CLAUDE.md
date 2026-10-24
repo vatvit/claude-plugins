@@ -78,6 +78,9 @@ constraints, not preferences — a plugin that breaks them breaks on someone's m
   *replacement* is read differently by busybox than by gawk and BSD awk, so escape with a character loop.
   And macOS awk cuts `substr` by bytes while its `tolower` rejects broken UTF-8: `tolower(substr(s, 1, n))`
   aborts when the cut lands inside a multibyte character. Lowercase whole strings and compare with `index`.
+  And `$1 == id` compares *numerically* when both sides look like numbers, which a hex ID can: busybox
+  reads `75e763` and `7e1794` as infinity, so they are equal. Compare IDs as `($1 "") == id`. Found in
+  delay 2.1 (PLUG-015) as a 1-in-60 test flake; macOS awk does not do it, so only the container saw it.
 - **Hooks always `exit 0`** and never block the tool call that triggered them, with one deliberate
   exception: crew's guard hooks deny (a JSON `permissionDecision`, still exit 0), because a warning
   arrives after `git add -A` has already staged a peer's files; `hookMode=warn` turns them off. A hook that reports

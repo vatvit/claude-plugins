@@ -113,5 +113,8 @@ When asked whether something will run, mention what applies:
   done (lid open).
 - The user must be **logged in** (the screen may be locked), because docker is a per-user app.
 - After a plugin update, `status` shows `installed_current=no` and the ACTION block asks for the
-  install again. It updates the root-owned copies that launchd and sudo run, and moves approvals
+  install again. With several Claude accounts, an account whose plugin is older than the
+  installed copy gets a `note:` line (and `plugin_update=` in `status`) instead: pass on that the
+  user should update the plugin in that account, never the install, which would downgrade it for
+  every account (`install.sh` refuses unless `--downgrade`). It updates the root-owned copies that launchd and sudo run, and moves approvals
   from delay 1.x job names to pairs.

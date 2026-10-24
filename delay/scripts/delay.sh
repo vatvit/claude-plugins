@@ -56,11 +56,15 @@ sys_cmd() { printf 'sudo "%s/bin/%s"' "$DELAY_SYSTEM" "$1"; }   # sys_cmd <scrip
 # The runner is not always on: the user starts it (sudo start.sh) when jobs are queued. Claude
 # relays this block to the user verbatim — it is the "reminder to run the daemon".
 runner_reminder() {
-    local pend any=0 q id kind root f current=yes
+    local pend any=0 q id kind root f current=yes older=no
     for q in "$DELAY_HOME"/*/queue/*.job; do [ -f "$q" ] && { any=1; break; }; done
     [ "$any" = 1 ] || return 0
     pend="$(all_jobs "$DELAY_HOME" | awk -F'\t' '$2 == "pending"')"
-    runner_installed && ! installed_current && current=no
+    if runner_installed; then
+        case "$(install_state)" in update) current=no ;; older) older=yes ;; esac
+    fi
+    # an account whose plugin is behind the installed copy: jobs still run with the installed one
+    [ "$older" = no ] || echo "note: this account's delay $(plugin_version) is older than the installed $(installed_version) — update the plugin in this account (/plugin update delay@vatvit-plugins); do not re-install from it"
     if [ -z "$pend" ] && [ "$current" = yes ] && runner_armed; then
         echo "runner: started for this window — nothing to do"; return 0
     fi
@@ -82,6 +86,9 @@ status)
     if runner_installed; then
         echo "installed=yes"
         if installed_current; then echo "installed_current=yes"; else echo "installed_current=no"; fi
+        echo "plugin_version=$(plugin_version)"
+        echo "installed_version=$(installed_version)"
+        [ "$(install_state)" != older ] || echo "plugin_update=/plugin update delay@vatvit-plugins        (this account's copy is older than the installed one)"
         echo "interval_min=$(awk -F'[<>]' '/StartInterval/ { print $7 / 60; exit }' "$DELAY_PLIST")"
     else echo "installed=no"; fi
     window_str
@@ -159,6 +166,10 @@ EOF
     tmp="$store/queue/.add.$$.tmp"
     trap 'rm -f "$tmp"' EXIT
     id="$(fmt_epoch "$(now)" %Y%m%d-%H%M%S)-$$"
+    # time + PID repeats when a PID is reused within the second (or under a pinned clock): never
+    # take an id a queued job or a result already has, or the mv below replaces that job (PLUG-015)
+    base="$id"; n=1
+    while [ -e "$store/queue/$id.job" ] || [ -e "$store/results/$id" ]; do n=$((n + 1)); id="$base-$n"; done
     {
         echo "id=$id"
         echo "project=$ROOT"

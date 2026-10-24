@@ -55,7 +55,8 @@ is_id() { case "$1" in [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) [ ! -e 
 
 find_id() { # <id> -> sets KIND ROOT SRC, dies when unknown
     local rec
-    rec="$(all_jobs "$(user_store)" | awk -F'\t' -v id="$1" '$1 == id')"
+    # ($1 "") makes it a string compare: awk reads hex IDs such as 75e763 as numbers (PLUG-015)
+    rec="$(all_jobs "$(user_store)" | awk -F'\t' -v id="$1" '($1 "") == id')"
     [ -n "$rec" ] || die "no job with ID $1 — run 'sudo approve.sh' to see the list"
     IFS=$'\t' read -r _ KIND ROOT _ SRC <<EOF2
 $rec

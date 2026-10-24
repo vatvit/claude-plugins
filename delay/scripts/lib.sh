@@ -232,10 +232,38 @@ runner_installed() { [ -f "$DELAY_PLIST" ] && [ -f "$DELAY_SYSTEM/bin/dispatch.s
 
 # launchd and sudo run root-owned copies: a plugin update reaches them only via re-install
 DELAY_SCRIPTS="lib.sh dispatch.sh start.sh approve.sh"
-installed_current() {
+installed_same_bytes() {
     local s
     for s in $DELAY_SCRIPTS; do cmp -s "$DELAY_LIB_DIR/$s" "$DELAY_SYSTEM/bin/$s" || return 1; done
 }
+
+# Several Claude accounts on one Mac each hold their own copy of the plugin, at their own version,
+# and share one installed copy (PLUG-054). So the install records its version, and versions decide.
+plugin_version() { # -> this copy's version, from its plugin.json; empty when there is none
+    awk -F'"' '/"version"[[:space:]]*:/ { print $4; exit }' "$DELAY_LIB_DIR/../.claude-plugin/plugin.json" 2>/dev/null || true
+}
+installed_version() { cat "$DELAY_SYSTEM/bin/version" 2>/dev/null || true; }
+ver_cmp() { # <a> <b> -> -1, 0 or 1, comparing dotted numbers field by field
+    awk -v a="$1" -v b="$2" 'BEGIN { n = split(a, x, "."); m = split(b, y, "."); if (m > n) n = m
+        for (i = 1; i <= n; i++) { if (x[i] + 0 < y[i] + 0) { print -1; exit } if (x[i] + 0 > y[i] + 0) { print 1; exit } }
+        print 0 }'
+}
+# install_state -> current | update (this copy should be installed) | older (this account's plugin
+# is behind the installed copy: update the plugin here, never downgrade the install for everyone).
+# Same version, different bytes (a dev checkout), or an install from before versions were
+# recorded: the bytes decide, as they always did.
+install_state() {
+    local p i
+    p="$(plugin_version)"; i="$(installed_version)"
+    if [ -n "$p" ] && [ -n "$i" ]; then
+        case "$(ver_cmp "$p" "$i")" in
+            1) echo update; return 0 ;;
+            -1) echo older; return 0 ;;
+        esac
+    fi
+    if installed_same_bytes; then echo current; else echo update; fi
+}
+installed_current() { [ "$(install_state)" != update ]; }
 
 runner_loaded() { # [uid]
     launchctl print "gui/${1:-$(id -u)}/$DELAY_LABEL" >/dev/null 2>&1

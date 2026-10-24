@@ -67,9 +67,11 @@ later command runs those: `sudo "/Library/Application Support/claude-delay/bin/a
 **Several Claude accounts** (several `CLAUDE_CONFIG_DIR` folders, e.g. `~/.claude` and
 `~/.claude-work`): install once per Mac, from any of them. Each account adds the plugin for
 itself (step 1), but they share one queue (`~/.claude/delay`), one set of approvals, one window
-and one runner, so a job queued from either runs the same night. **Keep delay at the same version
-in every account** until PLUG-054 lands: today an account with a different version reports the
-install as outdated, and installing from the older one downgrades it for all.
+and one runner, so a job queued from either runs the same night. The accounts may hold different
+versions of the plugin: the install records the version it installed, and an account with a
+newer copy asks for the install, while one with an older copy says to update the plugin there
+(`/plugin update delay@vatvit-plugins`) and keeps running jobs with the installed copy. An install
+from an older copy is refused, naming both versions; `--downgrade` forces it.
 
 `--interval MIN` (1–60, default 1) is how often the runner checks the queue while it is loaded.
 Re-run the install to change it. The wake is set 30 s *after* the window opens, so the check
@@ -81,7 +83,8 @@ The window is a daily start time (local time) and a length in hours; the install
 started job may finish after it.
 
 Re-run the install after a plugin update. `delay.sh status` reports `installed_current=no` when
-the installed copies are stale. `--uninstall` unloads the runner, cancels our wake, and removes
+the installed copies are older than this account's plugin (by version; by content when the
+versions are equal), with `plugin_version=` and `installed_version=`. `--uninstall` unloads the runner, cancels our wake, and removes
 the installed scripts and plist. It keeps your approvals, window and results.
 
 ## Each night with work (by you)

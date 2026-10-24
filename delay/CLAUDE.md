@@ -38,6 +38,10 @@ delay/
 - **launchd and sudo run installed copies.** When an `installed.conf` sits next to `lib.sh`, it pins the
   paths and every `DELAY_*` override is ignored. Without this, `launchctl setenv DELAY_REGISTRY=…`
   would bypass the whitelist. The overrides exist only as test seams in the source tree.
+- **One installed copy, several plugin copies (PLUG-054).** Each Claude account holds its own plugin
+  copy and version. The install writes `bin/version`; `install_state` (lib.sh) compares versions
+  (bytes only when they are equal or the install predates the file), so an older account never
+  reads as "install needed", and `install.sh` refuses a downgrade without `--downgrade`.
 - **No always-on daemon.** Nothing is loaded until the human runs `start.sh`; the runner unloads
   itself (`launchctl bootout` as the last act of a tick) when the queue is empty or the armed
   window has ended. Its plist lives under `$DELAY_SYSTEM`, **never** in `/Library/LaunchAgents`,

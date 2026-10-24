@@ -150,8 +150,8 @@ check "4f flags host network" "yes" "$(says "$out" 'host namespace')"
 check "4g nothing written on refusal" "no" "$([ -f "$RJF" ] && echo yes || echo no)"
 FAKE_COMPOSE_CONFIG="$TMP/risky.yml" approve scripts/risky.sh --compose compose.yml --service app --accept-risks >/dev/null
 check "4h --accept-risks approves" "yes" "$([ -f "$RJF" ] && echo yes || echo no)"
-bash "$S/approve.sh" --revoke "$(pid_of scripts/risky.sh)" >/dev/null 2>&1
-check "4i revoke by ID" "no" "$([ -f "$RJF" ] && echo yes || echo no)"
+RID="$(pid_of scripts/risky.sh)"; out="$(bash "$S/approve.sh" --revoke "$RID" 2>&1)"
+check "4i revoke by ID" "no" "$([ -f "$RJF" ] && echo "yes — id $RID: $out" || echo no)"
 check "4j --list shows the approved pair with its ID" "yes" "$(l="$(bash "$S/approve.sh" --list)"; says "$l" "^  $TID  scripts/test-all.sh  *approved *compose.yml / app / scripts/test-all.sh")"
 
 echo "== param-as-command scan (approve) =="
@@ -216,6 +216,16 @@ for f in "$(store)"/queue/*.job; do [ "$(kv script "$f")" = scripts/nope.sh ] &&
 check "5m list shows the queued job" "yes" "$(l="$(client list)"; says "$l" "$ID  scripts/test-all.sh")"
 check "5n list shows the window" "yes" "$(l="$(client list)"; says "$l" '^window: 03:00 for 4h')"
 check "5o show a queued job" "status=queued" "$(client show "$ID" | tail -1)"
+# PLUG-015: an id is time + PID. With the clock pinned, a reused PID gave a second add the id of a
+# job still queued, and its mv replaced that job. `exec` keeps the PID, which forces the collision.
+cid="$(fmt_epoch "$NOW" %Y%m%d-%H%M%S)"; n0="$(queued)"
+out="$(bash -c 'cp "$1" "$2/$3-$$.job"; echo "$3-$$" > "$2/../taken"; shift 3; exec "$@"' _ \
+  "$(store)/queue/$ID.job" "$(store)/queue" "$cid" bash "$S/delay.sh" --project "$P" add scripts/nope.sh --compose compose.yml --service app 2>&1)"
+taken="$(cat "$(store)/taken")"; rm -f "$(store)/taken"
+check "5p a queue id in use is never overwritten" "scripts/test-all.sh" "$(kv script "$(store)/queue/$taken.job")"
+check "5q ... the new job gets an id of its own" "$((n0 + 2)):no" "$(queued):$(says "$out" "^queued $taken:")"
+rm -f "$(store)/queue/$taken.job"
+for f in "$(store)"/queue/*.job; do [ "$(kv script "$f")" = scripts/nope.sh ] && rm -f "$f"; done
 check "5p jobs lists approved pairs" "yes" "$(l="$(client jobs)"; says "$l" '^scripts/test-all.sh  *compose.yml / app')"
 check "5q rm removes" "0" "$(client rm "$ID" >/dev/null; echo $?)"
 check "5r rm unknown fails" "1" "$(client rm "$ID" >/dev/null; echo $?)"
@@ -278,8 +288,8 @@ out="$(bash "$AP_")"
 check "18e list: project, ID, WAITING, the pair" "yes" "$(says "$out" "^  $PID_  scripts/prop.sh  *WAITING for approval *compose.yml / app")"
 check "18f list shows the project path" "yes" "$(echo "$out" | grep -qx "$P" && echo yes || echo no)"
 check "18g list shows approved pairs with their ID" "yes" "$(says "$out" "^  $TID  scripts/test-all.sh  *approved")"
-out="$(bash "$AP_" "$PID_" --yes)"; rc=$?
-check "18h approve by ID" "0" "$rc"
+out="$(bash "$AP_" "$PID_" --yes 2>&1)"; rc=$?
+check "18h approve by ID" "0" "$rc$([ "$rc" = 0 ] || echo " — id $PID_ in $P: $out")"
 PJ="$(regdir)/$(pair_id compose.yml app scripts/prop.sh)"
 check "18i ... registry gets the pair and the proposed timeout" "app|scripts/prop.sh|900" "$(kv service "$PJ")|$(kv script "$PJ")|$(kv timeout "$PJ")"
 check "18j ... and lists it approved" "yes" "$(l="$(bash "$AP_")"; says "$l" "^  $PID_  scripts/prop.sh  *approved")"
@@ -296,6 +306,19 @@ check "18r re-approve by the same ID" "0" "$(bash "$AP_" "$PID_" --yes >/dev/nul
 check "18s ... approved again" "yes" "$(l="$(bash "$AP_")"; says "$l" "^  $PID_  scripts/prop.sh  *approved")"
 check "18t revoke by ID" "0:no" "$(bash "$AP_" --revoke "$PID_" >/dev/null 2>&1; echo $?):$([ -f "$PJ" ] && echo yes || echo no)"
 check "18u unknown ID refused" "1" "$(bash "$AP_" abcdef --yes >/dev/null 2>&1; echo $?)"
+# IDs are hex, and awk reads 75e763 and 7e1794 as numbers: both infinity, so equal (PLUG-015)
+for n in 63 189; do
+    d="$DELAY_REGISTRY/$(encode_path "/nonexistent/numeric-id-$n")"; mkdir -p "$d/jobs"
+    echo "/nonexistent/numeric-id-$n" > "$d/project.path"
+    printf 'compose=compose.yml\nservice=app\nscript=scripts/x.sh\n' > "$d/jobs/$(pair_id compose.yml app scripts/x.sh)"
+done
+NJ63="$DELAY_REGISTRY/$(encode_path /nonexistent/numeric-id-63)"; NJ189="$DELAY_REGISTRY/$(encode_path /nonexistent/numeric-id-189)"
+check "18u2 numeric-looking IDs as fixed" "75e763 7e1794" \
+  "$(job_id /nonexistent/numeric-id-63 "$(pair_id compose.yml app scripts/x.sh)") $(job_id /nonexistent/numeric-id-189 "$(pair_id compose.yml app scripts/x.sh)")"
+bash "$AP_" --revoke 75e763 >/dev/null 2>&1
+check "18u3 revoke of a numeric-looking ID takes that job, not its numeric twin" "0 1" \
+  "$(ls "$NJ63/jobs" | wc -l | tr -d ' ') $(ls "$NJ189/jobs" | wc -l | tr -d ' ')"
+rm -rf "$NJ63" "$NJ189"
 check "18v container half-named refused" "1" "$(client add scripts/prop.sh --compose compose.yml >/dev/null; echo $?)"
 check "18w compose outside the project refused" "1" "$(client add scripts/prop.sh --compose ../c.yml --service app >/dev/null; echo $?)"
 RID="$(pid_of scripts/risky.sh)"
@@ -438,6 +461,41 @@ cp "$S/install.sh" "$BIN/"
 check "13l install from an installed copy refused" "1" "$(SUDO_USER=nobody DELAY_USER_HOME="$UH" bash "$BIN/install.sh" >/dev/null 2>&1; echo $?)"
 rm -f "$BIN/install.sh"
 check "13m refuses without sudo context" "1" "$(DELAY_USER_HOME="$UH" SUDO_USER= bash "$S/install.sh" >/dev/null 2>&1; echo $?)"
+
+echo "== several accounts: versions, not bytes (PLUG-054) =="
+# each Claude account holds its own copy of the plugin; one installed copy serves them all
+acct() { # acct <dir> <version> — a copy of the plugin, as another account would hold it
+    mkdir -p "$1"; cp -R "$S/.." "$1/delay"
+    sed "s/\"version\": \"[^\"]*\"/\"version\": \"$2\"/" "$S/../.claude-plugin/plugin.json" > "$1/pj" && mv "$1/pj" "$1/delay/.claude-plugin/plugin.json"
+    echo "# account copy $2" >> "$1/delay/scripts/lib.sh"     # different bytes, as two releases have
+}
+VS="$(plugin_version)"; OLD="$TMP/acct-old/delay/scripts"; NEW="$TMP/acct-new/delay/scripts"
+acct "$TMP/acct-old" 0.0.1; acct "$TMP/acct-new" 99.0.0
+inst >/dev/null
+check "13n install records the version it installed" "$VS" "$(cat "$BIN/version" 2>/dev/null)"
+check "13o status names both versions" "plugin_version=$VS installed_version=$VS" \
+  "$(bash "$S/delay.sh" status | grep -E '^(plugin|installed)_version=' | paste -sd' ' -)"
+queue_raw q-ver scripts/test-all.sh
+check "13p a newer account copy asks for the install" "installed_current=no" "$(bash "$NEW/delay.sh" status | grep installed_current)"
+l="$(bash "$NEW/delay.sh" --project "$P" list 2>&1)"
+check "13p2 ... in the ACTION block, from that copy" "yes" "$(saysf "$l" "sudo bash \"$NEW/install.sh\"        (update")"
+check "13q an older account copy does not" "installed_current=yes" "$(bash "$OLD/delay.sh" status | grep installed_current)"
+l="$(bash "$OLD/delay.sh" --project "$P" list 2>&1)"
+check "13q2 ... and asks for no install" "no" "$(saysf "$l" "install.sh")"
+check "13q3 ... but to update the plugin in that account" "yes" "$(saysf "$l" "/plugin update delay@vatvit-plugins")"
+cp "$BIN/lib.sh" "$TMP/lib.before"
+out="$(SUDO_USER=nobody DELAY_USER_HOME="$UH" bash "$OLD/install.sh" 2>&1)"; rc=$?
+check "13r an install from an older copy is refused" "1" "$rc"
+check "13r2 ... naming both versions" "yes" "$(says "$out" "0\.0\.1.*$VS\|$VS.*0\.0\.1")"
+check "13r3 ... and the installed copy is untouched" "$VS:yes" "$(cat "$BIN/version"):$(cmp -s "$TMP/lib.before" "$BIN/lib.sh" && echo yes || echo no)"
+SUDO_USER=nobody DELAY_USER_HOME="$UH" bash "$OLD/install.sh" --downgrade >/dev/null 2>&1; rc=$?
+check "13s --downgrade installs it" "0:0.0.1" "$rc:$(cat "$BIN/version")"
+check "13t an install from a newer copy works as before" "0:$VS" "$(inst >/dev/null; echo $?):$(cat "$BIN/version")"
+rm -f "$BIN/version"; echo "# drift" >> "$BIN/dispatch.sh"
+check "13u an install without a version (before 2.1): bytes decide, as before" "installed_current=no" \
+  "$(bash "$S/delay.sh" status | grep installed_current)"
+inst >/dev/null
+rm -f "$(store)/queue/q-ver.job"; rm -rf "$TMP/acct-old" "$TMP/acct-new" "$TMP/lib.before"
 
 echo "== migration from 1.x (install) =="
 old() { # old <name> <service> — a 1.x registry entry: named, wrapper=, pins kept

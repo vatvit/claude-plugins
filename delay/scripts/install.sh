@@ -11,6 +11,8 @@
 #                   done, or let it sleep and rely on the wake (default: sleep). Kept on re-install.
 #        A first install sets the window from --run-at/--hours or the defaults. A re-install
 #        keeps the existing window unless --run-at or --hours is given.
+#        --downgrade  install even though this copy is older than the installed one (refused
+#                   otherwise: another Claude account installed the newer one, see README)
 #   sudo bash install.sh --uninstall  unload the runner, cancel our wake, remove the installed
 #                                     scripts and plist (keeps approvals, window and results)
 #
@@ -30,7 +32,7 @@ SRC="$(cd "$(dirname "$0")" && pwd -P)"
 
 U="$(sudo_user)"
 
-INTERVAL=1 RUN_AT="" HOURS="" UNINSTALL=0 AWAKE_DEFAULT=""
+INTERVAL=1 RUN_AT="" HOURS="" UNINSTALL=0 AWAKE_DEFAULT="" DOWNGRADE=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --interval) INTERVAL="${2:-}"; shift 2 || die "--interval needs minutes" ;;
@@ -39,6 +41,7 @@ while [ $# -gt 0 ]; do
         --uninstall) UNINSTALL=1; shift ;;
         --awake) AWAKE_DEFAULT=1; shift ;;
         --no-awake) AWAKE_DEFAULT=0; shift ;;
+        --downgrade) DOWNGRADE=1; shift ;;
         *) die "unknown option $1 (see the header of install.sh)" ;;
     esac
 done
@@ -65,8 +68,15 @@ if [ "$UNINSTALL" = 1 ]; then
 fi
 
 HOME_U="$(user_home "$U")"
+# one installed copy serves every Claude account on the Mac, each with its own plugin version:
+# an older account's copy must not replace a newer install for all of them (PLUG-054)
+VER="$(plugin_version)"; IVER="$(installed_version)"
+if [ "$DOWNGRADE" = 0 ] && [ -n "$VER" ] && [ -n "$IVER" ] && [ "$(ver_cmp "$VER" "$IVER")" = -1 ]; then
+    die "this copy is delay $VER, older than the installed $IVER (another Claude account installed it). Update the plugin in this account (/plugin update delay@vatvit-plugins) instead; --downgrade installs $VER anyway"
+fi
 mkdir -p "$BIN" "$DELAY_REGISTRY" "$DELAY_STATE"
 for s in $DELAY_SCRIPTS; do write_if_changed "$BIN/$s" < "$SRC/$s"; done
+[ -z "$VER" ] || printf '%s\n' "$VER" | write_if_changed "$BIN/version"
 
 # delay 1.x approved a NAME (jobs/<name>, wrapper=); 2.0 approves a pair (jobs/<pair_id>, script=).
 # Same compose, service, command and pins, so nothing needs re-approval. Two names for one pair
@@ -133,6 +143,7 @@ if [ -z "$DELAY_PREFIX" ]; then
     chown -R root:wheel "$DELAY_SYSTEM"
     chmod 755 "$DELAY_SYSTEM" "$BIN" "$DELAY_REGISTRY" "$DELAY_STATE"
     chmod 644 "$DELAY_PLIST" "$BIN/installed.conf"
+    [ ! -f "$BIN/version" ] || chmod 644 "$BIN/version"
     chmod 755 "$BIN"/*.sh
 fi
 if command -v plutil >/dev/null 2>&1; then plutil -lint "$DELAY_PLIST" >/dev/null || die "generated plist is invalid"; fi
