@@ -8,7 +8,7 @@
 #   external stamp <file>             Record a reviewed card's digest (the only writer of digest:)
 #   external move <file> <dir> [root] Move a file and its card together; report links it broke
 #   external related <file> [root]    Docs that depend on a file: its card's relates-to + back-links
-#   external outline|text <file>      docx/xlsx headings or sheets / plain text; see extract.sh
+#   external outline|text <file>      headings, sheets or slides / plain text; see extract.sh
 #   check  [root]                     Run every --check above + links; non-zero exit on any issue
 #   survey [project]                  Legacy project: list its doc sources as a plan; writes nothing
 #   onboard <plan> [project]          Apply an approved plan: build docs/ from those sources; see survey.sh

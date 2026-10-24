@@ -176,6 +176,27 @@ printf '%s\n' "$plan" > "$TMP/adopt.plan"
 bash "$DOCS" onboard "$TMP/adopt.plan" "$R" >/dev/null 2>&1
 check "D2 frontmatter added in place" "title: Guide" "$(sed -n 2p "$R/docs/guide/start.md")"
 
+echo "== non-markdown and folders =="
+
+# A doc folder with a .txt, an .rst and a PDF (so the folder splits: most to docs/, one to
+# docs/external/), a README linking the folder itself, and code naming a doc in a comment.
+R="$TMP/mixed"
+printf '# Setup\n' | put "$R/doc/setup.md"
+printf '# Notes\n\nPlain text.\n' | put "$R/doc/notes.txt"
+printf 'Guide\n=====\n' | put "$R/doc/guide.rst"
+printf '%%PDF-1.4 fake' | put "$R/doc/spec.pdf"
+printf 'Docs live in [doc](doc/) and [the folder](doc).\n' | put "$R/README.md"
+printf '# set up as in doc/setup.md\nprint(1)\n' | put "$R/src/app.py"
+plan="$(bash "$DOCS" survey "$R")"
+check "N1 a .txt doc moves as .md" "yes" "$(has "$plan" "$(printf 'doc/notes.txt\tdocs/notes.md\t')")"
+printf '%s\n' "$plan" > "$TMP/mixed.plan"
+out="$(bash "$DOCS" onboard "$TMP/mixed.plan" "$R" 2>&1)"
+check "N2 the .txt gets frontmatter" "title: Notes" "$(sed -n 2p "$R/docs/notes.md")"
+check "N3 a non-markdown doc is reported" "yes" "$(has "$out" 'REVIEW: docs/guide.rst is not markdown')"
+check "N4 links to a moved folder rewritten" "Docs live in [doc](docs/) and [the folder](docs)." "$(cat "$R/README.md")"
+check "N5 a non-markdown file naming a moved doc is reported" "yes" \
+  "$(has "$out" 'REVIEW: src/app.py names doc/setup.md, now docs/setup.md')"
+
 echo "== git =="
 
 if command -v git >/dev/null 2>&1; then

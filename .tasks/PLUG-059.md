@@ -1,6 +1,6 @@
 ---
 title: docs-manager — where do decisions live? Its convention says task files, many projects keep them in docs/
-status: proposed
+status: completed
 type: improvement
 priority: medium
 ---
@@ -9,17 +9,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | SKILL.md conventions, how-to-claude-md table |
+| 20 | Requirements | done | the user decision recorded above |
+| 30 | Assessment | done | docs-only change |
+| 40 | POC | skipped | — |
+| 50 | Domain | skipped | — |
+| 60 | Architecture | skipped | — |
+| 70 | Tests | skipped | no behaviour change; docs check of the plugin unaffected |
+| 80 | Subtasks | skipped | — |
+| 90 | Implementation | done | SKILL.md bullet, how-to-claude-md rows, README line |
+| 100 | Tech Debt | skipped | — |
+| 110 | Reflection | done | the rule itself is the reflection |
 
 ## Description
 
@@ -46,3 +46,18 @@ task). Today the convention lumps both under "history".
 ## Current State
 
 Proposed. Nothing changed yet.
+
+## Decision (2026-10-24, the user)
+
+Discussion and rejected options belong in the task. The final decision and its consequences belong in
+`docs/`. When the project keeps tasks, the doc links to the task. Applied in docs-manager's SKILL.md
+(convention "A decision is split in two"), `how-to-claude-md.md` § Where knowledge goes (two rows) and
+README's conventions line. Where in `docs/`: the doc the decision governs (as the how-to already said);
+no decisions folder. The slide names no decisions, so it is unchanged.
+
+## Result (2026-10-24)
+
+The conventions now separate a decision into two parts. The decision and its consequences live in
+the doc it governs. The options weighed and rejected stay in the task, and the doc links to that task
+when the project keeps tasks. Changed: SKILL.md (conventions), how-to-claude-md.md (the
+"where knowledge goes" table) and README. Released in docs-manager 1.10.0.

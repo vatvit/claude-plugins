@@ -100,8 +100,8 @@ bash <PLUGIN_ROOT>/scripts/docs.sh external check  [root]   # NO CARD / UNSTAMPE
 bash <PLUGIN_ROOT>/scripts/docs.sh external stamp <file>    # record the reviewed digest
 bash <PLUGIN_ROOT>/scripts/docs.sh external move <file> <dest-dir> [root]   # file + card together
 bash <PLUGIN_ROOT>/scripts/docs.sh external related <file> [root]  # docs that depend on the file
-bash <PLUGIN_ROOT>/scripts/docs.sh external outline <file>  # docx headings / xlsx sheets + header row
-bash <PLUGIN_ROOT>/scripts/docs.sh external text <file>     # docx paragraphs / xlsx rows as TSV
+bash <PLUGIN_ROOT>/scripts/docs.sh external outline <file>  # headings / sheets + header row / slide titles
+bash <PLUGIN_ROOT>/scripts/docs.sh external text <file>     # paragraphs / rows as TSV / slide text
 bash <PLUGIN_ROOT>/scripts/docs.sh index --write [root]     # lists cards under "External documents"
 ```
 
@@ -113,11 +113,37 @@ bash <PLUGIN_ROOT>/scripts/docs.sh index --write [root]     # lists cards under 
 `related` emits `relates-to<TAB>doc` (named in the card's `relates-to:`) and `links<TAB>doc` (links
 to the card or the file), each doc once. Generated `_index.md` listings are not dependants.
 
-`outline` emits `heading<TAB>level<TAB>text` for a docx and
-`sheet<TAB>name<TAB>range<TAB>A:header | B:header …` for an xlsx. `text` emits a docx as one
-paragraph per line with headings as markdown `#`, and an xlsx as `## <sheet> (<range>)` followed by
-`row<TAB>A<TAB>B…`. Any other file — or no `unzip`, or a package that will not open — gives the
+`outline` emits `heading<TAB>level<TAB>text` for a docx or odt,
+`sheet<TAB>name<TAB>range<TAB>A:header | B:header …` for an xlsx or ods, and
+`slide<TAB>number<TAB>title` (`-` for a slide with no title) for a pptx or odp. `text` emits a
+document as one paragraph per line with headings as markdown `#`, a workbook as
+`## <sheet> (<range>)` followed by `row<TAB>A<TAB>B…`, and a deck as `## Slide <n>: <title>`
+followed by the slide's other text. Any other file — or no `unzip`, or a package that will not open — gives the
 single record `none<TAB>reason` and exit 0: it is the fallback, not an error.
+
+### What `outline` and `text` miss
+
+The reader is a small unzip + awk program, tested on minimal hand-made files. Real Office files
+carry things it does not interpret:
+
+| In the file | What the output shows |
+|---|---|
+| A text box or shape with text (Word stores it twice, new and legacy form) | its text twice, run into the paragraph it is anchored to |
+| Auto-numbered headings or lists (the number lives in `numbering.xml`) | `Scope`, not `4.2 Scope`; list items without their numbers |
+| A custom heading style that only inherits from *Heading N* (`basedOn`) | an ordinary paragraph: missing from `outline`, no `#` in `text` |
+| A numeric character reference (`&#10;`, `&#x2014;`) | the reference as written, not the character |
+| A table in a docx or odt | one line per cell, the table shape lost |
+| Headers, footers, footnotes, comments, speaker notes | nothing: only the document body and the slides are read |
+| A date or formatted number in an xlsx | the stored value: `45231` for a date, `0.25` for 25 % (an ods shows the displayed text) |
+| A slide title that is not in the title placeholder (a plain text box) | the slide as untitled (`-`), the title among its text |
+
+**When one of these touches the work, tell the user.** Name the construct and what it does to the
+output — "the headings in this spec are auto-numbered, so the outline shows *Scope* where the file
+says *4.2 Scope*" — so they know why the result looks off and that it is the reader, not the file.
+Then offer the way around it: a **PDF export** (read natively, with page numbers, and best for a
+card's `Where to look`), or reading the file with Claude's built-in document skill when one is
+available. Never cite a location the output did not show; a section number the reader dropped is
+not one you can add from memory.
 
 ## Cataloguing — the procedure
 
@@ -133,12 +159,15 @@ Run this when the user adds reference files, asks to catalogue or ingest them, o
    - **pdf:** read it natively in page ranges (at most 20 pages per read). Start with the first few
      pages and any table of contents, then read the sections the contents point at. Record page
      numbers *as you read them*; do not reconstruct them afterwards.
-   - **docx, xlsx:** `external outline <file>` first — it is small and gives the location units
-     directly: the heading path for a docx, the sheet name, range and header columns for an xlsx.
+   - **docx, xlsx, pptx, odt, ods, odp:** `external outline <file>` first — it is small and gives
+     the location units directly: the heading path for a document, the sheet name, range and
+     header columns for a workbook, the slide numbers and titles for a deck.
      Then `external text <file> > <tmpdir>/<name>.txt` and read that in parts for the summary; a
-     big workbook's rows do not belong in context, so for an xlsx the outline is often enough.
-     Every `Where to look` row still has to be something the output actually showed.
-   - **Anything else** — pptx, doc, xls, odt, … — or `outline` answering `none`: if the user can
+     big workbook's rows do not belong in context, so for a workbook the outline is often enough.
+     Every `Where to look` row still has to be something the output actually showed. If the output
+     hits one of the limits in *What `outline` and `text` miss*, say so to the user, as that section
+     describes.
+   - **Anything else** — doc, xls, ppt, rtf, epub — or `outline` answering `none`: if the user can
      give a PDF export or a short description, use it. Converting the file in a container (e.g.
      LibreOffice headless) is an option **only with the user's explicit approval** — never install
      anything. Otherwise write a minimal card — `title`, `description`, `read-when` from what the

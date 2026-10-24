@@ -1,7 +1,7 @@
 ---
 name: docs-manager
 description: Use when creating or maintaining a markdown documentation set treated as a product — per-folder _index.md navigation, broken cross-doc link checks, the docs-as-product conventions (frontmatter, single source of truth, DRY via cross-links), and diagrams that live in text sources beside the docs they illustrate. Activate on "update the docs index", "regenerate _index.md", "check doc links", "are the docs consistent", "how should the docs be organised", or after adding/moving/removing docs. Also activate for diagrams in docs — "add a diagram to this doc", "draw the auth flow", "explain this with a picture", "update the diagram", "is the diagram still accurate", "bless the diagram" — and whenever a doc would be clearer as a picture than as prose. Also activate for rendering a diagram to a standalone image — "render the diagram", "export the diagram as SVG/PNG/HTML", "interactive diagram page", "why is nothing rendered", ".docs-manager-render", "set up a diagram renderer". Also activate for entity-relationship diagrams specifically — "draw an ERD", "erDiagram", "diagram the data model", "diagram the schema", "picture of these entities/tables/types and how they relate", "is this ERD still right" — and before drawing or changing any ERD, whether it depicts tables, interfaces, structs or JSON schemas. Also activate for external reference material — "catalogue the external docs", "ingest these documents", "I added files to docs/external", "index the reference material", "what is in the external docs", "card for this document", "NO CARD", "external stamp", "the external doc changed", "which docs depend on this external file", "outline of the external file", "extract the external document" — and before answering a question from a vendor spec, contract or spreadsheet kept under docs/. Also activate for the project's agent instruction file — "optimise CLAUDE.md", "CLAUDE.md is too long", "clean up AGENTS.md", "move this out of CLAUDE.md", "should this go in CLAUDE.md or the docs", "where does this rule belong" — and before adding anything to such a file. Also activate for a legacy project whose docs are scattered — "onboard a legacy project", "survey the existing docs", "where are the docs in this project", "gather the scattered docs into docs/", "build docs/ from the existing docs", "this project has no docs/ yet", "/docs-manager:docs-manager init".
-version: 1.9.0
+version: 1.10.0
 ---
 
 # Docs Manager
@@ -24,7 +24,11 @@ Any other argument: say which ones exist, and do nothing else.
 ## Conventions (docs-as-product)
 
 - **Docs reflect the ACTUAL current state**, not history. Historical context (changelogs, "we used
-  to…", rejected options, decisions) belongs in task/issue files, not in `docs/`. Link to them if needed.
+  to…") belongs in task/issue files, not in `docs/`. Link to them if needed.
+- **A decision is split in two.** The final decision and its consequences are current state: they
+  live in `docs/`, in the doc the decision governs. The discussion that reached it — the options
+  weighed, the ones rejected and why — is history and stays in the task or issue that made it. When
+  the project keeps tasks, the doc links to that task, so the reasoning is one link away, never copied.
 - **Change → update docs in the same change.** Stale docs are a defect.
 - **Consistency on every edit.** When you change a doc, review related docs (follow `_index.md` and
   cross-links) and reconcile anything that no longer agrees. The edit isn't done until they agree.

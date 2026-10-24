@@ -1,6 +1,6 @@
 ---
 title: docs-manager external docs — check extract.sh against real Office-produced files
-status: proposed
+status: rejected
 type: chore
 priority: low
 ---
@@ -35,3 +35,13 @@ Google Docs/Sheets exports and fix what is wrong — or record it in the how-to 
 1. Each listed construct either handled with a fixture case, or named as a limit in
    `how-to-external-docs.md`.
 2. No file that opens in Word/Excel yields an error; worst case is `none`.
+
+## Rejected (2026-10-24)
+
+The user rejected the task: real-file testing needs files nobody has here (Word, Google), and the
+cost of the gaps is messy output, never an error or a wrong write. Instead the known limits are
+written down where Claude reads them: `how-to-external-docs.md` § *What `outline` and `text` miss*
+(text boxes twice, numbering dropped, `basedOn` headings missed, numeric references raw, docx tables
+one cell per line, headers/footers/footnotes/comments unread, xlsx dates and formats as stored
+values), with the instruction to tell the user when a limit touches the work and offer a PDF export
+or the built-in document skill. Shipped with docs-manager's release for PLUG-023/059/083.

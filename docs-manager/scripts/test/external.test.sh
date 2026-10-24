@@ -275,6 +275,38 @@ out=$(bash "$DOCS" external outline "$R/e.xlsx.md" 2>&1)
 check "X4g given the card path" "yes" "$(has "$out" "$(tab 'sheet~Q3')")"
 bash "$DOCS" external outline "$R/missing.docx" >/dev/null 2>&1; check "X4h missing file is an error" "1" "$?"
 
+# --- X5: pptx — slides in presentation order, title placeholders, groups, breaks (PLUG-023) ---
+out=$(bash "$DOCS" external outline "$FX/deck.pptx" 2>&1); rc=$?
+check "X5a pptx outline: slides by number, centred title, split runs, no title" \
+  "0:$(tab 'slide~1~Q3 review & plan\nslide~2~Revenue\nslide~3~-')" "$rc:$out"
+out=$(bash "$DOCS" external text "$FX/deck.pptx" 2>&1)
+check "X5b pptx text: a heading per slide, body lines, group and break kept" \
+  "$(printf '## Slide 1: Q3 review & plan\nPrepared for the board\n## Slide 2: Revenue\nUp 12%% on Q2\nEU US\nGrouped note\n## Slide 3\nQuestions?')" "$out"
+
+# --- X6: odp — pages, title frame, outline list, speaker notes skipped -----------------------
+out=$(bash "$DOCS" external outline "$FX/deck.odp" 2>&1); rc=$?
+check "X6a odp outline" "0:$(tab 'slide~1~Roadmap & risks\nslide~2~-')" "$rc:$out"
+out=$(bash "$DOCS" external text "$FX/deck.odp" 2>&1)
+check "X6b odp text, notes not read" \
+  "$(printf '## Slide 1: Roadmap & risks\nShip 2.0\nHire two\n## Slide 2\nThanks')" "$out"
+
+# --- X7: odt — outline-level headings, spans, spaces, footnote and comment skipped -----------
+out=$(bash "$DOCS" external outline "$FX/notes.odt" 2>&1); rc=$?
+check "X7a odt outline" "0:$(tab 'heading~1~Scope & aims\nheading~2~Late payment\nheading~3~Interest')" "$rc:$out"
+out=$(bash "$DOCS" external text "$FX/notes.odt" 2>&1)
+check "X7b odt text: headings marked, list, tab/break, table cell, no empty lines" \
+  "$(printf '# Scope & aims\nThe fee is 2%%.\n## Late payment\nFirst item\n### Interest\nA B C\ncell text')" "$out"
+
+# --- X8: ods — repeated cells and rows, display text, covered cells, comments skipped --------
+out=$(bash "$DOCS" external outline "$FX/sheet.ods" 2>&1); rc=$?
+check "X8a ods outline: range from the cells with content, header row" \
+  "0:$(tab 'sheet~Rates & fees~A1:C4~A:region | B:rate | C:currency\nsheet~Q3~A1:B3~A:month | B:2026')" "$rc:$out"
+out=$(bash "$DOCS" external text "$FX/sheet.ods" 2>&1)
+check "X8b ods text: rows as TSV, a date as displayed, a repeated value repeated" \
+  "$(tab '## Rates & fees (A1:C4)\n1~region~rate~currency\n2~EU~0.25~EUR\n3~US~~24/10/2026\n4~x~x\n## Q3 (A1:B3)\n2~month~2026\n3~Jul')" "$out"
+R=$(fresh x9); bin "$R/e.odt" "not a zip"
+check "X9 an unreadable odt is none, rc 0" "0:none" "$(o=$(bash "$DOCS" external outline "$R/e.odt" 2>&1); echo "$?:$(echo "$o" | cut -f1)")"
+
 echo "== related =="
 
 # --- R1: a changed file names its relates-to docs and its back-links, each once ---------

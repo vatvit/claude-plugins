@@ -46,7 +46,8 @@ file again under another name, and not into a single dumping doc, which dies the
 | What you are holding | Its home |
 |---|---|
 | how a system works, its model, its vocabulary | that system's doc |
-| what shipping it settled, a correction, a rejected alternative | that doc's `As built` / decision record |
+| what shipping it settled, a correction, a decision and its consequences | that doc's `As built` / decision record, linking to the task that made it |
+| the options weighed for a decision, a rejected alternative | the task that made the decision (history, not docs) |
 | module names, function names, test ids, the invariants each guards | that doc, in a **§Code anchors** section (see rule 4) |
 | how to run something, commands, ports, the gate | the setup / CI / dev-process doc |
 | a rule about a tool or process with no doc at all | a **new doc**, registered in its `_index.md` |

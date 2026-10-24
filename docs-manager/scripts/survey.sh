@@ -118,7 +118,9 @@ EOF
           if (lpart[i] in adrdir) { kind = "adr"; d = "docs/decisions/" rest }
           else if (e in isext) { kind = "external"; d = "docs/external/" rest }
           else { kind = (e in prose) ? "doc" : "asset"; d = "docs/" rest }
+          # a .txt reads as markdown as it is, so it moves as one and gets frontmatter
           if (e == "markdown") d = substr(d, 1, length(d) - 8) "md"
+          else if (e == "txt") d = substr(d, 1, length(d) - 3) "md"
           row("move", kind, p, claim(d, p)); continue
         }
         if (e in isext) { row("ignore", "external", p, "-"); continue }
@@ -198,9 +200,21 @@ move_file() {
   return 0
 }
 
-# moved_to <movesfile> <path> -> where <path> is now (itself when it did not move)
+# moved_to <movesfile> <path> -> where <path> is now (itself when it did not move). A folder
+# is where most of the files moved out of it went, keeping their path below it; a tie leaves it
+# where it was, and the link that names it is reported as broken.
 moved_to() {
-  awk -F'\t' -v p="$2" '$1 == p { n = $2 } END { print (n == "" ? p : n) }' "$1"
+  awk -F'\t' -v p="$2" '
+    $1 == p { n = $2 }
+    p != "" && index($1, p "/") == 1 {
+      r = substr($1, length(p) + 2); k = length($2) - length(r)
+      if (k > 1 && substr($2, k) == "/" r) cnt[substr($2, 1, k - 1)]++
+    }
+    END {
+      if (n == "") for (d in cnt) if (cnt[d] > best) { best = cnt[d]; n = d; tie = 0 } else if (cnt[d] == best) tie = 1
+      if (tie) n = ""
+      print (n == "" ? p : n)
+    }' "$1"
 }
 moved_from() {
   awk -F'\t' -v p="$2" '$2 == p { n = $1 } END { print (n == "" ? p : n) }' "$1"
@@ -225,6 +239,7 @@ rewrite_links() {
     # a dead link stays as written, so the report names what the author wrote
     [ "$now" != "$target" ] || [ -e "$target" ] || continue
     new="$(relpath "$(dirname "$file")" "$now")"
+    case "$dec" in */) new="$new/" ;; esac
     [ "$new" = "$dec" ] && continue
     printf '%s\t%s\n' "$raw" "$(md_dest "$new$suffix")" >> "$map"
   done <<EOF
@@ -253,6 +268,28 @@ EOF
     write_if_changed "$tmp" "$file" "RELINKED" || true
   fi
   rm -f "$map"
+}
+
+# report_mentions <movesfile> — a `REVIEW:` line for each text file other than markdown that
+# names a moved file by its old project path (a code comment, an .rst, HTML). Those are not links
+# this plugin can parse, so they are reported, never rewritten.
+report_mentions() {
+  local list; list="$(mktemp)"
+  project_files | awk -v exts="$EXTERNAL_EXTS" '
+    BEGIN { n = split(exts " md markdown png jpg jpeg gif webp ico bmp zip gz tgz tar jar woff woff2 ttf otf eot mp3 mp4 mov", x, " ")
+            for (i = 1; i <= n; i++) skip[x[i]] = 1 }
+    { e = $0; sub(/^.*\//, "", e); if (!index(e, ".")) { print; next } sub(/^.*\./, "", e); if (!(tolower(e) in skip)) print }' > "$list"
+  awk -v movesf="$1" -v listf="$list" 'BEGIN {
+    while ((getline l < movesf) > 0) { t = index(l, "\t"); from[++n] = substr(l, 1, t - 1); to[n] = substr(l, t + 1) }
+    while ((getline f < listf) > 0) {
+      while ((getline line < f) > 0)
+        for (k = 1; k <= n; k++) if (!((f, k) in seen) && index(line, from[k])) {
+          seen[f, k] = 1; printf "REVIEW: %s names %s, now %s\n", f, from[k], to[k]
+        }
+      close(f)
+    }
+  }'
+  rm -f "$list"
 }
 
 # add_frontmatter <file> — title from the first `# ` heading (else the file name), and the
@@ -333,11 +370,15 @@ cmd_onboard() {
       done <<EOF
 $(project_files)
 EOF
+      report_mentions "$moves"
     fi
 
     while IFS=$'\t' read -r a k s d _; do
       case "$a" in
-        move) case "$d" in *.md) add_frontmatter "$d" ;; esac ;;
+        move) case "$d" in
+                *.md) add_frontmatter "$d" ;;
+                *) [ "$k" != doc ] || echo "REVIEW: $d is not markdown: no frontmatter, not in _index.md; convert it, or link it from a doc" ;;
+              esac ;;
         adopt) add_frontmatter "$s" ;;
         write) echo "TO WRITE: $d" ;;
       esac

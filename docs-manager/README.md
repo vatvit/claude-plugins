@@ -36,7 +36,8 @@ small set of conventions that keep docs DRY and always reflecting the current st
   you approve it. `onboard` then builds `docs/`: moves with `git mv` so history follows, rewrites the
   links both ways, adds frontmatter, lists what stays in place, and names the docs still to write from
   the code. Run it again and it proposes nothing.
-- **Conventions** — docs reflect current state (history lives in tasks), single source of truth,
+- **Conventions** — docs reflect current state (history lives in tasks: a decision and its
+  consequences sit in the doc it governs, the options weighed and rejected in the task it links to), single source of truth,
   cross-link instead of duplicate, frontmatter on every doc, and SOLID read for docs (one purpose per
   doc and folder, grow by adding, one shape per kind, entry points per reader).
 
@@ -71,7 +72,7 @@ bash scripts/docs.sh external status
 bash scripts/docs.sh external check
 bash scripts/docs.sh external stamp docs/external/vendor/spec.pdf
 bash scripts/docs.sh external move docs/external/spec.pdf docs/external/vendor
-# …which docs depend on a file; what is inside a docx/xlsx
+# …which docs depend on a file; what is inside a docx/xlsx/pptx/odt/ods/odp
 bash scripts/docs.sh external related docs/external/vendor/spec.pdf
 bash scripts/docs.sh external outline docs/external/finance/budget.xlsx
 bash scripts/docs.sh external text docs/external/law/contract.docx
@@ -287,8 +288,8 @@ docs/external/
   card has been reviewed; replace the file and `check` reports the card as `CHANGED`.
 - **A changed file names its dependants.** Under each `CHANGED` line `check` prints `REVIEW:` for
   every doc in the card's `relates-to:` and every doc linking to the card or the file.
-- **docx and xlsx are read without a runtime.** They are zip packages of XML, so `external outline`
-  and `external text` use `unzip` (macOS and busybox ship it) and awk. Other formats, or no `unzip`,
+- **docx, xlsx, pptx, odt, ods and odp are read without a runtime.** They are zip packages of XML,
+  so `external outline` and `external text` use `unzip` (macOS and busybox ship it) and awk. Other formats, or no `unzip`,
   give a `none` record and the card is written from a PDF export or a description.
 - **Recognised extensions:** `pdf doc docx xls xlsx ppt pptx odt ods odp rtf epub`. A `.pdf` rendered
   from a diagram source beside it is output, not reference material, and is ignored.

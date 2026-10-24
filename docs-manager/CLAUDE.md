@@ -17,11 +17,11 @@ docs-manager/
 │   ├── docs.sh                  ← CLI front-end: index / links / diagram / external / check
 │   ├── diagram.sh               ← diagram sources → generated blocks, staleness
 │   ├── external.sh              ← external files (pdf, docx, …) and their cards
-│   ├── extract.sh               ← docx/xlsx → outline / plain text (unzip + awk)
+│   ├── extract.sh               ← docx/xlsx/pptx/odt/ods/odp → outline / plain text (unzip + awk)
 │   ├── survey.sh                ← legacy project: survey its doc sources, onboard a plan
 │   └── test/
 │       ├── *.test.sh            ← the suites (no framework, no dependencies)
-│       └── fixtures/            ← built OOXML fixtures; XML sources in src/, rebuilt by build.sh
+│       └── fixtures/            ← built OOXML/ODF fixtures; XML sources in src/, rebuilt by build.sh
 ├── hooks/
 │   ├── hooks.json               ← PostToolUse registration
 │   └── diagram-watch-hook.sh    ← warns when an edited file is watched
@@ -206,8 +206,8 @@ Key behaviors (don't regress these):
 
 ## scripts/extract.sh
 
-`external outline|text <file>`: docx and xlsx are zip packages of XML, read by `unzip -p` + awk
-with `RS = "<"` (one tag per record). Sourced by `docs.sh`.
+`external outline|text <file>`: docx, xlsx, pptx (OOXML) and odt, ods, odp (OpenDocument) are zip
+packages of XML, read by `unzip -p` + awk with `RS = "<"` (one tag per record). Sourced by `docs.sh`.
 
 - **`extract_kind` is the one capability check.** Everything unreadable — pdf (read natively),
   legacy binary, other formats, no `unzip`, a package that will not open — is a `none<TAB>reason`
@@ -218,7 +218,13 @@ with `RS = "<"` (one tag per record). Sourced by `docs.sh`.
   first input is empty, and `styles.xml` / `sharedStrings.xml` are optional.
 - **xlsx sheets come in workbook order** via `workbook.xml.rels`, never by file name; element names
   compare without their namespace prefix (`x:row` exists in the wild). Sheet names reach awk through
-  `ENVIRON`, not `-v`, which would interpret backslashes.
+  `ENVIRON`, not `-v`, which would interpret backslashes. pptx slides come in show order the same
+  way (`ooxml_order`, one helper for both).
+- **One emitter per output shape.** `para_emit` (docx, odt), `slide_emit` (pptx, odp) and `letters`
+  live in `AWK_XML`; the ODF readers share `AWK_ODF` (skip comments/footnotes/speaker notes, `text:s`
+  spaces). A new format reuses them rather than printing its own records.
+- **ods counts repeats, it never expands empty ones.** LibreOffice pads a sheet to 1024 columns and
+  ~1M rows with `number-*-repeated`; the range ends at the last cell that holds something.
 - Nothing here writes. Callers keeping output put it in a temp dir, never the repo.
 
 ## scripts/survey.sh
@@ -244,6 +250,13 @@ Key behaviors (don't regress these):
   only inside `](…)`. A link that was already dead is left as written, so the report names it (O12).
 - `git mv` for a tracked file, so history follows (G2); a plain `mv` removes the folders it emptied,
   as `git mv` does.
+- **`moved_to` resolves folders too.** A link to a moved folder goes to the folder most of its files
+  went to (a doc folder splits: prose to `docs/`, office files to `docs/external/`). A tie leaves the
+  link alone (N4).
+- **What onboard cannot rewrite, it reports.** `REVIEW:` names an `.rst`/`.adoc` moved into `docs/`,
+  which has no frontmatter and no listing (N3). It also names a non-markdown text file whose text
+  mentions a moved file's old path (N5). Plain substring matching is fine because the output is a
+  report and never an edit. A `.txt` doc moves as `.md` instead (N1).
 
 ## skills/docs-manager/references/
 
