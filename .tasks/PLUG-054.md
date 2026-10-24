@@ -1,6 +1,6 @@
 ---
 title: delay — several Claude accounts on one Mac: a version-aware "outdated" check, and the install refuses a downgrade
-status: proposed
+status: completed
 type: bug
 priority: medium
 ---
@@ -9,17 +9,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done |
+| 20 | Requirements | done | the proposal, open point decided below |
+| 30 | Assessment | done |
+| 40 | POC | skipped |
+| 50 | Domain | skipped |
+| 60 | Architecture | done | see Results |
+| 70 | Tests | done | 13n-13u |
+| 80 | Subtasks | skipped |
+| 90 | Implementation | done | delay 2.0.1 -> 2.1.0 |
+| 100 | Tech Debt | done | none |
+| 110 | Reflection | done | delay/CLAUDE.md trust boundary, README, SKILL |
 
 ## Description
 
@@ -63,3 +63,18 @@ Found 2026-10-10, while answering "how do I install delay on another PC" (after 
 - README "Several Claude accounts" paragraph and SKILL.md updated; the version-mismatch caveat
   added on 2026-10-10 removed.
 - Tests: the suite passes on the host and in `bash:5`; each new check was seen red.
+
+## Results (2026-10-24)
+
+- Open point decided (Claude, reported to the user): same version, different bytes → the bytes decide,
+  as before (a dev checkout); so does an install from before `bin/version` existed.
+- `install.sh` writes `bin/version` from plugin.json and refuses to install an older version over a
+  newer one (exit 1, both versions named, nothing touched); `--downgrade` forces it.
+- lib.sh: `plugin_version`, `installed_version`, `ver_cmp`, `install_state` (current | update | older);
+  `installed_current` = not `update`. `status` adds `plugin_version=`, `installed_version=`, and
+  `plugin_update=` for an older account; the reminder prints a `note:` line instead of an install.
+- Tests 13n–13u with two real account copies (0.0.1 and 99.0.0): host green (257); seen red by
+  mutating a copy of the plugin (versions ignored, refusal removed).
+- README "Several Claude accounts" caveat replaced; SKILL.md rule; delay/CLAUDE.md trust boundary;
+  plugin.json + marketplace description and 2.1.0.
+- Final check (2026-10-24, with PLUG-015's fixes): host 259 passed; 40 of 40 container runs green.
