@@ -84,3 +84,9 @@ What the suite **cannot** prove needs a real install and a real sleep:
 - A pmset dark wake surviving until the runner's next tick, with `caffeinate -i -w` then holding it.
 
 Verify with `pmset -g log | grep -i wake` against a result's `started=`.
+
+Checked on hardware 2026-10-24, delay 2.1.0 (PLUG-014): a real sleep, the `pmset schedule wake` fired
+at window start + 31 s as a *full* wake (not a dark wake), and the job started 48 s later on launchd's
+overdue tick. To repeat it, sleep from the Apple menu **on battery**: on mains power any process
+holding *PreventSystemSleep* (`caffeinate -s`, which Claude sessions leave behind) turns even a menu
+sleep into a dark wake, so the Mac never really sleeps and the wake path is not exercised.

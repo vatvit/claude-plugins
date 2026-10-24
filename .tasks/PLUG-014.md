@@ -1,6 +1,6 @@
 ---
 title: delay — verify wake from real sleep on hardware
-status: proposed
+status: completed
 type: research
 priority: low
 ---
@@ -9,17 +9,17 @@ priority: low
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | PLUG-013 night runs |
+| 20 | Requirements | skipped | ACs in the task |
+| 30 | Assessment | done | first attempt only dark-woke, see Results |
+| 40 | POC | done | live check 2026-10-24 |
+| 50 | Domain | skipped | |
+| 60 | Architecture | skipped | |
+| 70 | Tests | skipped | hardware check, not automatable (delay/CLAUDE.md § Testing) |
+| 80 | Subtasks | skipped | |
+| 90 | Implementation | skipped | no fix needed |
+| 100 | Tech Debt | done | none |
+| 110 | Reflection | done | delay/CLAUDE.md § Testing |
 
 ## Description
 
@@ -46,3 +46,20 @@ window before checking docker.
 
 1. The smoke job runs within ~1 min of the window start while the Mac was asleep.
 2. The power log shows a real sleep before it and a wake at window start + 30 s.
+
+## Results (2026-10-24, delay 2.1.0)
+
+Both ACs pass. Window 15:20 for 3h (other queued jobs ran in it too), `start.sh --no-awake`.
+- **First attempt failed to sleep, not to wake.** On mains power, Apple menu → Sleep only reached
+  DarkWake (`Entering DarkWake state due to 'Software Sleep' … Using AC`) and a second of HID
+  activity made it a full wake. Cause: processes holding *PreventSystemSleep* (`caffeinate -s`, two of
+  them stale for over two weeks), which on AC turns even a menu sleep into a dark wake. On battery
+  that assertion does not apply.
+- **On battery:** `15:12:40 Entering Sleep state … Using Batt` (a real sleep); the power log listed
+  `UserWake wakeAt=15:20:30 info="claude-delay"`; `15:20:31 Wake from Deep Idle … rtc` (window start
+  + 31 s, a full wake, not a dark wake); the smoke job `started=15:21:19` (48 s later: launchd's
+  overdue tick), `finished=15:21:42`, exit 0, before anyone touched the Mac.
+- The candidate fix (`caffeinate -t 120` on a tick) is not needed: a `pmset schedule wake` is a full
+  wake, and the runner's own hold keeps it up while jobs run.
+- Lesson for the docs: a Mac on AC with any `caffeinate -s` holder never really sleeps, so the wake is
+  moot there; the wake path matters on battery or with no such holder.
