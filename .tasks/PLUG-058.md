@@ -1,6 +1,6 @@
 ---
 title: "Diagram: task, docs-manager and crew — how they work together and the value each brings (one slide, made with Miro, also in the README)"
-status: proposed
+status: completed
 type: docs
 priority: medium
 ---
@@ -9,17 +9,17 @@ priority: medium
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | see Description |
+| 20 | Requirements | done | Decisions (2026-10-16) |
+| 30 | Assessment | skipped | docs only |
+| 40 | POC | skipped | Miro tried and dropped |
+| 50 | Domain | skipped | n/a |
+| 60 | Architecture | skipped | n/a |
+| 70 | Tests | skipped | docs only; claims reviewed against the plugins four times |
+| 80 | Subtasks | skipped | one slide |
+| 90 | Implementation | done | SVG + PNG + README, 82e83d9 / b3b43db |
+| 100 | Tech Debt | done | PLUG-059 (where decisions live) |
+| 110 | Reflection | done | nothing new to record |
 
 ## Description
 
@@ -69,3 +69,10 @@ Fourth review: append-only starts at implementation, not when work starts; the d
 Reworded in the plugins' own terms (user, 2026-10-16: "use our terms, but highlight that task == spec"):
 docs / task / workflow steps / reflection; the task box is highlighted as "task = spec". The crew line
 "each on its own task" states the rule PLUG-060 adds to crew. Not committed.
+
+Checked 2026-10-24: everything above is committed and pushed — SVG and README in 82e83d9, the PNG
+(rendered from that SVG, added after it) in b3b43db. The slide's claims still match the plugins
+(crew's "each on its own task" shipped with PLUG-060). The workflow table was never filled in; the
+work went through the Steps above instead. Left: the user's word to mark this completed.
+
+Completed 2026-10-24 on the user's word.
