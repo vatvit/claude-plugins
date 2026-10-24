@@ -25,6 +25,14 @@ check "the parked id alone does not switch crew on either" no "$( [ -d "$R/.git/
 out="$(cd "$R" && bash "$C" whoami s1 coordinator)"
 check "whoami binds via the hook's pending id" yes "$(contains "you are s1 (coordinator)" "$out")"
 check "…and teaches the prefix" yes "$(contains "CREW_AS=s1 crew" "$out")"
+# PLUG-084: only a join parks an id — not a bare whoami, an option, or a redirection taken for a name
+for cmd in "bash $C whoami 2>&1" "bash $C whoami >/dev/null" "bash $C whoami --leave s9" "bash $C whoami; true" "bash $C whoami | head -3"; do
+    hook pre-bash.sh "$(payload sid-x "$R" Bash command "$cmd")" >/dev/null
+done
+check "a whoami that is not a join parks nothing" "" "$(ls "$R/.git/crew-pending" 2>/dev/null | paste -sd' ' -)"
+hook pre-bash.sh "$(payload sid-q "$R" Bash command "bash $C whoami \"Max Q\" worker 2>&1")" >/dev/null
+check "…while a quoted display name still parks under its slug" "max-q" "$(ls "$R/.git/crew-pending" 2>/dev/null | paste -sd' ' -)"
+rm -rf "$R/.git/crew-pending"
 join "$R" s2
 out="$(cd "$R" && bash "$C" whoami s3 coordinator --sid sid-s3 2>&1)"; rc=$?
 check "a second coordinator is refused" 1 "$rc"

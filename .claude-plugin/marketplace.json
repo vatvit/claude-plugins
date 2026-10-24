@@ -38,7 +38,7 @@
       "name": "crew",
       "source": "./crew",
       "description": "Run several Claude Code sessions on one working tree and one branch without lost edits: a coordinator/worker playbook (one task, one session: `crew task` records each session's task, refuses one another session owns and hands it over with --take, and status shows who is on what; to work on a task in parallel, split it into sub-tasks), opt-in membership (a session outside the crew works as usual), identity by display name, unique across crews on one machine, a one-screen status of every dirty path by owner, crew-tagged hand-off messages with a durable mailbox (inbox, unread notices, a Stop check), hot-spot holds, a silence watchdog that wakes the coordinator, a slot queue for machine time (cpu / exclusive / quiet) shared by every crew on the machine, copies (detached worktrees in .worktrees/) landed with a merge-or-refuse apply, a worktree per task when the user chooses it for the project or one task (branch task/<ID>, synced by merge or rebase, merged back by the coordinator, its own git guards), local files linked into a new worktree and the setup step printed, a read-only Docker compose report, a snapshot before every edit, exact-path-list commits, no commit or push unless the user says so for the project (asked once), and guard hooks that deny whole-index git commands. `crew end` disbands a crew and gives the repo back its no-crew state, `crew active` tells scripts whether a crew runs, and crew-only project rules (crewRules) are shown to members only. Layered project/user config; costs nothing in repos without a crew. A bare `crew` command on PATH. Runtime-free (bash + awk + git).",
-      "version": "2.3.0"
+      "version": "2.3.1"
     },
     {
       "name": "kickoff",

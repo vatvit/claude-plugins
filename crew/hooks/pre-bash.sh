@@ -19,10 +19,12 @@ esac
     cmd="$(printf '%s' "$PAYLOAD" | payload_str command)"
     case "$cmd" in
         *crew.sh*whoami*)
-            # the argument after whoami: a bare word, or a quoted display name ("Max Coordinator")
+            # the argument after whoami: a bare word, or a quoted display name ("Max Coordinator").
+            # Only a join parks an id: an option (--leave) or a redirection (2>&1, >/dev/null) is no
+            # name, and a bare `whoami` has none (PLUG-084)
             n="$(printf '%s\n' "$cmd" | awk '{ i = index($0, "whoami "); if (!i) exit; s = substr($0, i + 7); sub(/^ +/, "", s)
                 q = substr(s, 1, 1); if (q == "\"" || q == "'\''") { s = substr(s, 2); print substr(s, 1, index(s, q) - 1) }
-                else { split(s, a, /[ \t;&|]/); print a[1] } exit }')"
+                else { split(s, a, /[ \t;&|]/); if (a[1] !~ /^-/ && a[1] !~ /[<>]/) print a[1] } exit }')"
             n="$(name_for "$n")"
             if valid_name "$n" && [ -n "$SID" ]; then
                 mkdir -p "$CREW_PENDING" && printf '%s\n' "$SID" > "$CREW_PENDING/$n"
