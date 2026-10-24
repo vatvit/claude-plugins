@@ -164,16 +164,16 @@ check "a raw git worktree from a member is denied" yes \
 check "…and the denial names crew's command" yes "$(contains "copy new <name>" "$(hook pre-bash.sh "$(payload sid-g2 "$G" Bash command 'git worktree add x')")")"
 check "crew copy new is not denied" no \
     "$(denied "$(hook pre-bash.sh "$(payload sid-g2 "$G" Bash command "bash $C copy new three")")")"
-crew_as g1 "$G" release a.txt --unchanged >/dev/null
+rel_out="$(crew_as g1 "$G" release a.txt --unchanged 2>&1)"
 
 echo "-- remove (PLUG-065)"
 out="$(crew_as g2 "$G" copy remove one 2>&1)"; rc=$?
 check "remove refused while the copy has work the tree lacks" 1 "$rc"
 check "…naming the file" yes "$(contains "a.txt" "$out")"
 check "…the copy is still there" yes "$( [ -f "$W/a.txt" ] && echo yes || echo no)"
-crew_as g2 "$G" apply one >/dev/null
+app_out="$(crew_as g2 "$G" apply one 2>&1)"
 out="$(crew_as g2 "$G" copy remove one 2>&1)"; rc=$?
-check "remove after apply" 0 "$rc$([ "$rc" = 0 ] || echo ": $out")"
+check "remove after apply" 0 "$rc$([ "$rc" = 0 ] || printf ': %s | release: %s | apply: %s' "$out" "$rel_out" "$app_out")"
 check "…the folder is gone" no "$( [ -e "$W" ] && echo yes || echo no)"
 check "…and git forgot the worktree" 0 "$(git -C "$G" worktree list --porcelain | grep -c "g-one")"
 mkdir -p "$G/.worktrees/foreign"

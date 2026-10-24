@@ -1,6 +1,6 @@
 ---
 title: crew copy test flake — "remove after apply" failed once under load
-status: proposed
+status: blocked
 type: bug
 priority: low
 ---
@@ -38,3 +38,15 @@ failure names its cause.
 1. The cause is named from a failure's message (or a deterministic reproduction).
 2. A test forces it, red before the fix, green after.
 3. The crew suite passes 30 consecutive runs under load (host and container in parallel).
+
+## Current State (2026-10-24) — blocked until it recurs
+
+- Not reproduced in 40 runs: host copy.test alone 5/5, six at once 6/6, full host + container suites
+  together 2/2, copy.test in a container capped at 0.5 CPU 20/20 (repo mounted read-only). A heavier
+  host load loop was declined: too much load on a shared machine.
+- Host-only suspects remain (macOS git, file timing under /var/folders): each suite already has its
+  own HOME, CREW_HOME and repo, so no real crew state is shared.
+- copy.test.sh now prints, on failure of "remove after apply", remove's message plus the output of
+  the `release a.txt --unchanged` and `apply one` before it (both were discarded).
+- **Next:** when it fails again in any normal run, read that message, write the failing test, fix.
+  AC3 ("30 runs under load") to be revisited then: a capped container is the safe form of it.
