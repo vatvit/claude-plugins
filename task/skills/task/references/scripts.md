@@ -15,7 +15,7 @@ is what each is *for*, and the guarantees that are not obvious from the usage li
 | `list-tasks.sh <tasksDir> <prefix> [args]` | the finished `/task list` output — filters, grouping, sorting, collapsing, epic views; `digest` for one block per task with its excerpt. |
 | `set-status.sh <tasksDir> <prefix> <id> <status>` | status write + parent-epic cascade + `active-tasks` update, in one call. |
 | `tags.sh <tasksDir> <prefix> list \| add <id> [--new] <tag>... \| remove <id> <tag>...` | the tags in use with counts; adding or removing a task's tags. `add` refuses a tag not yet in use without `--new` (`tags.md`). `candidates <tag> [--match kw,...] [--all]` is a backlog review's shortlist; writes nothing. |
-| `session-active.sh <tasksDir> <prefix> <action> [id]` | the session's `active-tasks` list. No storage helper configured → `status=unavailable`, exit 0. |
+| `session-active.sh <tasksDir> <prefix> <action> [id]` | the session's `active-tasks` list. The id may be a number, a full id or an epic-name; the list stores full ids only, and an entry that is not one is dropped alone on read, never the whole list. No storage helper configured → `status=unavailable`, exit 0. |
 | `resolve-epic.sh <tasksDir> <prefix> <epic-ref>` | epic-name **or** id → epic metadata, same format as `resolve-task.sh`. Exit 1 = not found or not an epic. |
 | `update-epic-index.sh <tasksDir> <prefix>` | rebuilds `_epic-index.json`. Idempotent, diff-guarded. |
 | `epic-dashboard.sh <tasksDir> <prefix> <epic-ref>` | epic + every sub-task (by `epic:` field) in work order + the `queue` still to work + a recommendation, as JSON. |

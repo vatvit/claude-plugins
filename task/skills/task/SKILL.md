@@ -1,7 +1,7 @@
 ---
 name: task
 description: Use for task management when user references task IDs (TASK-001, DOCS-004), creates/lists/shows tasks, updates task status, works on tasks, works on or finishes a whole epic ("work on the epic", "finish the epic"), tags tasks or filters them by tag ("tag this task", "tagged", "list tasks with tag performance", "filter by tag", "review the backlog for a tag", "tag the backlog"), summarises the backlog ("backlog digest", "what is each task about"), checks workflows, or invokes /task. Also invoke automatically when creating tech debt tickets, subtasks, or any task management during work. Manages task files for planning and tracking project work (storage location configurable per project).
-version: 1.1.0
+version: 1.4.1
 argument-hint: <create|list|show|do|finish|status|workflow> [args]
 disable-model-invocation: false
 user-invocable: true

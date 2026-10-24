@@ -52,6 +52,26 @@ task_project_dir() {
     return 0
 }
 
+# task_canonical_id <prefix> <raw> -> the full id a number or full id stands
+# for: `4`, `004` and `PREFIX-4` all give PREFIX-004; another prefix's full id
+# is kept as given. Anything else (an epic-name, junk) prints nothing and
+# returns 1, so the caller decides what it means.
+task_canonical_id() {
+    local p="$1" raw="$2" num
+    case "$raw" in
+        "$p"-*) num="${raw#"$p"-}" ;;
+        *) num="$raw" ;;
+    esac
+    if printf '%s' "$num" | grep -qE '^[0-9]+$'; then
+        num=$(printf '%s' "$num" | sed 's/^0*//')
+        printf '%s-%03d\n' "$p" "${num:-0}"
+    elif printf '%s' "$raw" | grep -qE '^[A-Z]+-[0-9]+$'; then
+        printf '%s\n' "$raw"
+    else
+        return 1
+    fi
+}
+
 # task_fm_set <file> <key> <value> [--require] -> set `key: value` in the
 # frontmatter. An existing line is replaced, an absent key is added before the
 # closing `---`, an empty value removes the line. With --require an absent key

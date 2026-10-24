@@ -92,6 +92,27 @@ check "the parent epic is never dropped with it" "TST-001" "$(get_active)"
 bash "$SC/session-active.sh" "$D" TST remove TST-001 >/dev/null
 check "removing the last id clears the key" "" "$(get_active)"
 
+echo "-- ids are stored canonical (PLUG-022) --"
+bash "$SC/session-active.sh" "$D" TST set 2 >/dev/null
+check "set with a bare number stores the full id" "TST-001,TST-002" "$(get_active)"
+bash "$SC/session-active.sh" "$D" TST add 004 --force >/dev/null
+check "add with a zero-padded number stores the full id" "TST-001,TST-002,TST-004" "$(get_active)"
+bash "$SC/session-active.sh" "$D" TST remove 4 >/dev/null
+check "remove with a bare number drops the full id" "TST-001,TST-002" "$(get_active)"
+bash "$SC/session-active.sh" "$D" TST set alpha >/dev/null
+check "an epic-name stores the epic's id" "TST-001" "$(get_active)"
+bash "$SC/session-active.sh" "$D" TST add 'x;y' --force >/dev/null 2>&1
+check "an id that resolves to no task is rejected" "1" "$?"
+check "and changes nothing" "TST-001" "$(get_active)"
+
+printf '%s' "TST-001,junk,TST-003" > "$TMP/kv-sess1-active-tasks.txt"
+check "a malformed entry costs only itself on get" "TST-001,TST-003" "$(get_active)"
+printf '%s' "TST-001,3" > "$TMP/kv-sess1-active-tasks.txt"
+check "a bare number already stored reads as the full id" "TST-001,TST-003" "$(get_active)"
+bash "$SC/session-active.sh" "$D" TST remove TST-001 >/dev/null
+check "the next write stores the list cleaned" "TST-003" "$(cat "$TMP/kv-sess1-active-tasks.txt")"
+bash "$SC/session-active.sh" "$D" TST remove TST-003 >/dev/null
+
 echo "-- storage helper absent --"
 out=$(env -u TASK_STORAGE_BIN bash "$SC/session-active.sh" "$D" TST get)
 check "no helper is a silent no-op" "status=unavailable" "$(printf '%s\n' "$out" | grep '^status=')"

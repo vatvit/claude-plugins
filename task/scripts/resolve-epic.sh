@@ -37,14 +37,10 @@ resolve_by_id() {
 
 # --- Detect reference type ---
 
-# Full ID: PREFIX-NNN
-if echo "$EPIC_REF" | grep -qE '^[A-Z]+-[0-9]+$'; then
-    resolve_by_id "$EPIC_REF"
-    exit 0
-fi
-
-# Numeric ID: digits only
-if echo "$EPIC_REF" | grep -qE '^[0-9]+$'; then
+# Full or numeric ID
+# shellcheck source=lib.sh
+. "$SCRIPT_DIR/lib.sh"
+if task_canonical_id "$PREFIX" "$EPIC_REF" >/dev/null; then
     resolve_by_id "$EPIC_REF"
     exit 0
 fi

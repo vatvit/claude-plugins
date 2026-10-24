@@ -22,13 +22,9 @@ RAW_ID="${3:?}"
 # Anything that is neither PREFIX-NNN nor a number is an epic-name. Its lookup
 # (index, then scan) lives in resolve-epic.sh, which comes back here with the id.
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if echo "$RAW_ID" | grep -qE '^[A-Z]+-[0-9]+$'; then
-    FULL_ID="$RAW_ID"
-elif echo "$RAW_ID" | grep -qE '^[0-9]+$'; then
-    NUM=$(echo "$RAW_ID" | sed 's/^0*//')
-    : "${NUM:=0}"
-    FULL_ID=$(printf "%s-%03d" "$PREFIX" "$NUM")
-else
+# shellcheck source=lib.sh
+. "$SCRIPT_DIR/lib.sh"
+if ! FULL_ID=$(task_canonical_id "$PREFIX" "$RAW_ID"); then
     "$SCRIPT_DIR/resolve-epic.sh" "$TASKS_DIR" "$PREFIX" "$RAW_ID"
     exit $?
 fi
@@ -45,8 +41,6 @@ echo "file=$FILE"
 # --- Extract frontmatter ---
 # Parsing lives in read-tasks.sh; this script adds id resolution and the
 # workflow table on top. `id` is dropped because it was printed above.
-# shellcheck source=lib.sh
-. "$SCRIPT_DIR/lib.sh"
 "$SCRIPT_DIR/read-tasks.sh" "$TASKS_DIR" "$PREFIX" --all --records --id="$FULL_ID" \
   | awk -F'\t' '$2 != "id" { print $2 "=" $3 }'
 

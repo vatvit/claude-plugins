@@ -50,13 +50,35 @@ if [ -z "$BIN" ] || [ -z "$SID" ] || [ ! -x "$BIN" ]; then
     exit 0
 fi
 
+# shellcheck source=lib.sh
+. "$SCRIPT_DIR/lib.sh"
+
 # --- current list ---------------------------------------------------------
 # A helper that has no value prints something human ("(no value set …)"), so
-# only well-formed id lists are accepted as a value.
+# each entry is read through task_canonical_id: a bare number already stored
+# becomes its full id, anything else is dropped alone instead of emptying the
+# whole list. The next write stores the list cleaned.
 raw=$("$BIN" get "$SID" "$KEY" 2>/dev/null || true)
 CURRENT=""
-if printf '%s' "$raw" | grep -qE '^[A-Za-z]+-[0-9]+(,[A-Za-z]+-[0-9]+)*$'; then
-    CURRENT="$raw"
+case "$raw" in *[[:space:]]*) raw="" ;; esac
+saved="$IFS"; IFS=','
+for t in $raw; do
+    t=$(task_canonical_id "$PREFIX" "$t") || continue
+    case ",$CURRENT," in *",$t,"*) continue ;; esac
+    CURRENT="${CURRENT:+$CURRENT,}$t"
+done
+IFS="$saved"
+
+# The id as given may be a number, a full id or an epic-name; the list holds
+# full ids only. A number or full id needs no task file, so a stale one can
+# still be removed; anything else must resolve to a task, or it is rejected.
+if [ -n "$ID" ]; then
+    if ! canon=$(task_canonical_id "$PREFIX" "$ID"); then
+        canon=$("$SCRIPT_DIR/resolve-task.sh" "$TASKS_DIR" "$PREFIX" "$ID" 2>/dev/null \
+          | grep '^id=' | head -1 | cut -d= -f2- || true)
+        [ -n "$canon" ] || { echo "ERROR: not a task id: $ID" >&2; exit 1; }
+    fi
+    ID="$canon"
 fi
 
 contains() { # contains <list> <id>

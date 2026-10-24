@@ -1,7 +1,7 @@
 {
   "name": "task",
   "description": "Markdown task management for Claude Code: task files with an embedded workflow table that is the state, epics whose sub-tasks join by their epic: field (worked or finished whole by name or id) and an O(1) epic index, atomic lock-guarded ID allocation safe across parallel sessions, and optional tags (filter, group, reused by Claude, new ones only with your OK, a cheap backlog review to apply one), and scripted listing — filters, grouping, a one-block-per-task digest, epic views with closed work collapsed. Runtime-free (bash + awk); storage location is per-project, and a linked git worktree resolves to the main tree's tasks.",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "author": {
     "name": "Vat",
     "url": "https://github.com/vatvit"

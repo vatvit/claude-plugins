@@ -26,7 +26,7 @@ task/
     ├── resolve-epic.sh       epic-name or id → epic metadata
     ├── update-epic-index.sh  rebuilds _epic-index.json
     ├── epic-dashboard.sh     epic + sub-tasks in work order + queue + recommendation
-    ├── lib.sh                global roots, worktree → main tree, task_fm_set (the one frontmatter writer)
+    ├── lib.sh                global roots, worktree → main tree, task_canonical_id (number → PREFIX-NNN), task_fm_set (the one frontmatter writer)
     └── test/*.test.sh        each sources test/lib.sh: TMP, counters, check/contains/lacks, report
 ```
 
@@ -73,7 +73,7 @@ at all, whether to skip a step, append-or-switch when two tasks compete for a se
 ```
 bash scripts/test/epic-dashboard.test.sh   # 21 cases — membership, work order, epic-name resolution
 bash scripts/test/list-tasks.test.sh       # 41 cases — every documented list shape
-bash scripts/test/status-session.test.sh   # 26 cases — status writes, cascade, active-tasks
+bash scripts/test/status-session.test.sh   # 35 cases — status writes, cascade, active-tasks, canonical ids
 bash scripts/test/tags.test.sh             # 48 cases — tags decoding, filter, group=tags, tags.sh
 bash scripts/test/review.test.sh           # 33 cases — digest excerpts and filters, candidates, epic hints
 bash scripts/test/port.test.sh             # 19 cases — packaging + standalone copy
