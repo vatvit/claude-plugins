@@ -1,6 +1,6 @@
 ---
 title: crew copy test flake — "remove after apply" failed once under load
-status: blocked
+status: rejected
 type: bug
 priority: low
 ---
@@ -50,3 +50,18 @@ failure names its cause.
   the `release a.txt --unchanged` and `apply one` before it (both were discarded).
 - **Next:** when it fails again in any normal run, read that message, write the failing test, fix.
   AC3 ("30 runs under load") to be revisited then: a capped container is the safe form of it.
+
+## Static read (2026-10-24, no runs)
+
+`copy_remove`, `copy_unlanded`, `copy_apply` and `with_lock_at` were read for a path that fails
+without load. None was found. All three failed checks fit one story: `apply one` landed nothing, so
+remove refused with "has work the tree does not" and the copy and its worktree stayed. That points
+at `apply` (or the `release --unchanged` before it), not at `git worktree remove`. A lock timeout
+needs 60 s of contention, and each suite has its own state, so it is unlikely. The next failure
+prints both outputs. Still blocked until it recurs.
+
+## Rejected (2026-10-24, the user)
+
+Not reproducible: 40 runs green, and the static read found no path. A task blocked on a random
+recurrence may never move. If "remove after apply" fails again, its printed output (remove,
+release, apply) starts a new task with a cause in hand.
