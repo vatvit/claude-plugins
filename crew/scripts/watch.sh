@@ -33,8 +33,8 @@ last_seen() { # <name> -> epoch of the session's last activity
 }
 watch_owns() { # <name> -> "hold a.txt b.txt · slot #3 · dirty c.txt" (empty when it owns nothing)
     local h s d out=""
-    h="$(awk -F'\t' -v n="$1" '$2 == n { printf "%s%s", (k++ ? " " : ""), $1 }' "$STATE/holds" 2>/dev/null)"
-    s="$(awk -F'\t' -v n="$1" '$2 == n { printf "%s#%s", (k++ ? " " : ""), $1 }' "$SLOTS" 2>/dev/null)"
+    h="$(awk -F'\t' -v n="$1" '($2 "") == n { printf "%s%s", (k++ ? " " : ""), $1 }' "$STATE/holds" 2>/dev/null)"
+    s="$(awk -F'\t' -v n="$1" '($2 "") == n { printf "%s#%s", (k++ ? " " : ""), $1 }' "$SLOTS" 2>/dev/null)"
     d="$(my_dirty "$1" | paste -sd' ' -)"
     [ -n "$h" ] && out="hold $h"
     [ -n "$s" ] && out="$out${out:+ · }slot $s"

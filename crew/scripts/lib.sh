@@ -399,7 +399,7 @@ _claim_drop() { # <path...> — every session's claim on these paths
 claim_drop() { with_lock claims _claim_drop "$@"; }
 claimants() { # <path> -> names, comma-separated
     [ -f "$STATE/claims" ] || return 0
-    awk -F'\t' -v p="$1" '$1 == p { o = o (o ? "," : "") $2 } END { print o }' "$STATE/claims"
+    awk -F'\t' -v p="$1" '($1 "") == p { o = o (o ? "," : "") $2 } END { print o }' "$STATE/claims"
 }
 
 # dirty_paths — repo-relative path per line: modified, staged, untracked, deleted (renames: new path)

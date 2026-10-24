@@ -74,7 +74,7 @@ slot_line() { # one formatted line from a slots_plan record (stdin); another cre
     awk -F'\t' -v now="$(now)" -v grace="$(cfg slotGraceMin)" -v me="${1:-}" '
         function hm(t,   c) { c = "date -r " t " +%H:%M 2>/dev/null || date -d @" t " +%H:%M"; c | getline r; close(c); return r }
         {   p = ($5 == 0 ? " · failing" : ($5 == 1 ? " · critical" : ""))
-            who = $2 (($2 == me) ? " (you)" : "") ($15 ? "" : " [" $10 "]")
+            who = $2 ((($2 "") == me) ? " (you)" : "") ($15 ? "" : " [" $10 "]")
             why = ($9 != "" ? " — " $9 : "")
             if ($7 == "running") {
                 st = $14 ? " · STALE (past estimate + " grace "m)" : ""
@@ -146,7 +146,7 @@ slots_drop() { slot_lock _slots_drop "$@"; }   # crew end, whoami --leave
 
 my_slot() { # <me> <state> — my oldest slot in that state
     [ -s "$SLOTS" ] || return 0
-    awk -F'\t' -v n="$1" -v s="$2" '$2 == n && $7 == s { print $1; exit }' "$SLOTS"
+    awk -F'\t' -v n="$1" -v s="$2" '($2 "") == n && $7 == s { print $1; exit }' "$SLOTS"
 }
 
 after_move() { # what the coordinator should tell the queue now

@@ -24,6 +24,9 @@ check "1g the next name gets the next port" "3031" "$(ports allocate beta)"
 check "1h a service port is a name too" "3032" "$(ports allocate alpha/api)"
 check "1i list shows name and port" "alpha	3030" "$(ports list | head -1)"
 check "1j the registry is JSON, one entry per line" '{|  "alpha": 3030,|  "beta": 3031,|  "alpha/api": 3032|}' "$(tr '\n' '|' < "$(REG)" | sed 's/|$//')"
+check "1k number-like names are strings: 010 is not 10 (PLUG-085)" "3033 3034" "$(ports allocate 10) $(ports allocate 010)"
+ports release 010
+check "1l ... and releasing 010 keeps 10" "3033" "$(ports list | awk -F'\t' '$1 == "10" { print $2 }')"
 
 echo "== the compose scan =="
 setup a2

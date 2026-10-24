@@ -170,7 +170,7 @@ if [ -n "$compose" ]; then
     ev="${compose#"$root"/}: $n service(s) by default"; [ "$np" = 0 ] || ev="$ev, $np behind profiles"
     if [ "$n" = 1 ]; then hint I2 "One deployable" "$ev"; elif [ "$n" -gt 1 ]; then hint I2 "A few services" "$ev"; fi
     hint I0 "In containers" "$ev"
-    port="$(KICKOFF_PROJECTS_DIR="$(dirname "$compose")" bash "$KICKOFF_SCRIPTS/ports.sh" list --all | awk -F'\t' -v f="$compose" '$1 == f { print $2; exit }')"
+    port="$(KICKOFF_PROJECTS_DIR="$(dirname "$compose")" bash "$KICKOFF_SCRIPTS/ports.sh" list --all | awk -F'\t' -v f="$compose" '($1 "") == f { print $2; exit }')"
     [ -z "$port" ] || hint I6 "$port" "the first port $(basename "$compose") publishes"
 fi
 

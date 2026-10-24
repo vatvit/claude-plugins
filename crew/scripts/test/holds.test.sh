@@ -85,6 +85,13 @@ check "warn mode lets the edit through" 0 "$rc"
 check "…with a message" yes "$(contains "hookMode=warn" "$HOOK_OUT")"
 printf '{"hotSpots":["b.txt"]}' > "$R/.crew.json"
 
+echo "-- number-like paths and names are strings (PLUG-085)"
+crew_as s1 "$R" hold 010 >/dev/null
+out="$(crew_as s2 "$R" hold 10 2>&1)"; rc=$?
+check "a hold on 010 does not hold 10" 0 "$rc"
+check "…10 is s2's, 010 still s1's" "s2 s1" \
+  "$(awk -F'\t' '$1=="10"{a=$2} $1=="010"{b=$2} END{print a, b}' "$R/.git/crew/holds")"
+
 echo "-- concurrency"
 for n in s1 s2 s3; do (crew_as "$n" "$R" hold race.txt >/dev/null 2>&1 && echo "$n" >> "$TMP/winners") & done; wait
 check "exactly one concurrent hold wins" 1 "$(wc -l < "$TMP/winners" | tr -d ' ')"

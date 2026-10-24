@@ -173,7 +173,7 @@ check "…naming the file" yes "$(contains "a.txt" "$out")"
 check "…the copy is still there" yes "$( [ -f "$W/a.txt" ] && echo yes || echo no)"
 crew_as g2 "$G" apply one >/dev/null
 out="$(crew_as g2 "$G" copy remove one 2>&1)"; rc=$?
-check "remove after apply" 0 "$rc"
+check "remove after apply" 0 "$rc$([ "$rc" = 0 ] || echo ": $out")"
 check "…the folder is gone" no "$( [ -e "$W" ] && echo yes || echo no)"
 check "…and git forgot the worktree" 0 "$(git -C "$G" worktree list --porcelain | grep -c "g-one")"
 mkdir -p "$G/.worktrees/foreign"

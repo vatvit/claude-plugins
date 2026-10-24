@@ -82,7 +82,7 @@ with_lock() {
 }
 
 valid_name() { case "$1" in ''|*[!A-Za-z0-9._/-]*) die "bad name: '$1' (letters, digits, . _ / -)" ;; esac; }
-port_of() { registry | awk -F'\t' -v n="$1" '$1 == n { print $2; exit }'; }
+port_of() { registry | awk -F'\t' -v n="$1" '($1 "") == n { print $2; exit }'; }
 
 do_allocate() {
     local name="$1" p tsv; p="$(port_of "$name")"
@@ -94,14 +94,14 @@ do_allocate() {
 
 do_set() {
     local name="$1" port="$2" holder tsv
-    holder="$(registry | awk -F'\t' -v p="$port" -v n="$name" '$2 == p && $1 != n { print $1; exit }')"
+    holder="$(registry | awk -F'\t' -v p="$port" -v n="$name" '$2 == p && ($1 "") != n { print $1; exit }')"
     [ -z "$holder" ] || die "port $port is registered to $holder" 3
-    tsv="$(mktemp)"; { registry | awk -F'\t' -v n="$name" '$1 != n'; printf '%s\t%s\n' "$name" "$port"; } > "$tsv"
+    tsv="$(mktemp)"; { registry | awk -F'\t' -v n="$name" '($1 "") != n'; printf '%s\t%s\n' "$name" "$port"; } > "$tsv"
     write_registry "$tsv"; rm -f "$tsv"; echo "$port"
 }
 
 do_release() {
-    local tsv; tsv="$(mktemp)"; registry | awk -F'\t' -v n="$1" '$1 != n' > "$tsv"
+    local tsv; tsv="$(mktemp)"; registry | awk -F'\t' -v n="$1" '($1 "") != n' > "$tsv"
     write_registry "$tsv"; rm -f "$tsv"
 }
 

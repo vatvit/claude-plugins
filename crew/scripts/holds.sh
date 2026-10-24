@@ -17,7 +17,7 @@
 holds_file() { echo "$STATE/holds"; }
 hold_field() { # <path> <n> — field n of the hold on path (2 holder, 3 since, 4 task, 5 chain)
     [ -f "$STATE/holds" ] || return 0
-    awk -F'\t' -v p="$1" -v n="$2" '$1 == p { print $n; exit }' "$STATE/holds"
+    awk -F'\t' -v p="$1" -v n="$2" '($1 "") == p { print $n; exit }' "$STATE/holds"
 }
 holder_of() { hold_field "$1" 2; }
 
@@ -57,7 +57,7 @@ holds_guard() {
 # --- mutations (all under the holds lock) --------------------------------------------------------
 _set_hold() { # <path> <holder> <since> <task> <chain> — replace or add; empty holder removes
     local f="$STATE/holds"; [ -f "$f" ] || : > "$f"
-    { awk -F'\t' -v p="$1" '$1 != p' "$f"; [ -n "$2" ] && printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5"; } \
+    { awk -F'\t' -v p="$1" '($1 "") != p' "$f"; [ -n "$2" ] && printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5"; } \
         | replace_file "$f"
 }
 

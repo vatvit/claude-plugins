@@ -13,7 +13,7 @@ msg_hold() {
 msg_release() {
     local p l
     p="$(rel_path "${1:?release <path>}")"
-    l="$(awk -F'\t' -v p="$p" '$2 == p { l = $0 } END { print l }' "$STATE/holds.log" 2>/dev/null)"
+    l="$(awk -F'\t' -v p="$p" '($2 "") == p { l = $0 } END { print l }' "$STATE/holds.log" 2>/dev/null)"
     [ -n "$l" ] || die "no release of $p recorded"
     msg_head RELEASE "$TO" "$p"
     printf '%s\n' "$l" | awk -F'\t' '{ printf "  released at %s by %s → %s\n", $5, $3, ($4 == "-" ? "free" : "now held by " $4) }'
@@ -23,7 +23,7 @@ msg_release() {
 msg_handoff_extra_holds() {
     [ -s "$STATE/holds" ] || return 0
     local mine
-    mine="$(awk -F'\t' -v n="$FROM" '$2 == n { print $1 }' "$STATE/holds")"
+    mine="$(awk -F'\t' -v n="$FROM" '($2 "") == n { print $1 }' "$STATE/holds")"
     [ -n "$mine" ] || return 0
     echo "holds I release once this lands: $(printf '%s\n' "$mine" | paste -sd' ' -)  (release <path> --sha <landed sha>)"
 }
