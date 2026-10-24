@@ -1,6 +1,6 @@
 ---
 title: crew — live smoke test of the hook contracts in Claude Code
-status: blocked
+status: completed
 type: chore
 priority: medium
 ---
@@ -17,9 +17,9 @@ priority: medium
 | 60 | Architecture | skipped | no design change beyond the bugfix |
 | 70 | Tests | done | core.test.sh +3 regression checks (red on 1.0.1, green on fix) |
 | 80 | Subtasks | skipped | — |
-| 90 | Implementation | —  | bugfix done (1.0.2); live hook check still pending a fresh session |
-| 100 | Tech Debt | — |  |
-| 110 | Reflection | — |  |
+| 90 | Implementation | done | bugfix 1.0.2; live check 2026-10-24 on Claude Code 2.1.307, crew 2.2.0 |
+| 100 | Tech Debt | done | PLUG-084 (pre-bash parks ids for non-join whoami) |
+| 110 | Reflection | done | crew/CLAUDE.md: CREW_SID rule, § Testing procedure + last checked |
 
 ## Description
 
@@ -77,3 +77,35 @@ with no other session at work:
 3. a second session holds a probe file → Write to it is denied, naming the holder;
 4. `/compact` → the crew lines reappear;
 5. record the Claude Code version in `crew/CLAUDE.md` § Testing.
+
+## Live check (2026-10-24, Claude Code 2.1.307, crew 2.2.0)
+
+This session was started with crew installed, in this repo, whose crew (delay coordinator, kickoff
+worker) had been silent for 13+ days, so nobody was disturbed. Joined as `claude-plugins-smoke`.
+
+- [x] `crew whoami claude-plugins-smoke worker` with no `--sid` → bound.
+- [x] SessionStart stdout lands in context after `/compact`: the "crew: this repo runs crew …" line
+      arrived as `SessionStart:compact hook success` when this session's context was compacted.
+- [x] `git add -A -- crew-smoke-no-such-path` → denied; Claude saw "crew: git add of everything stages
+      other sessions' work too …". (`git add -A --dry-run` is let through on purpose, `land.sh:94`;
+      the no-match pathspec makes the probe harmless if the guard fails.)
+- [x] Write to `crew-smoke-probe.txt` held by `claude-plugins-kickoff` → denied: "… is held by
+      claude-plugins-kickoff since 10:48 (PLUG-040). Don't edit it until it is released."
+- [x] `msg decision --to claude-plugins-smoke --send` → the next tool call carried PostToolUse
+      `additionalContext`: "crew: 1 unread crew message — read before going on …".
+- [x] `CLAUDE_ENV_FILE` works for a plugin SessionStart hook: `CREW_SID` set in the Bash env, and
+      `crew active` / `crew inbox` name this session with no `CREW_AS`.
+- [x] Stop hold: a message left unread at the end of a turn → "Stop hook feedback: crew: 1 unread
+      crew message — read before going on …"; the turn went on, `inbox` read it.
+- Left the crew afterwards (`whoami --leave`); no holds or probe file remain.
+- [x] ~~Auto-join of a session started with `--name` (PLUG-042)~~: obsolete — PLUG-055 reversed it;
+      SessionStart never auto-joins, membership is `whoami` only.
+- Recorded in `crew/CLAUDE.md` (the `CREW_SID` rule and § Testing: procedure + last checked version).
+- Minor: `whoami` still says "Prefix every crew call with CREW_AS=…" when `CREW_SID` already
+  identifies the session. Correct (the prefix always works), only more than needed; left as is.
+- Found: the pre-bash hook parked this session's id as `crew-pending/2` (from `whoami 2>&1`) and
+  `crew-pending/leave` (from `whoami --leave`). Removed by hand; fix is PLUG-084.
+
+## Current State (2026-10-24)
+
+All acceptance criteria checked live. Committed and pushed (2026-10-24); completed on the user's word.
