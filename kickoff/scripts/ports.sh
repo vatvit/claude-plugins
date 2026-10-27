@@ -6,6 +6,10 @@
 #                        prints its port again. <name> is a project, or <project>/<service>.
 #   set <name> <port>    register a port that is already in use (refused if another name holds it)
 #   release <name>       forget <name>
+#   viewer <name>        the E2E viewer's two ports, derived from <name>'s port: × 10 + 1 (the viewer) and
+#                        × 10 + 2 (run-and-watch), registered as <name>/e2e-view and <name>/e2e-ui and printed
+#                        as `e2e-view TAB port` / `e2e-ui TAB port`. Refused when <name> has no port, when it is
+#                        above 6553, or when another name or a compose file already uses a derived port.
 #   list [--all]         name TAB port; --all adds the ports found in compose files (name: the file)
 #
 # MACHINE-WIDE ON PURPOSE. The registry is ~/.claude/kickoff/ports.json and ignores
@@ -100,6 +104,27 @@ do_set() {
     write_registry "$tsv"; rm -f "$tsv"; echo "$port"
 }
 
+# do_viewer <name> — both derived ports are checked before either is written, so a refusal registers nothing.
+# A derived port the registry already holds under the same name is the project's own: its compose file
+# publishing it is no conflict, and asking again prints the same ports without a write.
+do_viewer() {
+    local name="$1" app own p holder hit
+    app="$(port_of "$name")"
+    [ -n "$app" ] || die "no port registered for $name: register the app's port first, or pick the viewer's two ports by hand with ports.sh set $name/e2e-view <port> and ports.sh set $name/e2e-ui <port>" 1
+    [ "$app" -le 6553 ] || die "the port of $name is $app: × 10 + 2 would pass 65535, so pick the viewer's two ports by hand with ports.sh set $name/e2e-view <port> and ports.sh set $name/e2e-ui <port>" 1
+    for own in e2e-view:1 e2e-ui:2; do
+        p=$((app * 10 + ${own#*:})); own="$name/${own%%:*}"
+        holder="$(registry | awk -F'\t' -v p="$p" -v n="$own" '$2 == p && ($1 "") != n { print $1; exit }')"
+        [ -z "$holder" ] || die "port $p is registered to $holder" 3
+        [ "$(port_of "$own")" = "$p" ] && continue
+        hit="$(scanned | awk -F'\t' -v p="$p" '$2 == p { print $1; exit }')"
+        [ -z "$hit" ] || die "port $p is published in $hit" 3
+    done
+    do_set "$name/e2e-view" $((app * 10 + 1)) >/dev/null
+    do_set "$name/e2e-ui" $((app * 10 + 2)) >/dev/null
+    printf 'e2e-view\t%s\ne2e-ui\t%s\n' $((app * 10 + 1)) $((app * 10 + 2))
+}
+
 do_release() {
     local tsv; tsv="$(mktemp)"; registry | awk -F'\t' -v n="$1" '($1 "") != n' > "$tsv"
     write_registry "$tsv"; rm -f "$tsv"
@@ -112,6 +137,7 @@ case "$cmd" in
     set) [ $# -eq 2 ] || die "usage: ports.sh set <name> <port>"; valid_name "$1"
          case "$2" in ''|*[!0-9]*) die "bad port: '$2'" ;; esac; with_lock do_set "$1" "$2" ;;
     release) [ $# -eq 1 ] || die "usage: ports.sh release <name>"; with_lock do_release "$1" ;;
+    viewer) [ $# -eq 1 ] || die "usage: ports.sh viewer <name>"; valid_name "$1"; with_lock do_viewer "$1" ;;
     list) registry; [ "${1:-}" = --all ] && scanned; true ;;
-    *) die "usage: ports.sh next | allocate <name> | set <name> <port> | release <name> | list [--all]" ;;
+    *) die "usage: ports.sh next | allocate <name> | set <name> <port> | release <name> | viewer <name> | list [--all]" ;;
 esac

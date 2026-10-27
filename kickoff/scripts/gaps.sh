@@ -55,6 +55,10 @@ while IFS= read -r row; do
         F2:"E2E success path"*)
             found \( -iname '*e2e*' -o -iname '*playwright*' -o -iname '*cypress*' \) \
                 || gap F2 "$v" "no E2E test" "names with e2e, playwright, cypress" ;;
+        F13:Yes*)
+            # the viewer's command, as kickoff's instructions name it (e2e-view where `:` cannot be used)
+            set_up e2e:view || set_up e2e-view \
+                || gap F13 "$v" "no E2E viewer command" "e2e:view or e2e-view in manifests and config at the root, scripts/, .github/" ;;
         F7:"Pre-commit"*)
             any .pre-commit-config.yaml .husky lefthook.yml .git/hooks/pre-commit || gap F7 "$v" "no pre-commit hook" ".pre-commit-config.yaml, .husky/, lefthook.yml, .git/hooks/" ;;
         F7:CI*)

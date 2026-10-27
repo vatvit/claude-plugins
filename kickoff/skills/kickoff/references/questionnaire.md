@@ -252,6 +252,7 @@ in the docs compile; a CRUD product — often none.
 | F5 | Domain checks? (pick any) | *Claude proposes up to 4 checks for this project, adjusted* | F1 ≠ None | quality doc, charter decision |
 | F6 | Test strength? (pick any) | *the Test strength checks of the level, adjusted* | F1 ≠ None | quality doc |
 | F7 | Automation? (pick any) | *the Automation checks of the level, adjusted* | F1 ≠ None | quality doc, CLAUDE.md |
+| F13 | E2E viewer? | ★ No · Yes — every E2E test's last result in the browser, a step-by-step replay of a kept trace, run-and-watch any one test, local only | F2 has E2E success path and the E2E tests run in a browser | quality doc, charter decision |
 | F8 | What do integration tests run against? | ★ The real engines, started fresh for each run — never production data · Fakes / in-memory substitutes — fast, but miss what the real engine does differently · Decide with the tools (F12) | F2 has Integration | quality doc |
 | F9 | What does a red check stop? | ★ Everything blocks — no commit or merge on red · Fast checks block; heavy ones only report (★ if F1 = Full) · Report only — nothing blocks | F1 ≠ None | quality doc, CLAUDE.md |
 | F10 | When do the checks start? | ★ All from the start · Later — from a trigger (first release, first client, v1 …); Basic until then | F1 = Standard or F1 = Full | charter decision |
@@ -274,7 +275,7 @@ set** — one `ID: value` line per check — so the answers say what the project
 |--------|-------|
 | 1 | F1 alone — single choice, explicit |
 | 2 | F2–F5: Tests, Code checks, Non-functional, Domain checks |
-| 3 | F6 Test strength, F7 Automation, F8 (when Integration is kept), F9 |
+| 3 | F6 Test strength, F7 Automation, F13 E2E viewer (when the E2E tests run in a browser), F8 (when Integration is kept), F9 |
 | 4 | F10 (when Standard or Full), F11 (when B6 is answered), then F12 — a table in chat, approved or changed through the question UI |
 
 - **A check that cannot apply is left out** (a judgement): UI and Accessibility on a project without
@@ -283,6 +284,10 @@ set** — one `ID: value` line per check — so the answers say what the project
   the next aspect's question, still prefixed DROP or ADD.
 - **None skips F2–F10 and F12.** The level is written to CLAUDE.md as the project's test policy.
 - **Changing F1 later** re-derives F2–F7 from the new level, keeping the drops and adds the user made.
+- **F13, the E2E viewer, is optional**: no level includes it, and ★ No stands until the user wants one. The Yes
+  option's description ends with the tools Claude would use on the I4 stack (`→ <tool>`), as the aspects' options do.
+  A Yes becomes a first task, and its two ports come from `scripts/ports.sh viewer <A1>`: the app's port × 10 + 1 for
+  the viewer and × 10 + 2 for run-and-watch.
 
 **Tools are named as soon as the stack is known.** I4 comes before F, so every DROP / ADD option's
 description ends with the tool Claude would use on that stack (`→ <tool>`), and the level question
@@ -339,7 +344,7 @@ descriptions carry no tools and F12 waits. Any language works the same way:
 | project `CLAUDE.md` | instructions only: pointer to the charter, A6, I0, R1–R6, C5, E3, E4, F1, F7, F9 — never project knowledge |
 | `.task-config.json`, `tasks/_workflow/` | R7–R10, when the task plugin is installed |
 | crew / task-roadmap config | R5, R11, when installed |
-| first tasks | agree the charter · architecture overview · dev harness with the first vertical slice and the F12 checks |
+| first tasks | agree the charter · architecture overview · dev harness with the first vertical slice and the F12 checks · the E2E viewer, from kickoff's instructions, when F13 = Yes |
 
 ## Where kickoff keeps its own data
 

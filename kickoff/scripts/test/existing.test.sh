@@ -173,4 +173,17 @@ check "8i closed gaps are not reported again" "" "$(bash "$S/gaps.sh" "$P")"
 P=$(fresh nodocsmgr); legacy "$P"; bash "$S/answer.sh" --root "$P" A1 x
 check "8j without docs-manager, docs/ is not kickoff's gap" "no" "$(KICKOFF_PLUGINS="" bash "$S/gaps.sh" "$P" | grep -q 'docs/' && echo yes || echo no)"
 
+echo "== the E2E viewer gap (PLUG-087) =="
+P=$(fresh viewer); legacy "$P"
+bash "$S/answer.sh" --root "$P" F1 "Basic"; bash "$S/answer.sh" --root "$P" F2 "Unit"; bash "$S/answer.sh" --root "$P" --add F2 "E2E success path"
+bash "$S/answer.sh" --root "$P" F13 "Yes"
+vgap() { bash "$S/gaps.sh" "$P" | awk -F'\t' '$1 == "F13" { print $3 }'; }
+check "9a wanted and no viewer command: one gap" "no E2E viewer command" "$(vgap)"
+mkdir -p "$P/scripts"; printf '#!/usr/bin/env bash\ncase "$1" in e2e:view) : ;; esac\n' > "$P/scripts/dev.sh"
+check "9b a script defining e2e:view closes it" "" "$(vgap)"
+rm "$P/scripts/dev.sh"; printf 'e2e-view:\n\t@true\n' > "$P/Makefile"
+check "9c a Makefile target e2e-view closes it" "" "$(vgap)"
+rm "$P/Makefile"; bash "$S/answer.sh" --root "$P" F13 "No"
+check "9d not wanted: no gap" "" "$(vgap)"
+
 summary

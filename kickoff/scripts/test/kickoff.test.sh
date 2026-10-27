@@ -17,7 +17,7 @@ value() { field "$1" 4; }
 echo "== plan: branching and defaults =="
 
 P=$(fresh empty)
-check "1a every question is listed" "58" "$(bash "$S/plan.sh" "$P" | wc -l | tr -d ' ')"
+check "1a every question is listed" "59" "$(bash "$S/plan.sh" "$P" | wc -l | tr -d ' ')"
 check "1b A0 is asked first" "ask" "$(state A0)"
 check "1c a question on an unanswered one waits (B6 on B5)" "pending" "$(state B6)"
 check "1d PoC-only questions wait for A3" "pending" "$(state X1)"
@@ -76,6 +76,15 @@ a F2 --add "Integration / functional"
 check "4n 'has' holds when any value matches, not just the first" "ask" "$(state F8)"
 a F1 "None — no automated checks yet"
 check "4o 'and' is false on a false part while the other is pending (F12)" "skip" "$(state F12)"
+
+# The E2E viewer is optional (PLUG-087): asked only with E2E tests, and whether they run in a browser is a judgement.
+P=$(fresh viewer); a F1 "Basic"; a F2 "Unit"; a F2 --add "E2E success path"
+check "4p the E2E viewer is a judgement when the tests include E2E (F13)" "judge" "$(state F13)"
+check "4q ... and defaults to No" "No" "$(value F13)"
+a F2 "Unit"
+check "4r without E2E tests it is not asked (F13)" "skip" "$(state F13)"
+a F1 "None — no automated checks yet"
+check "4s level None does not ask it (F13)" "skip" "$(state F13)"
 
 # Without the override, the installed plugins come from Claude Code's own record: user scope counts
 # everywhere, local and project scope only in their own project.

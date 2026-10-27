@@ -38,6 +38,7 @@ check "2k crew line when several sessions" "yes" "$(has 'joins the crew' "$C")"
 check "2l nothing approved without external services" "no" "$(has 'Approved:' "$C")"
 check "2m CLAUDE.md stays small" "yes" "$([ "$(wc -l < "$P/CLAUDE.md")" -lt 30 ] && echo yes || echo no)"
 check "2n the next step names the first tasks" "yes" "$(has 'agree the charter' "$out")"
+check "2n2 ... and no E2E viewer when it was not wanted (F13 = No)" "no" "$(has 'E2E viewer' "$out")"
 check "2s no identity line for an own project" "no" "$(has 'Identity:' "$C")"
 check "2t the quality level and the checks run" "yes yes" "$(has '**Quality level:** Basic' "$C") $(has '**Checks run:** One command runs them.' "$C")"
 Q="$P/docs/project/quality.md"
@@ -111,5 +112,13 @@ KICKOFF_PLUGINS="" sc "$P" >/dev/null; rc=$?
 check "5a runs clean" "0" "$rc"
 check "5b no task config, no workflow" "no no" "$(exists "$P/.task-config.json") $(exists "$P/tasks")"
 check "5c no crew line" "no" "$(has 'joins the crew' "$(cat "$P/CLAUDE.md")")"
+
+echo "== a wanted E2E viewer (PLUG-087) =="
+P=$(fresh viewer)
+a() { bash "$S/answer.sh" --root "$P" "$@"; }
+a F2 "Unit"; a F2 --add "E2E success path"
+autofill "$P" A1=viewer A3="Product / app / service" A4=Mine A5="No remote yet" R8=VIEW D3=English K2=English I6=n/a C4=n/a \
+    C5="Never — always free to break" F1="Basic" F3=n/a F4=n/a F5=n/a F6=n/a F7="One command runs them" F13=Yes >/dev/null
+check "7a a wanted E2E viewer is a first task" "yes" "$(has "the E2E viewer, from kickoff's instructions" "$(sc "$P")")"
 
 summary

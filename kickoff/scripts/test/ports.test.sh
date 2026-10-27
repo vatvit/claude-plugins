@@ -81,4 +81,31 @@ ports allocate 'bad name' >/dev/null 2>&1; check "5e a bad name is refused" "2" 
 ports set x 30x0 >/dev/null 2>&1; check "5f a bad port is refused" "2" "$?"
 KICKOFF_PORT_BASE=5000 ports next >/dev/null; check "5g the base is configurable" "5000" "$(KICKOFF_PORT_BASE=5000 ports next)"
 
+echo "== the E2E viewer's ports (PLUG-087) =="
+setup a6
+ports set app 3036 >/dev/null
+check "6a viewer = the app's port x 10 + 1, run-and-watch + 2" "e2e-view	30361|e2e-ui	30362" "$(ports viewer app | tr '\n' '|' | sed 's/|$//')"
+check "6b both are registered under the project" "30361 30362" "$(ports list | awk -F'\t' '($1 "") == "app/e2e-view" { v = $2 } ($1 "") == "app/e2e-ui" { u = $2 } END { print v, u }')"
+ino6=$(ls -i "$(REG)" | awk '{print $1}')
+check "6c asking again gives the same ports" "e2e-view	30361|e2e-ui	30362" "$(ports viewer app | tr '\n' '|' | sed 's/|$//')"
+check "6d ... without rewriting the registry" "$ino6" "$(ls -i "$(REG)" | awk '{print $1}')"
+mkdir -p "$HOME/projects/app"; printf 'services:\n  v:\n    ports:\n      - "127.0.0.1:30361:30361"\n' > "$HOME/projects/app/compose.yaml"
+check "6e its own compose publishing them is no conflict" "e2e-view	30361|e2e-ui	30362" "$(ports viewer app 2>&1 | tr '\n' '|' | sed 's/|$//')"
+ports set big 6554 >/dev/null
+err=$(ports viewer big 2>&1 >/dev/null); rc=$?
+check "6f an app port above 6553 is refused" "1" "$rc"
+check "6g ... naming the cause" "yes" "$(has '65535' "$err")"
+err=$(ports viewer nobody 2>&1 >/dev/null); rc=$?
+check "6h a name with no port is refused" "1" "$rc"
+check "6i ... naming the manual way" "yes" "$(has 'ports.sh set' "$err")"
+ports set shop 3040 >/dev/null; mkdir -p "$HOME/projects/other"
+printf 'services:\n  w:\n    ports:\n      - "30401:80"\n' > "$HOME/projects/other/compose.yaml"
+err=$(ports viewer shop 2>&1 >/dev/null); rc=$?
+check "6j a derived port another compose file publishes is refused" "3" "$rc"
+check "6k ... naming the file" "yes" "$(has 'other/compose.yaml' "$err")"
+check "6l ... and nothing is registered" "no" "$(has 'shop/e2e' "$(ports list)")"
+ports set cart 3050 >/dev/null; ports set squatter 30502 >/dev/null
+ports viewer cart >/dev/null 2>&1; check "6m a derived port another name holds is refused" "3" "$?"
+check "6n ... before the other one is registered" "no" "$(has 'cart/e2e' "$(ports list)")"
+
 summary

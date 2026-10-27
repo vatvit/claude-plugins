@@ -60,6 +60,10 @@ What it took:
   named too.
 - **Named steps:** without `test.step()` a trace is a flat list of low-level calls; worth recommending in the template.
 - **Pin the image and the package together.**
+- **Pending from the hardening pass (2026-10-27, not yet confirmed):** binding to `127.0.0.1` alone may not be enough. A
+  write endpoint (the whitelist toggle) that checks no `Origin` / `Host` can be driven by another site open in the same
+  browser, and a DNS-rebinding page could read traces. If it's confirmed, the instructions require a `Host` allow-list
+  (`127.0.0.1:<p>`, `localhost:<p>`) on every route and an `Origin` check on writes.
 - **Pausing a live run** needs a headed browser with the Inspector on a virtual display (noVNC); the PoC left it as a
   follow-up.
 
@@ -72,6 +76,12 @@ port numbers, its Playwright upgrade.
   pieces (result store reporter, whitelist as a second project, served trace viewer, UI mode in a container,
   `127.0.0.1` ports), the order to build them in, acceptance scenarios a project can turn into its tests, and the
   pitfalls above. Claude follows it in the project; kickoff points at it from the charter and the gap row.
+- **The viewer's command is named `e2e:view` (or `e2e-view` where `:` cannot be used, e.g. a Makefile).** PLUG-087's
+  gap rule recognises a viewer by that name in a setup file, so the instructions must use it. Its ports come from
+  `ports.sh viewer <project>` (PLUG-087). A Yes reaches the project as a first task that follows these instructions.
+- **Concept first, Playwright as the worked example.** kickoff names no stack or tool in a question or option
+  (PLUG-078; see PLUG-087 §Context), so the instructions describe the pieces as behaviour and name Playwright only as
+  the proven implementation.
 - **Language-neutral where it can be:** the pieces are Playwright concepts; the PoC's code is TypeScript. Decide at
   Requirements how a non-Node E2E stack (Playwright for Python / .NET / Java) is served: the same instructions with
   that runner's equivalents, or "not covered".
@@ -82,7 +92,8 @@ port numbers, its Playwright upgrade.
 ## Acceptance criteria (draft)
 
 1. Following the instructions in a fresh fixture project with Playwright E2E in Docker gives a working viewer and
-   run-and-watch on `127.0.0.1` ports from the registry, with its own tests passing in Docker — proved once, by a
+   run-and-watch on `127.0.0.1` ports derived from the app's port (app × 10 + 1 / + 2, ruled in PLUG-087), with its own
+   tests passing in Docker — proved once, by a
    Claude session that had only the instructions.
 2. The instructions' scenarios cover: a run killed half-way leaves every finished test's result; a passing
    non-whitelisted test keeps no trace; a whitelisted one does.

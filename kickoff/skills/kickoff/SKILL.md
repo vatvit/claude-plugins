@@ -1,6 +1,6 @@
 ---
 name: kickoff
-description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (generic for any language or stack; questions branch on earlier answers, each with pre-defined options and a default; sibling plugins asked about only when installed) and turn the answers into decisions: the project's charter, its quality level and checks, and its CLAUDE.md. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "run kickoff on this existing project", "kick off an existing project", "what is missing from this project's setup", "close the gaps", "bring this project in line with the answers", "/kickoff:kickoff init", "starting context for this project", "which quality level should this project have", "which tests and checks should this project have", "quality gate for a new project", "which dev port should this project use", "port registry", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
+description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (generic for any language or stack; questions branch on earlier answers, each with pre-defined options and a default; sibling plugins asked about only when installed) and turn the answers into decisions: the project's charter, its quality level and checks, and its CLAUDE.md. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "run kickoff on this existing project", "kick off an existing project", "what is missing from this project's setup", "close the gaps", "bring this project in line with the answers", "/kickoff:kickoff init", "starting context for this project", "which quality level should this project have", "which tests and checks should this project have", "quality gate for a new project", "which dev port should this project use", "port registry", "e2e viewer", "test viewer", "replay a test", "watch a test run", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
 version: 0.8.1
 ---
 
@@ -73,6 +73,8 @@ Any other argument: say which ones exist, and do nothing else.
      D3 and K2 are the language of this conversation, R8 is 3–5 capital letters from A1, and I6 is
      `bash <PLUGIN_ROOT>/scripts/ports.sh next`. Once I6 is confirmed, reserve it with
      `ports.sh allocate <A1>`. Use `<A1>/<service>` for each further port. Then record the port.
+     F13 = Yes (the E2E viewer) takes two more: `ports.sh viewer <A1>` derives and registers them from the
+     app's port; name them in the viewer's first task.
    - **Work out the proposed options** (`*Claude proposes …*`: B1, B6, C2, D2, E1, E2, I4, I5, the Domain
      checks and the tools in §F) from the answers so far, and offer them as ordinary options.
    - `answer.sh` refuses the italic text of a computed or proposed option.
@@ -110,7 +112,7 @@ Any other argument: say which ones exist, and do nothing else.
 7. **Close the gaps.** The answers are decisions; on an existing project the code may not follow them
    yet. Kickoff is not done while it does not, unless the user chose to leave a gap.
    - `bash <PLUGIN_ROOT>/scripts/gaps.sh <project>`: `id · answer · gap · where it looked`, one row per
-     gap a file can show (the entry point, containers, tests, E2E, CI, pre-commit, each F12 tool, the
+     gap a file can show (the entry point, containers, tests, E2E, the E2E viewer, CI, pre-commit, each F12 tool, the
      quality doc, CLAUDE.md, `docs/`). It writes nothing.
    - Add the gaps only reading the code shows: a check in `docs/project/quality.md` that nothing runs,
      an answer the code contradicts (*no login* with a login form), one command that does not run every

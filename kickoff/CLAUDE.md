@@ -97,6 +97,9 @@ real file, so a broken edit fails them.
   it. The compose scan runs on *every* allocation, not only for a new registry, so a port a project
   took without kickoff is never handed out (2a). Writes happen under a `mkdir` lock whose pid file
   lets a dead holder's lock be broken (4d).
+- **A command that registers several ports checks them all before writing any.** `ports.sh viewer` derives two
+  (app × 10 + 1 / + 2); `do_set` refuses a held port on its own, but only after the first one was written, so a
+  refusal left half a registration behind. Its up-front check is what test 6n pins (PLUG-087).
 
 ## Testing
 
