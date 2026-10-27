@@ -1,6 +1,6 @@
 ---
 title: "kickoff — asks whether a project wants an E2E test viewer, and a gap rule that finds one wanted but missing"
-status: in-progress
+status: completed
 type: feature
 priority: medium
 related: [PLUG-088]
@@ -249,3 +249,7 @@ never points at missing instructions. Status stays in-progress until the release
 
 2026-10-27 (later): PLUG-088 done; the release prep is in (see PLUG-088 Current State), the version held at 0.8.1 for now.
 Committed locally in 07f5b27; the release commit and the push wait for the user.
+
+2026-10-27 (release): the stream ended (the source PoC's hardening pushed). kickoff bumped to 0.9.0 in plugin.json,
+SKILL.md and marketplace.json; suites green on the host and in `bash:5`; completed by the user's /task finish. Push waits
+for the user's OK.

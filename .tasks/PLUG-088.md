@@ -1,6 +1,6 @@
 ---
 title: "kickoff — instructions for reaching an E2E test viewer: the per-test result store, the trace whitelist, the viewer page and run-and-watch"
-status: in-progress
+status: completed
 type: feature
 priority: medium
 related: [PLUG-087]
@@ -247,3 +247,7 @@ until the release; then completed. Open: the source PoC's shapes for the canvas-
 may refine A13 and the stale-bundle pitfall row; an append, not a blocker.
 They arrived and are folded in: A13 keeps a user's choice, A14 pins the key against the installed bundle, A15 and the
 pitfall row make the stale-bundle check warn-only, naming the file and the restart command.
+
+2026-10-27 (release): the stream ended (the source PoC's hardening pushed). kickoff bumped to 0.9.0 in plugin.json,
+SKILL.md and marketplace.json; suites green on the host and in `bash:5`; completed by the user's /task finish. Push waits
+for the user's OK.
