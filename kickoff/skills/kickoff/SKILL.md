@@ -15,6 +15,8 @@ history.
 - **The questions, and how they are asked:** [`references/questionnaire.md`](references/questionnaire.md).
   It is the single source. Read it before the first question (its §How it is asked and §F included),
   and never restate or invent questions.
+- **The E2E viewer, when F13 = Yes:** [`references/e2e-viewer.md`](references/e2e-viewer.md) — what the project
+  must have, its security rules, the acceptance scenarios and the recommended tool. Read it only for that task.
 - **The answers:** `<project>/.kickoff-answers`, plain `ID: value` lines, written only by `answer.sh`.
 - **The output:** `docs/project/charter.md` (`charter.sh`); `docs/project/quality.md`, the task setup
   and the project CLAUDE.md (`scaffold.sh`).
@@ -108,6 +110,8 @@ Any other argument: say which ones exist, and do nothing else.
    - the layout of `docs/` belongs to docs-manager. If it is installed, let it set `docs/` up and
      regenerate the indexes (`docs.sh index --write`); kickoff writes only into `docs/project/`;
    - create the first tasks that the output names with `/task create`, if the task plugin is installed.
+     The E2E viewer's task (F13 = Yes) carries its two ports and points at
+     [`references/e2e-viewer.md`](references/e2e-viewer.md): the project builds the tooling, the guide says what it must do.
      Their ids come from the task plugin, never from kickoff.
 7. **Close the gaps.** The answers are decisions; on an existing project the code may not follow them
    yet. Kickoff is not done while it does not, unless the user chose to leave a gap.
@@ -121,7 +125,8 @@ Any other argument: say which ones exist, and do nothing else.
      `scripts/dev.sh` with up, down, test, sh"; "add the test runner and one E2E test of the success
      path"). For each the user picks **do it now**, **make it a task**, or **leave it**. Ask about
      details when an action has a real choice in it.
-   - **Do it now:** make the change, run it, and show it working: the test runs, the script starts the
+   - **Do it now:** make the change, run it, and show it working (the F13 gap: build to
+     [`references/e2e-viewer.md`](references/e2e-viewer.md)): the test runs, the script starts the
      app, CI parses. A gap is closed when it is verified, not when a file exists.
    - **Make it a task:** `/task create` when the task plugin is installed; otherwise add it to the
      charter's *Open questions* by hand (the charter is the user's from now on).

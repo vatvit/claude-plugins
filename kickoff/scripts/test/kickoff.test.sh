@@ -220,4 +220,12 @@ check "8c external service" "yes" "$(has "USES — an LLM API" "$D")"
 check "8d quality bar"     "yes" "$(has "High for the core result" "$D")"
 check "8e provider + why"  "yes" "$(has "OpenAI | Same API as Azure OpenAI" "$D")"
 
+
+echo "== references =="
+# Every reference SKILL.md links must exist: the skill reads them on demand, so a dangling link fails silently.
+R="$S/../skills/kickoff"
+missing=$(grep -o '(references/[a-z0-9-]*\.md)' "$R/SKILL.md" | tr -d '()' | sort -u | while read -r f; do [ -f "$R/$f" ] || echo "$f"; done)
+check "10a every reference SKILL.md links exists" "" "$missing"
+check "10b the E2E viewer guide is one of them" "yes" "$(has 'references/e2e-viewer.md' "$(cat "$R/SKILL.md")")"
+
 summary

@@ -107,7 +107,9 @@ A question with a real trade-off, such as the quality level or when backward com
 to apply, is always asked on its own, never accepted as a default. It also works on an existing project:
 it proposes answers from what it finds there, with evidence, then closes the gaps between the answers
 and the code, each one done now, made a task or left by your choice. It also keeps a machine-wide
-registry of dev ports.
+registry of dev ports. When the E2E tests run in a browser, it asks whether you want an E2E viewer
+(each test's last result, a replay of a kept trace, run-and-watch one test) and gives the project the
+spec to build it.
 [More →](kickoff/README.md)
 
 ### crew

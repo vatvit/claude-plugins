@@ -9,7 +9,9 @@ kickoff/
 ├── .claude-plugin/plugin.json
 ├── skills/kickoff/
 │   ├── SKILL.md                       ← the interview loop Claude follows
-│   └── references/questionnaire.md    ← THE questions: the one source for the skill and the scripts
+│   └── references/
+│       ├── questionnaire.md           ← THE questions: the one source for the skill and the scripts
+│       └── e2e-viewer.md              ← the spec a project builds its E2E viewer from (F13 = Yes); prose, no script reads it
 ├── scripts/
 │   ├── lib.awk        ← the questionnaire model: parse, conditions, defaults, states
 │   ├── lib.sh         ← locating files, the installed plugins, running a program over the model, diff-guarded writes

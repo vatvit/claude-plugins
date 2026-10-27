@@ -1,6 +1,6 @@
 ---
 title: "kickoff — instructions for reaching an E2E test viewer: the per-test result store, the trace whitelist, the viewer page and run-and-watch"
-status: approved
+status: in-progress
 type: feature
 priority: medium
 related: [PLUG-087]
@@ -11,17 +11,17 @@ tags: ["kickoff", "quality", "e2e"]
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
-| 20 | Requirements | — | |
-| 30 | Assessment | — | |
-| 40 | POC | — | |
-| 50 | Domain | — | |
-| 60 | Architecture | — | |
-| 70 | Tests | — | |
-| 80 | Subtasks | — | |
-| 90 | Implementation | — | |
-| 100 | Tech Debt | — | |
-| 110 | Reflection | — | |
+| 10 | Context | done | a second reference file, read on demand; Node-only proven path |
+| 20 | Requirements | done | a spec, not a build manual: Node proven, others named; no files; review, not a run |
+| 30 | Assessment | done | references/ ready; pointers at SKILL.md steps 6–7 and the F13 bullet; nothing blocks |
+| 40 | POC | skipped | the PoC was the proof |
+| 50 | Domain | done | PLUG-087 §Domain terms: E2E viewer, trace, viewer ports, e2e:view |
+| 60 | Architecture | done | one reference file, G1 sections; SKILL.md routes to it |
+| 70 | Tests | done | 10a/10b: every reference SKILL.md links exists; seen red before the file |
+| 80 | Subtasks | skipped | one file, one session |
+| 90 | Implementation | done | references/e2e-viewer.md + pointers; fresh-agent review: 1 missing, 1 weakened, 4 unclear, 0 leaks, all fixed; 298 green host + bash:5 |
+| 100 | Tech Debt | done | none |
+| 110 | Reflection | done | kickoff CLAUDE.md layout names the guide |
 
 ## Description
 
@@ -165,15 +165,85 @@ port numbers, its Playwright upgrade.
 3. The charter (PLUG-087's yes) and the gap row point at the instructions; a project that said no gets nothing.
 4. kickoff's suite passes on the host and in the Alpine container; docs and versions synced.
 
+## Requirements
+
+Settled 2026-10-27 with the user. Supersedes §Proposed shape and the draft acceptance where they differ.
+
+### The user's rulings
+- **Other stacks:** a proven path for Playwright on Node; for other stacks the concept, and a plain "no proven path
+  yet", so Claude asks the user before inventing one.
+- **Instructions only**, no ready-made files.
+- **Proof by review, not a run** (no image pull, no npm install). The user's context, verbatim: *"the kickoff asks and
+  recommend some tools. the project's responsibility to implement the according and necessary tooling and config"*.
+
+Read as: the guide is **what to have, not how to code it**. kickoff asks (F13), recommends a tool, and hands the
+project a spec. The project builds the tooling and the config and proves it with its own tests.
+
+### In scope
+- **G1** · `kickoff/skills/kickoff/references/e2e-viewer.md`, read on demand. Sections:
+  1. **What it is:** the user's need, verbatim (from PLUG-087), and the three views (last results, replay of a kept
+     trace, run-and-watch). It's optional and local only.
+  2. **Behaviour the project must have:** one stored result per test, overwritten by its next run and written as
+     each test ends; a trace kept only for a failed or flaky test, or for one on the machine-local whitelist; no
+     video; no history; the command `e2e:view` (or `e2e-view`), and the ports from `ports.sh viewer <project>`.
+  3. **Security requirements, non-negotiable:** the Host allow-list on every route; the Origin check on every write and
+     every websocket upgrade; run-and-watch only behind a proxy that applies them; ports published on `127.0.0.1` only;
+     a port check before publishing.
+  4. **Acceptance scenarios** the project turns into its own tests (the store, the whitelist, a killed run, replay, the
+     security cases S1–S5, the port refusal, a spec that doesn't compile).
+  5. **Recommended tool:** Playwright Test on Node, with what the proven implementation used (a reporter, the
+     whitelist as a second project, the served trace viewer, UI mode behind the proxy).
+  6. **Pitfalls** from the verdicts, each with its symptom.
+  7. **Other stacks:** the concept maps; there is no proven path yet, so ask the user.
+- **G2** · Pointers: SKILL.md step 6 (the first task) and step 7 (the F13 gap's "do it now") send Claude to the guide,
+  and the questionnaire's §How F is asked bullet names it.
+- **G3** · No project, tool or person named beyond Playwright; nothing that identifies the source PoC (public repo).
+
+### Out of scope
+- Code, templates, a scaffold step. Running the viewer anywhere.
+
+### Acceptance (replaces the draft)
+1. The guide covers G1's seven sections, and every §Safe-to-generalise verdict appears in it as a requirement or a
+   pitfall.
+2. A fresh review agent, given only the guide (not this task), finds no requirement missing against the verdicts and
+   nothing that names the source project. Its findings are fixed or answered.
+3. SKILL.md and the questionnaire point at the guide; the kickoff suite stays green on the host and in `bash:5`.
+4. Release with PLUG-087: kickoff 0.9.0, plugin.json, marketplace.json, root README in sync; the push only on the
+   user's OK.
+
 ## Context
 
-(collected at step 10)
+Collected 2026-10-27 (most of kickoff's context is already in PLUG-087 §Context and §Assessment; not repeated).
 
-- `kickoff/scripts/scaffold.sh`, `kickoff/templates/` — how kickoff writes files today.
-- `kickoff/scripts/ports.sh` — the port registry.
-- [PLUG-087](PLUG-087.md) — the check and the gap rule this scaffold closes.
+- **Where it goes:** `kickoff/skills/kickoff/references/` holds only `questionnaire.md` today. A second reference,
+  `e2e-viewer.md`, is read on demand like the command detail (PLUG-010 made SKILL.md a router), so it costs nothing
+  until a project says Yes.
+- **Who reads it:** Claude, inside the user's project, at the "E2E viewer" first task (scaffold.sh `next:` line) or at
+  the F13 gap's "do it now" (SKILL.md step 7). So it is written as a build guide for Claude: pieces, order, acceptance
+  scenarios, pitfalls. It is not user documentation.
+- **What PLUG-087 already fixed:** the command name `e2e:view` / `e2e-view`, the ports from `ports.sh viewer <A1>`
+  (app × 10 + 1 / + 2), and the wording rule (kickoff names no tool; the guide may name Playwright as the proven
+  implementation, since it is reference material, not a question or option).
+- **Source of truth for the pieces:** §What the PoC settled and §Safe-to-generalise verdicts above. The PoC's own
+  doc is in another, private project and is not linked from this public repo.
+- **Stack limits, worth knowing:** UI mode and the `Reporter` API belong to Playwright Test, the Node runner.
+  Playwright for Python / .NET / Java have neither in the same form, so the proven path is Node-only.
+- **Release:** PLUG-087 is committed locally (07f5b27) and waits for this task; one 0.9.0 bump for both.
+- **Collisions:** none. Only this session touches kickoff; the source PoC's hardening is in another repo.
 
 ## Current State
 
 2026-10-27: proposed. All nine hardening verdicts are recorded above; nothing blocks it now. Next: the user approves it,
 then Context → Requirements → … → the instructions file, then the joint 0.9.0 release with PLUG-087.
+
+2026-10-27 (later): implementation done. `references/e2e-viewer.md` written and linked from SKILL.md (references,
+steps 6 and 7) and questionnaire.md's F13 bullet. Acceptance 2, a fresh agent given only the guide and the verdicts,
+found: the proxy's half-open socket teardown missing; the uncompilable-spec `--list` weakened; four unclear points
+(upgrade judged before the read rule, store rules only in Playwright sections, the grep/grepInvert split, where the
+proxy listens in the container); no leaks. All fixed, plus scenarios A11–A13 and S6. Release prep done with PLUG-087:
+descriptions and keywords, a README line; the version stays 0.8.1 by the user's call until the stream ends (then 0.9.0). 298 tests green
+on the host and in `bash:5`. Uncommitted, waiting for the user's OK; push needs a separate OK. Status stays in-progress
+until the release; then completed. Open: the source PoC's shapes for the canvas-key test and the stale-bundle check
+may refine A13 and the stale-bundle pitfall row; an append, not a blocker.
+They arrived and are folded in: A13 keeps a user's choice, A14 pins the key against the installed bundle, A15 and the
+pitfall row make the stale-bundle check warn-only, naming the file and the restart command.

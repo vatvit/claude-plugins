@@ -246,3 +246,6 @@ existing.test.sh (the gap), scaffold.test.sh (first task named on Yes only).
 2026-10-27: implementation done, all 296 kickoff tests green on host, `bash:5` and standalone. Uncommitted, waiting
 for the user's OK to commit (local only). Not released: the bump, README sync and push wait for PLUG-088, so a Yes
 never points at missing instructions. Status stays in-progress until the release; then completed.
+
+2026-10-27 (later): PLUG-088 done; the release prep is in (see PLUG-088 Current State), the version held at 0.8.1 for now.
+Committed locally in 07f5b27; the release commit and the push wait for the user.

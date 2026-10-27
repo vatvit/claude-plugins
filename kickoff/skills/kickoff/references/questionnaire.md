@@ -286,7 +286,7 @@ set** — one `ID: value` line per check — so the answers say what the project
 - **Changing F1 later** re-derives F2–F7 from the new level, keeping the drops and adds the user made.
 - **F13, the E2E viewer, is optional**: no level includes it, and ★ No stands until the user wants one. The Yes
   option's description ends with the tools Claude would use on the I4 stack (`→ <tool>`), as the aspects' options do.
-  A Yes becomes a first task, and its two ports come from `scripts/ports.sh viewer <A1>`: the app's port × 10 + 1 for
+  A Yes becomes a first task built to [`e2e-viewer.md`](e2e-viewer.md), and its two ports come from `scripts/ports.sh viewer <A1>`: the app's port × 10 + 1 for
   the viewer and × 10 + 2 for run-and-watch.
 
 **Tools are named as soon as the stack is known.** I4 comes before F, so every DROP / ADD option's
