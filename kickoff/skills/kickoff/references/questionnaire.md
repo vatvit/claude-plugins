@@ -46,7 +46,7 @@ The questions are the same every time; the answers may or may not be.
   included, the question asks only for the difference, as **DROP — …** / **ADD — …** options; ticking
   nothing keeps the default set (see §F).
 - **A multi-select option's label starts with what ticking it does**, in capitals: **DROP —**, **ADD —**,
-  **OUT OF SCOPE —**, **USES —**. A bare tick reads as "yes, this", which is the opposite of an exclusion.
+  **OUT OF SCOPE —**, **USES —**, **CREATE —**, **REVIEW —**. A bare tick reads as "yes, this", which is the opposite of an exclusion.
 - **Free-text questions** are asked in plain chat, never forced into options.
 - **"Not decided yet" is always valid** and goes to the charter's *Open questions*, never filled with a guess.
 - **`n/a`** retires a question that does not apply here. It counts as answered and is written nowhere.
@@ -61,6 +61,7 @@ The questions are the same every time; the answers may or may not be.
   with both answers, and the user resolves it before anything is written; the question that resolves
   it offers the reconciling option first.
 - **The end is a review screen**: every answer in one table, the user confirms, then files are written.
+- **Then one question: what to do next** (§N). Kickoff collects and documents; it plans nothing on its own.
 
 ## Reading the tables
 
@@ -79,7 +80,8 @@ generated files.
 
   `answer.sh` refuses either italic text as an answer: the answer is always the concrete value.
 - **A condition** is `always`, `explicitly`, `<ID> = <option>`, `<ID> ≠ <option>`, `<ID> answered`,
-  `<ID> has <option>` (any value of a multi-select answer), or `<plugin> installed`. Parts join with
+  `<ID> has <option>` (any value of a multi-select answer), `<plugin> installed`, or `charter written`
+  (`docs/project/charter.md` exists: the docs are written). Parts join with
   ` or ` and ` and `. Any other wording is a **judgement**: Claude decides from what it knows.
 - **Goes to** routes the answer: `charter`, `charter §<Section>`, `charter decision`, or `quality doc`
   (`docs/project/quality.md`). Other targets are written by the setup scaffold.
@@ -286,7 +288,7 @@ set** — one `ID: value` line per check — so the answers say what the project
 - **Changing F1 later** re-derives F2–F7 from the new level, keeping the drops and adds the user made.
 - **F13, the E2E viewer, is optional**: no level includes it, and ★ No stands until the user wants one. The Yes
   option's description ends with the tools Claude would use on the I4 stack (`→ <tool>`), as the aspects' options do.
-  A Yes becomes a first task built to [`e2e-viewer.md`](e2e-viewer.md), and its two ports come from `scripts/ports.sh viewer <A1>`: the app's port × 10 + 1 for
+  A Yes makes the viewer a candidate of N1's and N2's tooling option, built to [`e2e-viewer.md`](e2e-viewer.md); its two ports come from `scripts/ports.sh viewer <A1>`: the app's port × 10 + 1 for
   the viewer and × 10 + 2 for run-and-watch.
 
 **Tools are named as soon as the stack is known.** I4 comes before F, so every DROP / ADD option's
@@ -334,6 +336,26 @@ descriptions carry no tools and F12 waits. Any language works the same way:
   documents, in `docs/project/`; with docs-manager installed, the rest of `docs/` is set up by it,
   from the charter. K1 is retired, not renumbered, so old answer files stay readable.
 
+## N. What next
+
+Asked once the docs are written, never before: the questionnaire collects, the docs record, and this is the
+one question about the work that follows. A0 says which of the two rows applies.
+
+| ID | Question | Options (★ default) | Ask when | Goes to |
+|----|----------|---------------------|----------|---------|
+| N1 | What to do next? (pick any) | CREATE — infra and tooling tasks: the foundation for the project · CREATE — feature and business-logic tasks: the app foundation and the start of its logic | A0 = New and charter written | the tasks Claude creates |
+| N2 | What to do next? (pick any) | CREATE — infra and tooling tasks: close the gaps the answers expose · REVIEW — the legacy code against the answers, and propose the tasks that adjust it | A0 ≠ New and charter written | the tasks Claude creates |
+
+- **Nothing ticked is `None`**: no task is created. Kickoff never creates a task the user did not pick here.
+- **The candidates come from the answers.** Infra and tooling, new project: the entry point (R4), containers
+  (I0, I2), the test runner and the F12 checks, CI and pre-commit (F7, F9), deploy (I2), the E2E viewer
+  (F13 = Yes, with its ports). Existing project: the rows of `gaps.sh`. Features and logic: one first vertical
+  slice from the goal and scope (B, C); more only when the user asks. Legacy review: where the code contradicts
+  an answer (*no login* with a login form) or a check in the quality doc runs nowhere.
+- **Features and the legacy review exclude each other.** A new project has no legacy; an existing one already
+  has its foundation.
+- **Claude lists the tasks of each ticked option before creating any**, and creates them on the user's OK.
+
 ## What the answers produce
 
 | Output | Holds |
@@ -344,7 +366,7 @@ descriptions carry no tools and F12 waits. Any language works the same way:
 | project `CLAUDE.md` | instructions only: pointer to the charter, A6, I0, R1–R6, C5, E3, E4, F1, F7, F9 — never project knowledge |
 | `.task-config.json`, `tasks/_workflow/` | R7–R10, when the task plugin is installed |
 | crew / task-roadmap config | R5, R11, when installed |
-| first tasks | agree the charter · architecture overview · dev harness with the first vertical slice and the F12 checks · the E2E viewer, from kickoff's instructions, when F13 = Yes |
+| tasks | only those the user picks in §N, never more |
 
 ## Where kickoff keeps its own data
 

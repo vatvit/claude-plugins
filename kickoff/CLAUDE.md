@@ -15,7 +15,7 @@ kickoff/
 ├── scripts/
 │   ├── lib.awk        ← the questionnaire model: parse, conditions, defaults, states
 │   ├── lib.sh         ← locating files, the installed plugins, running a program over the model, diff-guarded writes
-│   ├── plan.awk / plan.sh        ← what to ask now (--next), the review table (--review)
+│   ├── plan.awk / plan.sh        ← what to ask now (--next), the review table (--review), --before-docs
 │   ├── answer.sh                 ← the only writer of .kickoff-answers
 │   ├── charter.awk / charter.sh  ← docs/project/charter.md from the answers
 │   ├── scaffold.sh               ← CLAUDE.md (claude.awk), quality doc (quality.awk), task config + workflow (workflow.awk)
@@ -99,6 +99,11 @@ real file, so a broken edit fails them.
   it. The compose scan runs on *every* allocation, not only for a new registry, so a port a project
   took without kickoff is never handed out (2a). Writes happen under a `mkdir` lock whose pid file
   lets a dead holder's lock be broken (4d).
+- **§N (what next) waits for the docs.** Its rows hold on `charter written`, a fact lib.sh passes as
+  `-v written` (the charter file exists), like `<plugin> installed`. So `scaffold.sh` checks open questions with
+  `plan.sh --before-docs`: without it, an open N1 refused the very setup the docs need (scaffold 10a2). An N answer
+  goes to no generated file (10c), and `autofill` answers whatever it is offered, so a test of *when* N is asked
+  reads N1's state, not an empty `--next` (10a).
 - **A command that registers several ports checks them all before writing any.** `ports.sh viewer` derives two
   (app × 10 + 1 / + 2); `do_set` refuses a held port on its own, but only after the first one was written, so a
   refusal left half a registration behind. Its up-front check is what test 6n pins (PLUG-087).

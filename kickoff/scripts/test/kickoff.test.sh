@@ -17,7 +17,7 @@ value() { field "$1" 4; }
 echo "== plan: branching and defaults =="
 
 P=$(fresh empty)
-check "1a every question is listed" "59" "$(bash "$S/plan.sh" "$P" | wc -l | tr -d ' ')"
+check "1a every question is listed" "61" "$(bash "$S/plan.sh" "$P" | wc -l | tr -d ' ')"
 check "1b A0 is asked first" "ask" "$(state A0)"
 check "1c a question on an unanswered one waits (B6 on B5)" "pending" "$(state B6)"
 check "1d PoC-only questions wait for A3" "pending" "$(state X1)"

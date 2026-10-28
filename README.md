@@ -105,8 +105,9 @@ answers are saved in `.kickoff-answers`. From them kickoff generates `docs/proje
 task config, with a workflow carrying the practices you keep (INVEST, tests first, SOLID, DRY).
 A question with a real trade-off, such as the quality level or when backward compatibility starts
 to apply, is always asked on its own, never accepted as a default. It also works on an existing project:
-it proposes answers from what it finds there, with evidence, then closes the gaps between the answers
-and the code, each one done now, made a task or left by your choice. It also keeps a machine-wide
+it proposes answers from what it finds there, with evidence. Once the docs are written, kickoff asks one
+question, what to do next, and creates only the tasks you pick: infra and tooling, features and logic for a
+new project, or a review of the legacy code against the answers for an existing one. It also keeps a machine-wide
 registry of dev ports. When the E2E tests run in a browser, it asks whether you want an E2E viewer
 (each test's last result, a replay of a kept trace, run-and-watch one test) and gives the project the
 spec to build it.

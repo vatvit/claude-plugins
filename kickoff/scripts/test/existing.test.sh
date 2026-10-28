@@ -53,6 +53,7 @@ echo "== a project kicked off before: nothing asked, nothing changed =="
 P=$(fresh done)
 autofill "$P" A1=done A4=Mine A5="No remote yet" R8=DON D3=English K2=English I6=n/a C4=n/a C5="Never — always free to break" F1="Basic"
 bash "$S/charter.sh" "$P" >/dev/null; bash "$S/scaffold.sh" "$P" >/dev/null
+bash "$S/answer.sh" --root "$P" N1 None   # a finished kickoff ends with What next (PLUG-089)
 before=$(cd "$P" && find . -type f | sort | while read -r f; do echo "$f $(cksum < "$f")"; done)
 check "4a nothing left to ask" "" "$(bash "$S/plan.sh" "$P" --next)"
 check "4b the charter is unchanged" "unchanged" "$(bash "$S/charter.sh" "$P")"

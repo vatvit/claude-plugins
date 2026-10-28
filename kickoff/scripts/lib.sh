@@ -19,6 +19,10 @@ project_root() {
 # answers_file <root> — where the kickoff answers are kept, in the project.
 answers_file() { printf '%s/.kickoff-answers\n' "$1"; }
 
+# charter_file <root> — the charter charter.sh writes. Its existence is the `charter written` fact:
+# the docs are written, so the What-next questions (questionnaire §N) may be asked.
+charter_file() { printf '%s/docs/project/charter.md\n' "$1"; }
+
 # user_defaults_file — the user layer: the user's own defaults, overriding the questionnaire's ★.
 # PER ACCOUNT on purpose (repo CLAUDE.md, "Per account or per machine"): a work account and a
 # personal one answer "whose project?" differently, so it follows CLAUDE_CONFIG_DIR.
@@ -73,11 +77,12 @@ installed_plugins() {
 # kickoff_awk <program.awk> <root> [awk args...] — run a program over the model. The answers file
 # and the user layer are passed as files; an absent one becomes /dev/null.
 kickoff_awk() {
-    local prog="$1" root="$2" ans defs plugins; shift 2
+    local prog="$1" root="$2" ans defs plugins written=0; shift 2
     ans="$(answers_file "$root")"; [ -f "$ans" ] || ans=/dev/null
     defs="$(mktemp)"; defaults_tsv > "$defs"
     plugins="$(installed_plugins "$root")"
-    awk -v plugins="$plugins" "$@" -f "$KICKOFF_LIB_AWK" -f "$KICKOFF_SCRIPTS/$prog" "$ans" "$defs" "$KICKOFF_QUESTIONNAIRE"
+    [ -f "$(charter_file "$root")" ] && written=1
+    awk -v plugins="$plugins" -v written="$written" "$@" -f "$KICKOFF_LIB_AWK" -f "$KICKOFF_SCRIPTS/$prog" "$ans" "$defs" "$KICKOFF_QUESTIONNAIRE"
     local rc=$?; rm -f "$defs"; return $rc
 }
 

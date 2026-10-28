@@ -37,8 +37,7 @@ check "2j no remote line without a remote" "no" "$(has 'Remote:' "$C")"
 check "2k crew line when several sessions" "yes" "$(has 'joins the crew' "$C")"
 check "2l nothing approved without external services" "no" "$(has 'Approved:' "$C")"
 check "2m CLAUDE.md stays small" "yes" "$([ "$(wc -l < "$P/CLAUDE.md")" -lt 30 ] && echo yes || echo no)"
-check "2n the next step names the first tasks" "yes" "$(has 'agree the charter' "$out")"
-check "2n2 ... and no E2E viewer when it was not wanted (F13 = No)" "no" "$(has 'E2E viewer' "$out")"
+check "2n the next step is the What-next question, naming no task" "yes no" "$(has 'what to do next' "$out") $(has 'agree the charter' "$out")"
 check "2s no identity line for an own project" "no" "$(has 'Identity:' "$C")"
 check "2t the quality level and the checks run" "yes yes" "$(has '**Quality level:** Basic' "$C") $(has '**Checks run:** One command runs them.' "$C")"
 Q="$P/docs/project/quality.md"
@@ -113,12 +112,23 @@ check "5a runs clean" "0" "$rc"
 check "5b no task config, no workflow" "no no" "$(exists "$P/.task-config.json") $(exists "$P/tasks")"
 check "5c no crew line" "no" "$(has 'joins the crew' "$(cat "$P/CLAUDE.md")")"
 
-echo "== a wanted E2E viewer (PLUG-087) =="
-P=$(fresh viewer)
-a() { bash "$S/answer.sh" --root "$P" "$@"; }
-a F2 "Unit"; a F2 --add "E2E success path"
-autofill "$P" A1=viewer A3="Product / app / service" A4=Mine A5="No remote yet" R8=VIEW D3=English K2=English I6=n/a C4=n/a \
-    C5="Never — always free to break" F1="Basic" F3=n/a F4=n/a F5=n/a F6=n/a F7="One command runs them" F13=Yes >/dev/null
-check "7a a wanted E2E viewer is a first task" "yes" "$(has "the E2E viewer, from kickoff's instructions" "$(sc "$P")")"
+echo "== what to do next, after the docs (PLUG-089) =="
+# The What-next question is asked only once the docs are written: never before the review screen.
+P=$(fresh next)
+autofill "$P" A1=next A3="Product / app / service" A4=Mine A5="No remote yet" R8=NXT D3=English K2=English I6=n/a C4=n/a \
+    C5="Never — always free to break" F1="Basic" F3=n/a F4=n/a F5=n/a F6=n/a F7="One command runs them" >/dev/null
+check "10a What next is not asked before the charter is written" "skip" "$(bash "$S/plan.sh" "$P" | awk -F'\t' '$2 == "N1" { print $3 }')"
+bash "$S/charter.sh" "$P" >/dev/null; sc "$P" >/dev/null 2>&1
+check "10a2 the setup is written while What next is still open" "0 yes" "$? $(exists "$P/CLAUDE.md")"
+check "10b once it is, a new project is offered N1 alone" "N1 ask" "$(bash "$S/plan.sh" "$P" --next | cut -f2,3 | tr '\t\n' '  ' | sed 's/ $//')"
+bash "$S/answer.sh" --root "$P" N1 None
+w="$(bash "$S/charter.sh" "$P"; sc "$P" | grep -v '^next:')"
+check "10c the answer touches no generated file" "0" "$(echo "$w" | grep -cE '^(created|updated|refused)|[[:space:]](created|updated|refused)')"
+check "10d ... and nothing is left to ask" "" "$(bash "$S/plan.sh" "$P" --next)"
+P=$(fresh legacy)
+autofill "$P" A0="Existing code, no setup" A1=legacy A3="Product / app / service" A4=Mine A5="No remote yet" R8=LEG D3=English \
+    K2=English I6=n/a C4=n/a C5="Never — always free to break" F1="Basic" F3=n/a F4=n/a F5=n/a F6=n/a F7="One command runs them" >/dev/null
+bash "$S/charter.sh" "$P" >/dev/null
+check "10e an existing project is offered N2 alone" "N2" "$(bash "$S/plan.sh" "$P" --next | cut -f2 | tr -d '\n')"
 
 summary

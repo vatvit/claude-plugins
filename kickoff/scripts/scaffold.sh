@@ -25,10 +25,10 @@ for a in "$@"; do
 done
 root="$(project_root "$root")"
 [ -f "$(answers_file "$root")" ] || { echo "scaffold.sh: no answers yet" >&2; exit 1; }
-open="$(bash "$KICKOFF_SCRIPTS/plan.sh" "$root" --next)"
+open="$(bash "$KICKOFF_SCRIPTS/plan.sh" "$root" --next --before-docs)"   # §N comes after the docs
 [ -z "$open" ] || { echo "scaffold.sh: questions are still open — see plan.sh --next" >&2; exit 1; }
 
-{ read -r A1; read -r R7; read -r R8; read -r R9; read -r F13; } < <(kickoff_awk get.awk "$root" -v ids="A1 R7 R8 R9 F13")
+{ read -r A1; read -r R7; read -r R8; read -r R9; } < <(kickoff_awk get.awk "$root" -v ids="A1 R7 R8 R9")
 name="${A1:-$(basename "$root")}"
 slug="$(printf '%s' "$name" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9._-' '-')"
 rc=0
@@ -91,6 +91,5 @@ if [ -s "$t" ]; then guarded "$root/docs/project/quality.md" "$t"; else rm -f "$
 # --- CLAUDE.md ----------------------------------------------------------------------------------
 t="$(mktemp)"; kickoff_awk claude.awk "$root" -v tasks="$tasks_where" > "$t"; guarded "$root/CLAUDE.md" "$t"
 
-viewer=""; case "$F13" in Yes*) viewer=" · the E2E viewer, from kickoff's instructions" ;; esac
-echo "next: create the first tasks — agree the charter · architecture overview · dev harness with the first vertical slice and its tests$viewer"
+echo "next: write the rest of the docs, then ask what to do next (plan.sh --next)"
 exit $rc

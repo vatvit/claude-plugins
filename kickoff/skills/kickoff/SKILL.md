@@ -1,7 +1,7 @@
 ---
 name: kickoff
-description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (generic for any language or stack; questions branch on earlier answers, each with pre-defined options and a default; sibling plugins asked about only when installed) and turn the answers into decisions: the project's charter, its quality level and checks, and its CLAUDE.md. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "run kickoff on this existing project", "kick off an existing project", "what is missing from this project's setup", "close the gaps", "bring this project in line with the answers", "/kickoff:kickoff init", "starting context for this project", "which quality level should this project have", "which tests and checks should this project have", "quality gate for a new project", "which dev port should this project use", "port registry", "e2e viewer", "test viewer", "replay a test", "watch a test run", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
-version: 0.9.0
+description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (generic for any language or stack; questions branch on earlier answers, each with pre-defined options and a default; sibling plugins asked about only when installed) and turn the answers into decisions: the project's charter, its quality level and checks, and its CLAUDE.md. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "run kickoff on this existing project", "kick off an existing project", "what is missing from this project's setup", "close the gaps", "bring this project in line with the answers", "/kickoff:kickoff init", "starting context for this project", "which quality level should this project have", "which tests and checks should this project have", "quality gate for a new project", "which dev port should this project use", "port registry", "e2e viewer", "test viewer", "replay a test", "watch a test run", "what to do next after kickoff", "which tasks after kickoff", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
+version: 0.10.0
 ---
 
 # Kickoff
@@ -27,7 +27,7 @@ history.
 
 | Argument | Does |
 |---|---|
-| `init` | Kickoff for an **existing project**: the loop below, with step 0 in full and step 7 at the end |
+| `init` | Kickoff for an **existing project**: the loop below, with step 0 in full |
 | _(none)_ | The loop below; step 0 runs whenever the directory already has files |
 
 Any other argument: say which ones exist, and do nothing else.
@@ -54,7 +54,8 @@ Any other argument: say which ones exist, and do nothing else.
 1. **See what to ask now:**
    `bash <PLUGIN_ROOT>/scripts/plan.sh <project> --next`. Each row is
    `section · id · state · value · question · options`, where value is the default to offer. Empty
-   output means every question is settled: go to step 4.
+   output means every question is settled: go to step 4. So does a row of section N: it comes only after the
+   docs are written (steps 5–6) and is asked in step 7; it shows up here early only when a charter exists from an earlier run.
    - **ask:** ask it.
    - **explicit:** ask it on its own, never inside *accept all defaults*. Offer the value as the
      recommended option, first. The user picks, even when they pick the recommendation (C5, F1).
@@ -68,7 +69,8 @@ Any other argument: say which ones exist, and do nothing else.
    then offer *accept all defaults* or *change some*. The defaults cover only the *ask* rows. Ask only the questions the user wants to change.
    - Questions with options go through the question UI, up to 4 per call. The default comes first,
      marked "(Recommended)". Keep each label short and put the full option text in its description.
-     A `(pick any)` question is multi-select, its labels starting DROP — / ADD — / OUT OF SCOPE — / USES —.
+     A `(pick any)` question is multi-select, its labels starting DROP — / ADD — / OUT OF SCOPE — / USES — /
+     CREATE — / REVIEW —.
    - Free-text questions (name, one-liner, goal, those with no options) are asked in plain chat.
    - **Compute the computed defaults** (`*italics*`) before offering them, so the user confirms a concrete value:
      A1 is the repo directory name, A4 comes from the git remote owner, A5 is `git remote get-url origin`,
@@ -76,7 +78,7 @@ Any other argument: say which ones exist, and do nothing else.
      `bash <PLUGIN_ROOT>/scripts/ports.sh next`. Once I6 is confirmed, reserve it with
      `ports.sh allocate <A1>`. Use `<A1>/<service>` for each further port. Then record the port.
      F13 = Yes (the E2E viewer) takes two more: `ports.sh viewer <A1>` derives and registers them from the
-     app's port; name them in the viewer's first task.
+     app's port; they go into the viewer's task if one is created (step 7).
    - **Work out the proposed options** (`*Claude proposes …*`: B1, B6, C2, D2, E1, E2, I4, I5, the Domain
      checks and the tools in §F) from the answers so far, and offer them as ordinary options.
    - `answer.sh` refuses the italic text of a computed or proposed option.
@@ -101,39 +103,39 @@ Any other argument: say which ones exist, and do nothing else.
    `unchanged`, or `refused` (exit 3) when an existing charter differs. Then show the difference
    (`charter.sh <project> --diff`) and ask before `--force`, because the charter may have been
    edited by hand since kickoff.
-6. **Set the project up:** `bash <PLUGIN_ROOT>/scripts/scaffold.sh <project>`. It writes the task config
-   and workflow (when markdown task files were chosen, without the practices left out in R10), the
-   quality doc (§F answers) and the project CLAUDE.md, one line per file. A refused CLAUDE.md or quality
-   doc is handled like a refused charter: `scaffold.sh <project> --diff` shows the change and writes
-   nothing, and `--force` applies it once the user agrees. Seeded files (task config, workflow) that
-   already exist are never touched. Then:
-   - the layout of `docs/` belongs to docs-manager. If it is installed, let it set `docs/` up and
-     regenerate the indexes (`docs.sh index --write`); kickoff writes only into `docs/project/`;
-   - create the first tasks that the output names with `/task create`, if the task plugin is installed.
-     The E2E viewer's task (F13 = Yes) carries its two ports and points at
-     [`references/e2e-viewer.md`](references/e2e-viewer.md): the project builds the tooling, the guide says what it must do.
-     Their ids come from the task plugin, never from kickoff.
-7. **Close the gaps.** The answers are decisions; on an existing project the code may not follow them
-   yet. Kickoff is not done while it does not, unless the user chose to leave a gap.
-   - `bash <PLUGIN_ROOT>/scripts/gaps.sh <project>`: `id · answer · gap · where it looked`, one row per
-     gap a file can show (the entry point, containers, tests, E2E, the E2E viewer, CI, pre-commit, each F12 tool, the
-     quality doc, CLAUDE.md, `docs/`). It writes nothing.
-   - Add the gaps only reading the code shows: a check in `docs/project/quality.md` that nothing runs,
-     an answer the code contradicts (*no login* with a login form), one command that does not run every
-     check. Each names its answer and the file it is seen in.
-   - **One table:** `id · answer · gap · proposed action`, the action concrete for this stack ("add
-     `scripts/dev.sh` with up, down, test, sh"; "add the test runner and one E2E test of the success
-     path"). For each the user picks **do it now**, **make it a task**, or **leave it**. Ask about
-     details when an action has a real choice in it.
-   - **Do it now:** make the change, run it, and show it working (the F13 gap: build to
-     [`references/e2e-viewer.md`](references/e2e-viewer.md)): the test runs, the script starts the
-     app, CI parses. A gap is closed when it is verified, not when a file exists.
-   - **Make it a task:** `/task create` when the task plugin is installed; otherwise add it to the
-     charter's *Open questions* by hand (the charter is the user's from now on).
-   - **Leave it:** record why with `answer.sh <ID>.why` (a gap with id `-` has no question: say it in
-     chat), so the charter says it was a decision.
-   - Run `gaps.sh` again at the end. What it still prints must be exactly what the user chose to
-     leave or to make a task.
+6. **Write the docs.** Kickoff's goal is to collect; this step records it all, without asking whether to.
+   - `bash <PLUGIN_ROOT>/scripts/scaffold.sh <project>` writes the task config and workflow (when markdown task
+     files were chosen, without the practices left out in R10), the quality doc (§F answers) and the project
+     CLAUDE.md, one line per file. A refused CLAUDE.md or quality doc is handled like a refused charter:
+     `scaffold.sh <project> --diff` shows the change and writes nothing, and `--force` applies it once the user
+     agrees. Seeded files (task config, workflow) that already exist are never touched.
+   - The layout of `docs/` belongs to docs-manager. If it is installed, let it set `docs/` up and regenerate the
+     indexes (`docs.sh index --write`); kickoff writes only into `docs/project/`.
+   - **What has no question still gets written.** Write `docs/project/architecture.md`, the overview the answers
+     imply (kind, stack, hosting, data, external services, entry point), and `docs/project/notes.md`, what the
+     user said during kickoff that no answer holds. Both are Claude's prose, not generated: the user edits them.
+7. **What next.** `bash <PLUGIN_ROOT>/scripts/plan.sh <project> --next` now offers one question of section N: N1
+   for a new project, N2 for an existing one (A0). Ask it as any `(pick any)` question; nothing ticked is `None`.
+   Each ticked option is a list of tasks Claude works out, shows (title and one line each) and creates only on
+   the user's OK, with `/task create` when the task plugin is installed, otherwise as a list for the user's
+   tracker (R6). Their ids come from the task plugin, never from kickoff. **Never create a task the user did not
+   pick here: kickoff does not plan the project.**
+   - **Infra and tooling, new project:** the foundation the answers call for, as §N lists. The E2E viewer's task
+     (F13 = Yes) carries its two ports and points at [`references/e2e-viewer.md`](references/e2e-viewer.md): the
+     project builds the tooling, the guide says what it must do.
+   - **Features and business logic** (new project only): one first vertical slice from the goal and scope; more
+     only when the user asks.
+   - **Infra and tooling, existing project:** one task per gap. `bash <PLUGIN_ROOT>/scripts/gaps.sh <project>`
+     prints `id · answer · gap · where it looked`, one row per gap a file can show (the entry point, containers,
+     tests, E2E, the E2E viewer, CI, pre-commit, each F12 tool, the quality doc, CLAUDE.md, `docs/`). It writes
+     nothing. Each task names its answer and a concrete action for this stack ("add `scripts/dev.sh` with up,
+     down, test, sh").
+   - **Review the legacy code** (existing project only): read the code against the answers and find what only
+     reading shows: a check in `docs/project/quality.md` that nothing runs, an answer the code contradicts (*no
+     login* with a login form), one command that does not run every check. One task per finding, naming its
+     answer and the file it is seen in.
+   - A gap or finding the user does not want as a task is a decision: record why with `answer.sh <ID>.why` (a gap
+     with id `-` has no question: say it in chat), so the charter says so.
 
 ## Rules
 

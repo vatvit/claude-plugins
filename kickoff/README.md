@@ -24,16 +24,21 @@ answers, and Claude proposes the options that depend on them.
   `docs/project/charter.md` and `docs/project/quality.md` are generated from them. The charter holds
   an overview, the goal, scope, non-goals, a numbered decisions table with the reason for each, and
   the open questions.
+- **It collects; it does not plan.** Once the docs are written, kickoff asks one question, *what to do
+  next?*, and creates only the tasks you pick. A new project is offered infra and tooling tasks (the
+  foundation) and feature and business-logic tasks (one first vertical slice); an existing one, tasks
+  closing the tooling gaps and a review of the legacy code against your answers. Claude shows each
+  task before creating it.
 
 ## Use
 
 Ask Claude to *kick off this project* (or *start a new project*). The skill walks the questionnaire
-one section at a time, shows a review screen, then writes the charter.
+one section at a time, shows a review screen, writes the charter and the docs, then asks what to do next.
 
 The scripts can also be run directly:
 
 ```bash
-bash kickoff/scripts/plan.sh  [project] [--next | --review]   # what to ask now, with defaults
+bash kickoff/scripts/plan.sh  [project] [--next | --review] [--before-docs]   # what to ask now, with defaults
 bash kickoff/scripts/answer.sh --root <project> [--add|--clear] <ID> "<value>"
 bash kickoff/scripts/charter.sh [project] [--force | --stdout]
 bash kickoff/scripts/scaffold.sh [project] [--diff | --force]   # CLAUDE.md, quality doc, task config
@@ -65,11 +70,13 @@ files, the entry point) and Claude reads the README, `docs/` and the code for th
 comes with its evidence; nothing is recorded until you confirm, and the charter marks the answers that
 were recovered from the project.
 
-Then kickoff **closes the gaps**: `gaps.sh` lists what the answers say the project has and it does
-not (the entry point, containers, tests, E2E, CI, a tool, the quality doc, `docs/`), Claude adds what
-only the code shows, and for each one you pick *do it now* (done and shown working), *make it a task*,
-or *leave it*. With docs-manager installed, the docs are onboarded first.
-A project kicked off before is asked nothing and changed in nothing. A file edited since is shown as a
+Its *what to do next?* offers two kinds of task. **Tooling gaps**: `gaps.sh` lists what the answers say
+the project has and it does not (the entry point, containers, tests, E2E, CI, a tool, the quality doc,
+`docs/`), one task each. **A review of the legacy code**: Claude reads the code against the answers and
+proposes a task for each place it contradicts them. With docs-manager installed, the docs are onboarded
+first.
+A project kicked off before is asked nothing and changed in nothing (one kicked off before kickoff 0.10 is
+asked *what to do next* once). A file edited since is shown as a
 diff (`--diff`) and replaced only when you agree (`--force`).
 
 ## Your defaults

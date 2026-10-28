@@ -23,9 +23,9 @@ root="$(project_root "$root")"
 
 if [ "$out" = stdout ]; then kickoff_awk charter.awk "$root"; exit; fi
 if [ "$out" = diff ]; then
-    C="$root/docs/project/charter.md"; [ -f "$C" ] || { echo "would-create docs/project/charter.md"; exit 0; }
+    C="$(charter_file "$root")"; [ -f "$C" ] || { echo "would-create docs/project/charter.md"; exit 0; }
     kickoff_awk charter.awk "$root" | diff -u "$C" - | sed "s|^+++ -.*|+++ (proposed)|" || true; exit 0
 fi
 tmp="$(mktemp)"
 kickoff_awk charter.awk "$root" > "$tmp"
-write_if_changed "$root/docs/project/charter.md" "$tmp" "$force"
+write_if_changed "$(charter_file "$root")" "$tmp" "$force"

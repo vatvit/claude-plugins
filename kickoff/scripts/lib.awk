@@ -8,7 +8,8 @@
 #   1. the answers file   (`ID: value` lines; may be /dev/null)
 #   2. the defaults file   (`ID<TAB>value` lines from the user layer; may be /dev/null)
 #   3. the questionnaire
-# and -v plugins="<installed plugin names>" (lib.sh installed_plugins), for `<plugin> installed`.
+# and -v plugins="<installed plugin names>" (lib.sh installed_plugins), for `<plugin> installed`,
+# and -v written=1|0 (the charter exists, lib.sh charter_file), for `charter written`.
 # Programs call load() on every record and get the arrays below filled by END.
 #
 #   nq            number of questions; qid[i], qsec[i], qsectitle[i], qtext[i], qopts[i], qwhen[i], qgoes[i]
@@ -60,6 +61,7 @@ function load(   id, v, n, c, i) {
 function atom(p,   id, val, st, k) {
     p = trim(p)
     if (p == "always" || p == "explicitly") return "1"
+    if (p == "charter written") return written ? "1" : "0"
     if (match(p, /^[a-z][a-z0-9-]* installed$/)) { id = substr(p, 1, index(p, " ") - 1); return index(" " plugins " ", " " id " ") ? "1" : "0" }
     if (p !~ /^[A-Z][0-9]+ /) return "judge"
     id = substr(p, 1, index(p, " ") - 1)
