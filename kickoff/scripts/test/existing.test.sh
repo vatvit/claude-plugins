@@ -104,7 +104,8 @@ JSON
 P=$(fresh legacy); legacy "$P"
 check "6a the one-liner from the manifest" "A small shop for second-hand bikes" "$(inferred A2)"
 check "6b the stack from the manifests" "TypeScript / Node.js — next, react" "$(inferred I4)"
-check "6c the tools from the manifests" "jest, eslint" "$(inferred F12)"
+check "6c the tools from the manifests, one 'check → tool' line each (PLUG-100)" "Unit → jest|Linter / static analysis → eslint" "$(inferred F12 | paste -sd'|' -)"
+check "6c2 …each with its manifest as evidence" "package.json|package.json" "$(inspect | awk -F'\t' '$1 == "F12" { print $3 }' | paste -sd'|' -)"
 check "6d a database beside a cache, in the questionnaire's words" "yes" "$(has 'Several stores' "$(inferred I3)")"
 check "6e the engines from the images" "postgres:16, redis:7" "$(inferred I5)"
 check "6f an nvidia device means GPUs" "yes" "$(has 'GPUs' "$(inferred I7)")"
@@ -113,8 +114,8 @@ check "6h two locales mean several languages" "yes" "$(has 'Several' "$(inferred
 check "6i 5 of 6 commits conventional" "yes" "$(has 'Conventional Commits' "$(inferred R2)")"
 check "6j package.json scripts mean the stack's own tool" "yes" "$(has "The stack's own tool" "$(inferred R4)")"
 check "6k every proposal carries its evidence" "0" "$(inspect | awk -F'\t' '$3 == ""' | wc -l | tr -d ' ')"
-check "6l one proposal per question" "0" "$(inspect | cut -f1 | sort | uniq -d | wc -l | tr -d ' ')"
-check "6m 16 questions proposed on this project (6 before PLUG-072)" "16" "$(inspect | wc -l | tr -d ' ')"
+check "6l one proposal per question; only the list F12 has several rows" "F12" "$(inspect | cut -f1 | sort | uniq -d | paste -sd' ' -)"
+check "6m 16 questions proposed on this project (6 before PLUG-072)" "16" "$(inspect | cut -f1 | sort -u | wc -l | tr -d ' ')"
 check "6n inspecting writes nothing" "no" "$(exists "$P/.kickoff-answers")"
 
 P=$(fresh pylib); mkdir -p "$P/migrations"
@@ -201,5 +202,13 @@ f12gap() { bash "$S/gaps.sh" "$P" | awk -F'\t' '$1 == "F12" { print $3 }' | past
 check "10a the tool is the part after the arrow; a description is not split" "" "$(f12gap)"
 bash "$S/answer.sh" --root "$P" --add F12 "Lint → Biome (lint, format)"
 check "10b a real missing tool is still reported, once" "Biome is not set up" "$(f12gap)"
+P=$(fresh f12proposed); legacy "$P"; first=1
+while IFS=$'\t' read -r id v ev; do                            # record inspect's F12 rows as SKILL.md says
+    [ "$id" = F12 ] || continue
+    if [ "$first" = 1 ]; then bash "$S/answer.sh" --root "$P" F12 "$v"; first=0; else bash "$S/answer.sh" --root "$P" --add F12 "$v"; fi
+done <<EOF
+$(inspect)
+EOF
+check "10c the proposed F12, recorded as is, has every tool set up: no phantom gap" "2:" "$(grep -c '^F12: ' "$P/.kickoff-answers"):$(f12gap)"
 
 summary

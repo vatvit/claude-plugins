@@ -70,6 +70,8 @@ real file, so a broken edit fails them.
   shell script. It reads `.git` as files: no git binary, so it runs in a bare container.
 - **One hint per question, the first.** inspect.sh hints the stronger evidence first and infer.awk keeps
   the first per id (existing 6l): serverless.yml before compose for I2, the dev script before a Makefile.
+  The one exception is a list answer, hinted as `F12+`: one `<check> → <tool>` row per detected tool, every
+  distinct one kept (6c, PLUG-100), so the proposal is already in the form gaps.sh reads (10c).
 - **A confirmed proposal keeps its evidence** as `<ID>.from`, and the charter marks it *recovered* (7d–7g).
   A decision taken at kickoff is never marked.
 - **gaps.sh reports, never fixes**, and a closed gap disappears (8h, 8i). Fixes depend on the stack, so

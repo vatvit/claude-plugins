@@ -66,7 +66,7 @@ while IFS= read -r row; do
                 || gap F7 "$v" "no CI configuration" ".github/workflows/, .gitlab-ci.yml, Jenkinsfile …" ;;
         F12:*)
             # one value per check, `<check> → <tool> <description>`: the tool is the first word after
-            # the arrow, or a file of the project when it is a path (the whole value when there is none: a list from inspect.sh, split at commas).
+            # the arrow, or a file of the project when it is a path (the whole value when there is none, split at commas: the form inspect.sh proposed up to kickoff 0.10.1, kept so an answer recorded then is still read (PLUG-100)).
             # Bash matches the arrow as a literal string, so its width never matters (busybox, mawk).
             case "$v" in
                 *"→"*) tools="${v#*→}" ;;

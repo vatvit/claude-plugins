@@ -1,7 +1,7 @@
 ---
 name: kickoff
 description: Use when the user starts a new project and its starting context has to be collected — walk them through the standard kickoff questionnaire (generic for any language or stack; questions branch on earlier answers, each with pre-defined options and a default; sibling plugins asked about only when installed) and turn the answers into decisions: the project's charter, its quality level and checks, and its CLAUDE.md. Activate on "kick off a project", "kickoff", "start a new project", "new project", "bootstrap a project", "project questionnaire", "fill in the project charter", "scaffold the project", "run kickoff on this existing project", "kick off an existing project", "what is missing from this project's setup", "close the gaps", "bring this project in line with the answers", "/kickoff:kickoff init", "starting context for this project", "which quality level should this project have", "which tests and checks should this project have", "quality gate for a new project", "which dev port should this project use", "port registry", "e2e viewer", "test viewer", "replay a test", "watch a test run", "what to do next after kickoff", "which tasks after kickoff", or when the user begins describing a new project's goal, client, hosting or constraints from scratch.
-version: 0.10.1
+version: 0.10.2
 ---
 
 # Kickoff
@@ -50,6 +50,8 @@ Any other argument: say which ones exist, and do nothing else.
      *confirm all* or *change some*. An inference is never an answer until then.
    - **Record each confirmed row with its evidence:** `answer.sh --root <project> <ID> "<value>"`, then
      `answer.sh --root <project> <ID>.from "<evidence>"`. The charter marks those answers *recovered*.
+     A list answer (F12, one `<check> → <tool>` row per tool) comes as several rows: record the first as
+     above and each further one with `--add`.
 
 1. **See what to ask now:**
    `bash <PLUGIN_ROOT>/scripts/plan.sh <project> --next`. Each row is

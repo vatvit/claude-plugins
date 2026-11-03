@@ -78,9 +78,25 @@ fi
 # --- what the manifests say: the one-liner, the kind, the stack, the tools (A2, A3, I4, F12) ----
 # A stack is what the project is written in, so it is read from the manifests, never guessed from
 # file extensions. Each manifest adds `language — frameworks it depends on`; several are joined.
-stack="" stackev="" tools="" toolsev=""
+# The tools become F12 the way it is recorded: one `<check> → <tool>` line per tool (PLUG-100), the check
+# named after the questionnaire's checks table, hinted as `F12+` (a list: infer.awk keeps every line).
+stack="" stackev=""
 add_stack() { stack="$stack${stack:+ + }$1${2:+ — $2}"; stackev="$stackev${stackev:+, }$3"; }
-add_tools() { [ -z "$1" ] || { tools="$tools${tools:+, }$1"; toolsev="$toolsev${toolsev:+, }$2"; }; }
+check_of() { # <tool> -> the check it serves
+    case "$1" in
+        @playwright/test|cypress) echo "E2E success path" ;;
+        prettier|black|php-cs-fixer|friendsofphp/php-cs-fixer) echo "Formatter / code style" ;;
+        mypy) echo "Type checks" ;;
+        eslint|@biomejs/biome|ruff|flake8|rubocop|golangci-lint|phpstan|vimeo/psalm) echo "Linter / static analysis" ;;
+        *) echo "Unit" ;;
+    esac
+}
+add_tools() { # <comma-separated tools> <evidence>
+    local t; [ -n "$1" ] || return 0
+    printf '%s\n' "$1" | tr ',' '\n' | sed 's/^ *//' | while IFS= read -r t; do
+        [ -z "$t" ] || hint F12+ "$(check_of "$t") → $t" "$2"
+    done
+}
 M="$root/package.json"
 if [ -f "$M" ]; then
     d="$(json_str "$M" description)"; [ -z "$d" ] || hint A2 "$d" "package.json: description"
@@ -124,7 +140,6 @@ done
 [ -f "$root/.golangci.yml" ] && add_tools golangci-lint .golangci.yml
 if [ -d "$root/.claude-plugin" ]; then hint A3 "Library / plugin / tool" ".claude-plugin/ (a Claude Code plugin)"; fi
 [ -z "$stack" ] || hint I4 "$stack" "$stackev"
-[ -z "$tools" ] || hint F12 "$tools" "$toolsev"
 
 # --- languages of the content: two or more locales in a translations folder (D3) --------------
 for d in locales locale i18n lang translations src/locales src/i18n app/locales public/locales config/locales; do
