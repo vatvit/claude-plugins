@@ -151,7 +151,7 @@ for a in "A1=shop" "A3=Product / app / service" 'R4=One script, `scripts/dev.sh`
     bash "$S/answer.sh" --root "$P" "${a%%=*}" "${a#*=}"
 done
 bash "$S/answer.sh" --root "$P" F2 "Unit"; bash "$S/answer.sh" --root "$P" --add F2 "E2E success path"
-bash "$S/answer.sh" --root "$P" F7 "CI on push and merge request"; bash "$S/answer.sh" --root "$P" F12 "jest, eslint, vitest"
+bash "$S/answer.sh" --root "$P" F7 "CI on push and merge request"; bash "$S/answer.sh" --root "$P" F12 "Unit → jest"; bash "$S/answer.sh" --root "$P" --add F12 "Lint → eslint"; bash "$S/answer.sh" --root "$P" --add F12 "Unit 2 → vitest"
 before=$(cd "$P" && find . -type f | sort | while read -r f; do echo "$f $(cksum < "$f")"; done)
 g="$(bash "$S/gaps.sh" "$P")"
 gapof() { echo "$g" | awk -F'\t' -v id="$1" '$1 == id { print $3 }' | paste -sd'|' -; }
@@ -186,5 +186,20 @@ rm "$P/scripts/dev.sh"; printf 'e2e-view:\n\t@true\n' > "$P/Makefile"
 check "9c a Makefile target e2e-view closes it" "" "$(vgap)"
 rm "$P/Makefile"; bash "$S/answer.sh" --root "$P" F13 "No"
 check "9d not wanted: no gap" "" "$(vgap)"
+
+echo "== F12: one 'check → tool' line per check (PLUG-094) =="
+P=$(fresh f12tools); legacy "$P"
+for a in "A1=shop" "A3=Product / app / service" "I4=TypeScript / Node.js — next, react" \
+         "F1=Basic — unit tests, E2E success path, formatter and linter, one command runs them"; do
+    bash "$S/answer.sh" --root "$P" "${a%%=*}" "${a#*=}"
+done
+bash "$S/answer.sh" --root "$P" F12 "Unit → Vitest"
+bash "$S/answer.sh" --root "$P" --add F12 "Verdict accuracy → Vitest eval suite (test:eval) on fixture pages, calling the LLM; reports only"
+bash "$S/answer.sh" --root "$P" --add F12 "One local command → scripts/dev.sh test (also up, down, sh)"
+mkdir -p "$P/scripts"; echo '#!/usr/bin/env bash' > "$P/scripts/dev.sh"; echo 'export default { test: {} } // vitest' > "$P/vitest.config.ts"
+f12gap() { bash "$S/gaps.sh" "$P" | awk -F'\t' '$1 == "F12" { print $3 }' | paste -sd'|' -; }
+check "10a the tool is the part after the arrow; a description is not split" "" "$(f12gap)"
+bash "$S/answer.sh" --root "$P" --add F12 "Lint → Biome (lint, format)"
+check "10b a real missing tool is still reported, once" "Biome is not set up" "$(f12gap)"
 
 summary

@@ -302,6 +302,10 @@ descriptions carry no tools and F12 waits. Any language works the same way:
 - **Not sure a tool exists or is maintained** — "→ to check", never a guessed name. F12 resolves it
   before the dev harness task; a lookup on the web is an external call and needs approval.
 
+**F12 is recorded one line per check: `<check> → <tool> [description]`** (`answer.sh F12 "Unit → Vitest"`, then
+`--add` for each further check). The tool is the first word after the arrow, and what follows it is a description
+that is never split, commas included: `gaps.sh` looks for that tool in the project's manifests, config, scripts and CI.
+
 ## R. Repo and process
 
 | ID | Question | Options (★ default) | Ask when | Goes to |

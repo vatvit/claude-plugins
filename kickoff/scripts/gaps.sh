@@ -65,10 +65,16 @@ while IFS= read -r row; do
             any .github/workflows .gitlab-ci.yml Jenkinsfile azure-pipelines.yml bitbucket-pipelines.yml .circleci \
                 || gap F7 "$v" "no CI configuration" ".github/workflows/, .gitlab-ci.yml, Jenkinsfile …" ;;
         F12:*)
-            # each tool named should appear in a manifest, a config file, a script or CI
-            printf '%s\n' "$v" | tr ',' '\n' | sed 's/^[[:space:]]*//; s/[[:space:]].*$//' | while IFS= read -r t; do
+            # one value per check, `<check> → <tool> <description>`: the tool is the first word after
+            # the arrow, or a file of the project when it is a path (the whole value when there is none: a list from inspect.sh, split at commas).
+            # Bash matches the arrow as a literal string, so its width never matters (busybox, mawk).
+            case "$v" in
+                *"→"*) tools="${v#*→}" ;;
+                *)     tools="$(printf '%s' "$v" | tr ',' '\n')" ;;
+            esac
+            printf '%s\n' "$tools" | sed 's/^[[:space:]]*//; s/[[:space:]].*$//' | while IFS= read -r t; do
                 [ -n "$t" ] || continue
-                set_up "$t" \
+                [ -e "$root/$t" ] || set_up "$t" \
                     || gap F12 "$v" "$t is not set up" "manifests and config at the root, scripts/, .github/"
             done ;;
         F1:*)
