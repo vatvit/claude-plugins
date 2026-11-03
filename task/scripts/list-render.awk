@@ -48,6 +48,8 @@ function listof(id, f, arr,   s) {
     sub(/^\["/, "", s); sub(/"\]$/, "", s)
     return split(s, arr, /", "/)
 }
+# The date part of `created: YYYY-MM-DD HH:MM`; sort=created uses the whole value.
+function created_col(id) { return substr(V[id, "created"], 1, 10) }
 function tags_col(id,   n, t, i, s) {
     n = listof(id, "tags", t); s = ""
     for (i = 1; i <= n; i++) s = s (i > 1 ? ", " : "") t[i]
@@ -263,6 +265,7 @@ function render_digest(   i, id, n, line, e, t) {
         if (V[id, "priority"] != "") line = line "  " V[id, "priority"]
         e = is_epic(id) ? V[id, "epic-name"] : V[id, "epic"]
         if (e != "")                 line = line "  epic: " e
+        if ((t = created_col(id)) != "") line = line "  created: " t
         if ((t = tags_col(id)) != "") line = line "  tags: " t
         out_text(line)
         out_text("  " V[id, "title"])
@@ -324,8 +327,8 @@ function collect_groups(SEL, n, gf,   i, id, gname, gn, j, k, nt, t) {
 }
 
 # --- printing -------------------------------------------------------------
-function print_out(   i, id, wid, wst, wpr, wep, wtg, anyp, anye, anyt, line, ind, mk, wmk) {
-    wid = 2; wst = 6; wpr = 8; wep = 4; wtg = 4; anyp = 0; anye = 0; anyt = 0; wmk = 0
+function print_out(   i, id, wid, wst, wpr, wep, wtg, anyp, anye, anyt, anyc, wcr, line, ind, mk, wmk) {
+    wid = 2; wst = 6; wpr = 8; wep = 4; wtg = 4; wcr = 7; anyp = 0; anye = 0; anyt = 0; anyc = 0; wmk = 0
     for (i = 1; i <= no; i++) {
         if (OT[i] != "row") continue
         id = OA[i]
@@ -333,6 +336,7 @@ function print_out(   i, id, wid, wst, wpr, wep, wtg, anyp, anye, anyt, line, in
         wst = max(wst, length(status_of(id)))
         if (V[id, "priority"] != "") { anyp = 1; wpr = max(wpr, length(V[id, "priority"])) }
         if (epic_col(id) != "")      { anye = 1; wep = max(wep, length(epic_col(id))) }
+        if (created_col(id) != "")   { anyc = 1; wcr = max(wcr, length(created_col(id))) }
         if (tags_col(id) != "")      { anyt = 1; wtg = max(wtg, length(tags_col(id))) }
     }
     if (C["active"] != "") wmk = 2
@@ -342,6 +346,7 @@ function print_out(   i, id, wid, wst, wpr, wep, wtg, anyp, anye, anyt, line, in
         line = ind
         if (wmk) line = line pad("", wmk)
         line = line pad("ID", wid + 2)
+        if (anyc) line = line pad("Created", wcr + 2)
         if (!hidestatus) line = line pad("Status", wst + 2)
         if (anyp) line = line pad("Priority", wpr + 2)
         if (anye) line = line pad("Epic", wep + 2)
@@ -356,6 +361,7 @@ function print_out(   i, id, wid, wst, wpr, wep, wtg, anyp, anye, anyt, line, in
         line = ind
         if (wmk) line = line mk
         line = line pad(id, wid + 2)
+        if (anyc) line = line pad(created_col(id), wcr + 2)
         if (!hidestatus) line = line pad(status_of(id), wst + 2)
         if (anyp) line = line pad(V[id, "priority"], wpr + 2)
         if (anye) line = line pad(epic_col(id), wep + 2)

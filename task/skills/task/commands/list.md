@@ -24,6 +24,9 @@ Filter syntax (`=`, `~`, `,` for OR, `_` for unset, several fields ANDed) is the
 (`tags=…`, quoting a tag with spaces or commas, AND by repeating `tags=`) is in
 `references/tags.md`.
 
+The Created column (the date, right after ID) appears only when a listed task has a
+`created:` field; `sort=created` puts the oldest first and undated tasks last, and `digest` prints the date.
+
 ## No arguments
 
 `/task list` means "the work this session is on", and only then everything open.

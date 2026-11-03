@@ -9,9 +9,10 @@ printf '%s' "$BODY" | <PLUGIN_ROOT>/scripts/allocate-id.sh <project-dir> --stdin
 ```
 
 It prints `TASK-205=/abs/path/TASK-205.md`. Use exactly that id and that path from here on —
-it reserved the id under a lock, wrote the file and advanced `nextId` for you. Do not
+it reserved the id under a lock, wrote the file and advanced `nextId` for you. `allocate-id.sh` also writes `created: YYYY-MM-DD HH:MM` into the frontmatter (unless the body already has one) — never add it yourself. Do not
 increment `nextId`, do not compute an id from it, do not write to a path you built yourself.
-(`--count N` reserves N empty files in one lock, for creating a batch of sub-tasks.)
+(`--count N` reserves N files in one lock, for creating a batch of sub-tasks. Each holds only a frontmatter
+with `created:`; Read it, then write the body into it keeping that `created:` line.)
 
 Then ask: "Add more details?"
 

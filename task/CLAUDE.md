@@ -79,6 +79,7 @@ bash scripts/test/review.test.sh           # 33 cases — digest excerpts and fi
 bash scripts/test/port.test.sh             # 19 cases — packaging + standalone copy
 bash scripts/test/config.test.sh           # 13 cases — global registry + step lookup, CLAUDE_CONFIG_DIR
 bash scripts/test/worktree.test.sh         # 14 cases — a linked git worktree resolves to the main tree
+bash scripts/test/created.test.sh          # 22 cases — created: stamp, Created column, sort=created, digest
 ```
 
 A new suite sources `scripts/test/lib.sh` and ends with `report <suite>`; it never defines

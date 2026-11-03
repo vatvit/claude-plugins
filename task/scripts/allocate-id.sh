@@ -9,6 +9,11 @@
 #   allocate-id.sh <project-dir> --stdin       Reserve 1 id, write stdin as the
 #                                              file body ({{ID}} is substituted)
 #
+# Every file gets `created: YYYY-MM-DD HH:MM` (local time) in its frontmatter,
+# unless the body already has a `created:` line. This is the only writer of that
+# date. TASK_CREATED_NOW overrides the clock for tests; it is read as a date
+# value and must match that format, never executed.
+#
 # Output (one line per allocated id):
 #   TASK-205=/abs/path/to/tasks/TASK-205.md
 #
@@ -41,6 +46,24 @@ done
 case "$COUNT" in ''|*[!0-9]*) echo "ERROR: --count must be a positive integer" >&2; exit 1 ;; esac
 [ "$COUNT" -ge 1 ] || { echo "ERROR: --count must be >= 1" >&2; exit 1; }
 [ "$FROM_STDIN" -eq 1 ] && [ "$COUNT" -ne 1 ] && { echo "ERROR: --stdin allocates exactly one id" >&2; exit 1; }
+
+# --- Creation date ------------------------------------------------------------
+CREATED="${TASK_CREATED_NOW:-$(date '+%Y-%m-%d %H:%M')}"
+case "$CREATED" in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]\ [0-9][0-9]:[0-9][0-9]) ;;
+    *) echo "ERROR: TASK_CREATED_NOW must look like 'YYYY-MM-DD HH:MM'" >&2; exit 1 ;;
+esac
+
+# stamp_created: stdin -> stdout, `created:` added before the frontmatter's closing
+# `---` unless it has one. Text without frontmatter passes through unchanged.
+stamp_created() {
+    awk -v created="$CREATED" '
+        NR == 1 { fm = ($0 ~ /^---[ \t]*$/); print; next }
+        fm == 1 && /^created[ \t]*:/ { has = 1 }
+        fm == 1 && /^---[ \t]*$/ { if (!has) print "created: " created; fm = 2 }
+        { print }
+    '
+}
 
 # --- Resolve config -----------------------------------------------------------
 CONFIG=$("$SCRIPT_DIR/resolve-config.sh" "$PROJECT_DIR")
@@ -92,7 +115,9 @@ while [ "$allocated" -lt "$COUNT" ]; do
     # noclobber: atomic create-or-fail. Never clobbers an existing task file.
     if ( set -o noclobber; : > "$path" ) 2>/dev/null; then
         if [ "$FROM_STDIN" -eq 1 ]; then
-            sed "s/{{ID}}/$id/g" > "$path"
+            sed "s/{{ID}}/$id/g" | stamp_created > "$path"
+        else
+            printf -- '---\ncreated: %s\n---\n' "$CREATED" > "$path"
         fi
         printf '%s=%s\n' "$id" "$path"
         allocated=$((allocated + 1))

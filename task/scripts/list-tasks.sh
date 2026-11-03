@@ -18,7 +18,9 @@
 #                     (about N characters, default 160) — enough to judge a task
 #                     by without opening it. Same filters; never collapsed.
 #   group=<field>     Group by that field (auto: status, when >15 tasks)
-#   sort=<field>      Sort within groups (default: priority, then id)
+#   sort=<field>      Sort within groups (default: priority, then id); a task
+#                     without the field goes last. sort=created: oldest first.
+#                     A Created column (date only) shows when any task has one.
 #   --strict-epic     Do not add the implicit `,_` to an `epic=` filter
 #   --active=A,B      Mark these ids with a `*`
 #   --help            This text

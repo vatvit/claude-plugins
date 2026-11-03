@@ -31,6 +31,10 @@ parallel sessions genuinely raced and destroyed each other's files:
 3. never clobbers — `noclobber` (`O_EXCL`); an existing path is skipped, not overwritten
 4. serialised — a `mkdir` mutex in `{tasksDir}/.id-alloc.lock`, stale locks broken after 120s
 
+It stamps `created: YYYY-MM-DD HH:MM` (local time) into every file it writes, `--count` files
+included, unless the `--stdin` body already has a `created:` line; it is the only writer of that
+date. `TASK_CREATED_NOW` overrides the clock in tests and is validated, never executed.
+
 It also persists the new `nextId` to whichever config `resolve-config.sh` resolved.
 
 **`session-active.sh` never requires session-storage.** It is handed `TASK_STORAGE_BIN` and
