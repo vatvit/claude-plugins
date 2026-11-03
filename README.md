@@ -49,6 +49,7 @@ stands. The table *is* the state. `/task do` reads it and continues from the cur
 Epics group sub-tasks, and `/task do` or `/task finish` on an epic works the whole of it. ID
 allocation is atomic and lock-guarded, so parallel sessions never take the same number.
 Listing is scripted, with filters, grouping, sorting and epic views that collapse closed work.
+Every new task records when it was created; the list shows it and `sort=created` orders by it.
 Optional tags label tasks across epics, and the list filters and groups by them; Claude can
 review the backlog to apply a tag, from a short digest instead of every file.
 
@@ -74,7 +75,8 @@ A hook regenerates it whenever a task file changes. [More →](task-roadmap/READ
 
 - **Navigation:** an auto-generated `_index.md` in every folder, listing its docs with
   descriptions taken from their frontmatter.
-- **Link checks:** finds broken relative links between docs.
+- **Link checks:** finds broken relative links between docs, and `#anchor` links to headings that
+  are gone. Anything git ignores stays out of the generated indexes.
 - **Diagrams as text:** a diagram lives in a `*.diagram.md` source and is copied into every doc
   that uses it. It can link to the code and docs it depicts, and it flags itself as *suspect*
   when they change.
@@ -128,7 +130,9 @@ Sessions opt in with `crew whoami "<name>" [worker|coordinator]`. crew then adds
 - `crew status`: one screen showing every dirty path and who owns it;
 - hand-off messages with a durable mailbox;
 - **holds** on hot-spot files, and a **slot** queue for heavy runs, shared by every repo's crew
-  on the machine;
+  on the machine, with a memory budget and named groups for runs that only clash on memory;
+- `crew time`: where each session's time went (working, waiting on a run, the queue, a peer, you),
+  which the coordinator reviews daily;
 - a snapshot before every edit, so an overwritten edit can be recovered;
 - **one tree or a worktree per task**: your call per project, asked once, with exceptions per
   task; a task worktree is merged back by the coordinator, and gets your local files linked in;
