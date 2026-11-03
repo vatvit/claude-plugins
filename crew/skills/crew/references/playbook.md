@@ -76,7 +76,7 @@ scene or router file, and similar. List them in `hotSpots`.
 - The coordinator owns all CPU and browser time. Sessions ask for a slot and give an estimate.
   They start nothing heavy without one.
 - Order: anything failing on the shared branch first, then the user's critical asks, then the
-  shortest first.
+  shortest first. A `cpu` slot never passes an `exclusive` or `quiet` slot requested before it.
 - Slot classes:
   - `cpu`: untimed work (unit runs, bakes, renders). It may run alongside other `cpu` slots.
   - `exclusive`: one at a time, with nothing else running inside it, for example a browser e2e

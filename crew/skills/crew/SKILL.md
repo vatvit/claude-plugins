@@ -1,6 +1,6 @@
 ---
 name: crew
-description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, assigning tasks to sessions (one task, one session), handing off a finished change, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "assign tasks to sessions", "two sessions on one task", "crew task", "which session works on which task", "split work between sessions", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "work in a copy", "apply the copy", "rebase the copy", "remove the copy", "task worktree", "worktree per task", "tree new", "tree sync", "tree merge", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", "who commits", "who pushes", "end the crew", "close the crew", "disband the crew", "crew end", "working solo", "is a crew running", "crew active", "crew-only rules", "slots across repos", "two repos on one machine", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
+description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, assigning tasks to sessions (one task, one session), handing off a finished change, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot, reviewing where the crew's time goes. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "assign tasks to sessions", "two sessions on one task", "crew task", "which session works on which task", "split work between sessions", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "slot memory", "slot group", "memory budget for slots", "work in a copy", "apply the copy", "rebase the copy", "remove the copy", "task worktree", "worktree per task", "tree new", "tree sync", "tree merge", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", "who commits", "who pushes", "end the crew", "close the crew", "disband the crew", "crew end", "working solo", "is a crew running", "crew active", "crew-only rules", "slots across repos", "two repos on one machine", "crew time", "where does the crew's time go", "how long do the sessions wait", "time review", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
 ---
 
 # crew — parallel Claude sessions on one working tree
@@ -20,7 +20,8 @@ crew <command> [args]            # or: CREW_AS=<your name> crew <command> [args]
 ```
 
 `help` lists the commands. Start every piece of work with `status`: one screen showing the
-crew, the branch, every dirty path by owner, the holds, the slots and crew's worktrees.
+crew, the branch, every dirty path by owner, the holds, the slots and crew's worktrees. An untracked
+directory is one line (`dir/ (N files)`); `status --all` or `who <path>` shows its files.
 
 To join, run `crew whoami "<name>" [worker|coordinator]` through the Bash tool. A hook passes
 it your session id. Use the name your peers address you by in SendMessage. Spaces are fine
@@ -36,6 +37,9 @@ to it. Names must be unique on the machine, because another repo may run its own
 - assigns each task to one session; a task too big for one is split into sub-tasks first;
 - owns machine time (the slot queue) and tells waiting sessions their new times and why;
 - keeps `watch --wait` running in the background, so a silent crew wakes it (`references/watch.md`);
+- reviews where the crew's time goes with `crew time`, at least once a working day and after a long
+  stretch of queue waits (`watch` reminds), reports it to the user and proposes levers, never
+  applying one that changes how the crew works without the user's word (`references/time.md`);
 - asks the user once how this project commits and pushes, when `status` says it is not decided,
   and records only the user's answer (`config set committer …`, `config set push …`). Until then
   nobody commits or pushes: `land` prints the commit for the user, and pushes are the user's;
@@ -99,7 +103,7 @@ Read only the reference for the area you are working in:
 | Full playbook: the why behind each rule, push checks, bulk syncs, messages, hard stops | `references/playbook.md` |
 | Config keys and layers; `config set` / `unset` | `references/config.md` |
 | Hot spots and holds | `references/holds.md` |
-| Slots: machine time, one queue for every crew on the machine | `references/slots.md` |
+| Slots: machine time, one queue for every crew on the machine; memory budget and groups | `references/slots.md` |
 | Working solo, `crew active`, ending a crew, project rules that apply only while a crew runs (`crewRules`) | `references/solo.md` |
 | Copy, rebase, apply | `references/copy-apply.md` |
 | Task worktrees: the `tree` decision, `tree new` / `sync` / `merge`, their guards, local files in a new worktree | `references/trees.md` |
@@ -108,6 +112,7 @@ Read only the reference for the area you are working in:
 | Mailbox: `msg --send`, `inbox`, the unread notice | `references/inbox.md` |
 | Adopting crew in a running project: hot spots, holds import, what to cut from CLAUDE.md | `references/adopt.md` |
 | Watchdog: silent sessions, unread mail, stale slots; what wakes an idle coordinator | `references/watch.md` |
+| Where the crew's time goes: `crew time`, reading it, levers, the report | `references/time.md` |
 
 ## When a hook says no
 

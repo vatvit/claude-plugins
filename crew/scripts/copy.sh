@@ -154,6 +154,7 @@ EOF
 copy_apply() { # <me> <dir> [path...]
     local me="$1" dir="$2" base f w d r t c b n=0 bad=0 taken=0 merged=0 same=0 h chk
     shift 2
+    load_area land; wait_index_lock || return 1       # a peer mid-git: wait before the tree is written
     base="$(crew_wt_meta "$dir" base)"
     [ "$base" = "$(git -C "$ROOT" rev-parse HEAD)" ] || note "the copy is based on $(git -C "$ROOT" rev-parse --short "$base"), the tree is at $(git -C "$ROOT" rev-parse --short HEAD) — files peers changed are 3-way merged; rebase first to test against them"
     load_area holds

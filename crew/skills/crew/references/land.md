@@ -30,6 +30,10 @@ set only what they said.
 Land at once. A verified change that sits uncommitted ties sessions together, and it is the only
 kind of work a peer can destroy for you. Task-file and docs-only edits land immediately.
 
+**A busy index (PLUG-092).** When another session's git command holds `.git/index.lock`, `land` and
+`apply` wait up to `lockWaitSec` (default 60 s), then fail naming the lock and, when it can be found,
+its holder's pid. Never delete the lock yourself: retry, or raise `lockWaitSec`.
+
 ## The git guard
 
 The pre-bash hook denies, with the reason and the alternative:

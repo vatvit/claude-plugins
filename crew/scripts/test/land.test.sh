@@ -167,4 +167,27 @@ crew_as s3 "$R" slot request quiet 5 >/dev/null
 out="$(crew_as s1 "$R" land prepush)"; rc=$?
 check "prepush holds during a quiet slot" 1 "$rc"
 
+echo "-- land waits on a foreign .git/index.lock, never removes it (PLUG-092)"
+crew_as s3 "$R" slot done >/dev/null 2>&1
+LOCK="$R/.git/index.lock"
+edit "$R" s1 f.txt "f"; edit "$R" s1 g.txt "g"
+printf '{"lockWaitSec":10}' > "$R/.crew.json"
+: > "$LOCK"; ( sleep 3; rm -f "$LOCK" ) &
+t0="$(date +%s)"; out="$(crew_as s1 "$R" land --msg-file "$TMP/msg" -- f.txt 2>&1)"; rc=$?; t1="$(date +%s)"
+wait
+check "a lock released after 3 s: land succeeds" 0 "$rc$([ "$rc" = 0 ] || printf ': %s' "$out")"
+check "…it waited for it" yes "$([ $((t1 - t0)) -ge 2 ] && echo yes || echo no)"
+check "…and said so" yes "$(contains "waiting" "$out")"
+check "…f.txt is committed" "f.txt" "$(git -C "$R" show --name-only --format= HEAD)"
+printf '{"lockWaitSec":2}' > "$R/.crew.json"
+: > "$LOCK"; before="$(git -C "$R" rev-parse HEAD)"
+t0="$(date +%s)"; out="$(crew_as s1 "$R" land --msg-file "$TMP/msg" -- g.txt 2>&1)"; rc=$?; t1="$(date +%s)"
+check "a lock never released: land fails" 1 "$rc"
+check "…after the bound" yes "$([ $((t1 - t0)) -ge 2 ] && [ $((t1 - t0)) -lt 8 ] && echo yes || echo no)"
+check "…naming the lock" yes "$(contains "index.lock" "$out")"
+check "…the lock is still there" yes "$([ -e "$LOCK" ] && echo yes || echo no)"
+check "…nothing committed" "$before" "$(git -C "$R" rev-parse HEAD)"
+rm -f "$LOCK" "$R/.crew.json"
+check "config knows lockWaitSec" yes "$(contains "lockWaitSec=60 (default)" "$(crew_as s1 "$R" config)")"
+
 finish

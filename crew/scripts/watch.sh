@@ -7,7 +7,8 @@
 # the loop report each one once per silenceMin instead of every round. Findings:
 #   - a session silent longer than silenceMin while it owns something (a hold, a slot, dirty paths);
 #   - mail unread longer than silenceMin (when the mailbox area is installed);
-#   - a stale slot (running past its estimate + slotGraceMin; slot.sh owns that rule).
+#   - a stale slot (running past its estimate + slotGraceMin; slot.sh owns that rule);
+#   - the coordinator's time review is due (time.sh owns that rule, PLUG-098).
 #
 # Sourced (status, whoami, SessionStart): watch_stamp, last_seen, watch_findings, watch_status.
 # Executed (via crew.sh): the CLI below.
@@ -15,7 +16,7 @@
 # help:   --wait: exit 2 at the first finding, to wake an idle coordinator from a background run)
 
 [ -n "${CREW_LIB_DIR:-}" ] || . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
-load_area slot; load_area inbox
+load_area slot; load_area inbox; load_area time
 
 silence_min() { local s; s="$(cfg silenceMin)"; case "$s" in ''|*[!0-9]*) s="$(cfg_default silenceMin)" ;; esac; echo "$s"; }   # a bad value falls back to the default
 
@@ -66,6 +67,10 @@ watch_findings() {
     fi
     if declare -F slots_plan >/dev/null; then
         slots_plan | awk -F'\t' '$14 == 1 && $15 { printf "stale:%s\tslot #%s of %s (%s, %sm) is stale — next: ask %s; if gone, the coordinator runs: slot release %s\n", $1, $1, $2, $3, $4, $2, $1 }'
+    fi
+    if declare -F time_review_due >/dev/null; then
+        f="$(time_review_due)"
+        [ -z "$f" ] || printf 'review:time\t%s — next: run crew time, read it with references/time.md, report to the user and propose levers\n' "$f"
     fi
     return 0
 }

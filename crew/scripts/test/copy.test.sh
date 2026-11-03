@@ -181,4 +181,20 @@ out="$(crew_as g2 "$G" copy remove "$G/.worktrees/foreign" 2>&1)"; rc=$?
 check "a folder that is not crew's copy is left alone" 1 "$rc"
 check "…still there" yes "$( [ -d "$G/.worktrees/foreign" ] && echo yes || echo no)"
 
+echo "-- apply waits on a foreign .git/index.lock, never removes it (PLUG-092)"
+newk lk; printf 'locked a\n' > "$K/lk.txt"
+LOCK="$R/.git/index.lock"; printf '{"lockWaitSec":10}' > "$R/.crew.json"
+: > "$LOCK"; ( sleep 2; rm -f "$LOCK" ) &
+out="$(crew_as s2 "$R" apply "$K" 2>&1)"; rc=$?
+wait
+check "a lock released after 2 s: apply succeeds" 0 "$rc$([ "$rc" = 0 ] || printf ': %s' "$out")"
+check "…the file landed" "locked a" "$(cat "$R/lk.txt")"
+printf 'late a\n' > "$K/lk.txt"; printf '{"lockWaitSec":1}' > "$R/.crew.json"; : > "$LOCK"
+out="$(crew_as s2 "$R" apply "$K" 2>&1)"; rc=$?
+check "a lock never released: apply fails" 1 "$rc"
+check "…naming the lock" yes "$(contains "index.lock" "$out")"
+check "…the lock is still there" yes "$([ -e "$LOCK" ] && echo yes || echo no)"
+check "…nothing written" "locked a" "$(cat "$R/lk.txt")"
+rm -f "$LOCK" "$R/.crew.json"
+
 finish

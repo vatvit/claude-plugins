@@ -41,6 +41,10 @@ not start a crew. Adopting crew in a running project: [adopt.md](adopt.md).
 | `snapshotKeep` | project, user | `20` | snapshots kept per path |
 | `snapshotMaxKB` | project, user | `1024` | larger files are not snapshotted |
 | `slotGraceMin` | project, user | `10` | minutes past its estimate before a running slot shows as stale |
+| `slotMemGB` | project, user | `0` (no budget) | the machine's memory budget for slots, in GB: `cpu` slots that declare `--mem` start while their sum fits ([slots.md](slots.md)). Set it per account in the user file, since it describes the machine |
+| `lockWaitSec` | project, user | `60` | seconds `land` and `apply` wait for a foreign `.git/index.lock` to clear before failing. The lock is never removed; the failure names it and, when it can be found, the holder's pid ([land.md](land.md)) |
+| `timeReviewHours` | project, user | `24` | hours without `crew time` before `watch` reminds the coordinator to review the crew's time; `0` turns it off ([time.md](time.md)) |
+| `timeReviewQueueMin` | project, user | `60` | minutes this crew's slots waited in the queue since the last review before `watch` reminds early; `0` turns it off |
 | `silenceMin` | project, user | `15` | minutes of no tool calls before `watch` reports a session that owns a hold, slot or dirty paths; also the age at which unread mail is reported ([watch.md](watch.md)) |
 
 Project-only keys (`crewId`, `sharedBranch`, `hotSpots`, `landCheck`, `tree`, `treeSync`, `taskPush`, `treeLink`, `treeSetup`, `crewRules`) mean nothing across projects. If

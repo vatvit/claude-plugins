@@ -22,7 +22,7 @@ config_show() {
 # key_type <key> — how a key is written: a (array of strings), n (number), s (string)
 key_type() {
     case "$1" in
-        hotSpots|taskPush|treeLink) echo a ;; snapshotKeep|snapshotMaxKB|slotGraceMin) echo n ;; *) echo s ;;
+        hotSpots|taskPush|treeLink) echo a ;; snapshotKeep|snapshotMaxKB|slotGraceMin|slotMemGB|lockWaitSec|timeReviewHours|timeReviewQueueMin) echo n ;; *) echo s ;;
     esac
 }
 

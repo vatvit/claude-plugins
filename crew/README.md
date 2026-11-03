@@ -43,14 +43,15 @@ In a repo without a crew, the plugin is silent and adds no tokens.
 | Command | What it does |
 |---------|--------------|
 | `whoami "<name>" [worker\|coordinator] [--take]` | join the crew. Spaces are fine and the name must be unique on this machine. `whoami` alone lists the crew |
-| `status` | the crew, the branch vs origin, every dirty path by owner (yours, a peer's, SHARED, unclaimed), and crew's worktrees with their owner and how far each is from the branch |
+| `status [--all]` | the crew, the branch vs origin, every dirty path by owner (yours, a peer's, SHARED, unclaimed; an untracked directory is one line unless `--all`), and crew's worktrees with their owner and how far each is from the branch |
 | `msg <kind> [--send]` | a ready-to-send message: `handoff` (paths + commit message + test-first proof), `decision`, `stop`; `--send` also files it in the recipient's mailbox |
 | `inbox [--all]` / `inbox --ack <id>` | your unread crew mail, oldest first; hooks tell you after each tool call and hold one stop while mail waits |
-| `watch --once` / `watch --wait` / `watch` | silence watchdog: a session silent past `silenceMin` while it owns work, mail unread too long, stale slots; `--wait` in the background wakes an idle coordinator |
+| `watch --once` / `watch --wait` / `watch` | silence watchdog: a session silent past `silenceMin` while it owns work, mail unread too long, stale slots, a time review due; `--wait` in the background wakes an idle coordinator |
+| `time [--since …] [--idle MIN]` | where each member's time went (Claude working, a tool, a process, the slot queue, the shared tree, a peer's decision or work, the user, compaction), from their transcripts and the slot history; numbers only, never transcript text. See [time.md](skills/crew/references/time.md) |
 | `config` / `config set\|unset [--user] <key> [value...]` | effective settings, each with the layer it came from; write one key without hand-editing JSON |
 | `hold <path...>` / `release <path...> --sha SHA` / `chain <path>` / `who` / `drop` | hot-spot holds; the pre-edit hook denies edits to a file another session holds |
 | `hold import <file> [--dry-run]` | coordinator: take the holds of a hand-kept bullet list (`- <path> — <holder> (…)`) when adopting crew mid-project; see [adopt.md](skills/crew/references/adopt.md) |
-| `slot run <cpu\|exclusive\|quiet> <min> -- <cmd>` / `slot request\|start\|done\|list\|clear` | the queue for machine time, one for every crew on the Mac: classes, priority, ETAs, stale slots |
+| `slot run <cpu\|exclusive\|quiet> <min> [--mem GB] [--group G] -- <cmd>` / `slot request\|start\|done\|list\|clear` | the queue for machine time, one for every crew on the Mac: classes, priority, ETAs, stale slots, a memory budget (`slotMemGB`) and named groups; no slot passes an earlier one it competes with |
 | `active` | exit 0 and one line while a crew runs here, exit 1 and silent when not: for scripts and hooks |
 | `end [--force]` | coordinator: end the crew (holds, slots and names released, repo back to no crew); refused while a copy or task worktree holds work, or mail is unread, unless the user says `--force`. See [solo.md](skills/crew/references/solo.md) |
 | `copy new\|status\|rebase\|remove <name> [--ours <path...>]` / `apply <name> [path...]` | build in a copy (a detached worktree in `.worktrees/`); land with take / 3-way merge / refuse-all, plus an optional `landCheck`. `--ours` keeps a conflict you resolved in the copy. `copy new` also reports, read-only, what in the compose setup stops a second copy running beside the first |

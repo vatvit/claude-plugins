@@ -23,7 +23,8 @@ crew/
     ├── crew.sh             the one entry point; `help` is built from each script's `# help:` lines
     ├── lib.sh              the ONE place for project/state, config layers, identity, claims, locks, hook decisions
     ├── whoami.sh config.sh status.sh msg.sh active.sh end.sh
-    ├── holds.sh slot.sh copy.sh tree.sh snapshot.sh land.sh inbox.sh watch.sh task.sh one area each: functions when sourced, CLI when executed
+    ├── holds.sh slot.sh copy.sh tree.sh snapshot.sh land.sh inbox.sh watch.sh task.sh time.sh one area each: functions when sourced, CLI when executed
+    ├── time.awk            crew time's transcript reader and report (events | sort | report)
     ├── compose-report.awk  copy new's read-only Docker report (compose_report in lib.sh; fixtures in test/compose/)
     ├── status.d/  msg.d/   per-area parts, so adding an area never edits status.sh / msg.sh
     └── test/               helpers.sh, run.sh, <area>.test.sh, Dockerfile (bash:5 + git)
@@ -138,6 +139,22 @@ crew/
 - **lib.sh owns the one EXIT trap.** It drops a lock left by a dying process and then runs
   `CREW_ON_EXIT` (for example, `slot run` releasing its slot). A script that sets its own `trap … EXIT`
   silently disables both, so it sets `CREW_ON_EXIT` instead. That includes tests that source `lib.sh`.
+- **The queue never lets a slot pass an earlier one it competes with (PLUG-096, PLUG-090).** Shortest-first
+  alone starved a long `exclusive` behind a stream of short `cpu` slots. `_slots_no_pass` is the one rule: a
+  `cpu` slot vs an `exclusive`/`quiet` one, two slots that declare memory under `slotMemGB`, two of one group.
+  Memory and group live in fields 11-12 of a slot row and 16-17 of `slots_plan`, after the five computed
+  fields, so readers of 11-15 never see the row grow.
+- **Every slot event is history (PLUG-097).** `$CREW_HOME/slots.log` gets one line per request, start, finish
+  and reap, under the slots lock; `crew time` splits a `slot run` into queue and run with it, and `watch`'s
+  review reminder sums this crew's queue waits from it.
+- **`crew time` reads transcripts and prints numbers only (PLUG-097).** It finds them by every session id a
+  name has had (`$STATE/sids`, appended by `whoami`) and must never print transcript text: the test plants a
+  secret and checks it stays out. JSON is read without a parser (time.awk's header says how); a format
+  change in Claude Code shows up as a category falling to zero, so check a real run after an upgrade.
+- **Git's index lock is waited on, never removed (PLUG-092).** `wait_index_lock` (land.sh) is bounded by
+  `lockWaitSec`; `copy apply` reaches it through `load_area land`.
+- **`status` collapses an untracked directory (PLUG-091)** with `git status -unormal`; `dirty_owned` and
+  `dirty_paths` still expand with `-uall`, so `land`, `watch` and `my_dirty` see every file.
 - **Silence is measured, not guessed.** Every tool call bumps `<state>/seen/<sid>` (fast.sh: `crew_fast_seen`,
   a redirection on a builtin, so no fork), and `watch.sh` reads its mtime. A session counts as silent only
   while it owns something (hold, slot, claimed dirty path). An idle session that owns nothing is just idle.

@@ -76,6 +76,12 @@ crew_as b2 "$B" slot done >/dev/null
 join "$A" a3
 out="$(crew_as a3 "$A" slot request exclusive 5)"
 check "alpha's new member holds the machine" yes "$(contains "#5 started" "$out")"
+crew_as a3 "$A" slot done >/dev/null
+crew_as b2 "$B" slot request cpu 5 >/dev/null                                 # #6 beta runs
+crew_as a3 "$A" slot request exclusive 60 >/dev/null                          # #7 alpha waits
+out="$(crew_as b1 "$B" slot request cpu 5)"                                   # #8 beta, later (PLUG-096)
+check "a later cpu slot of another crew does not pass alpha's waiting exclusive" yes "$(contains "#8 b1 (you) cpu 5m waiting · ETA 13:05" "$out")"
+crew_as b2 "$B" slot done >/dev/null; crew_as b1 "$B" slot cancel 8 >/dev/null
 rm -rf "$A/.git/crew"                                         # alpha vanishes without ending
 out="$(crew_as b2 "$B" slot request cpu 1)"
 check "a vanished crew's slot is reaped" yes "$(contains "started" "$out")"

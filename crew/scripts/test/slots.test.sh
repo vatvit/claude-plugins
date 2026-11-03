@@ -20,18 +20,20 @@ check "…naming what is ahead" yes "$(contains "#1 s1 exclusive 10m RUNNING" "$
 out="$(crew_as s3 "$R" slot start 2 2>&1)"; rc=$?
 check "cannot start someone else's slot" 2 "$rc"
 out="$(crew_as s1 "$R" slot done)"
-check "done says who can start" yes "$(contains "can start now: #3 s3" "$out")"
+check "done says who can start" yes "$(contains "can start now: #2 s2" "$out")"
 check "…and to tell the queue" yes "$(contains "msg queue-moved" "$out")"
-crew_as s3 "$R" slot start 3 >/dev/null
-check "shortest-first: cpu 3m went ahead of exclusive 5m" running "$(field 3 7)"
-out="$(crew_as s2 "$R" slot start 2)"; rc=$?
-check "exclusive waits for running cpu" 1 "$rc"
-crew_as s1 "$R" slot request cpu 9 >/dev/null                                 # longer: queued behind #2
-check "cpu alongside cpu… unless an exclusive waits ahead" waiting "$(field 4 7)"
-crew_as s3 "$R" slot done >/dev/null
+out="$(crew_as s3 "$R" slot start 3)"; rc=$?
+check "a cpu 3m requested later does not pass the waiting exclusive 5m" 1 "$rc"
 crew_as s2 "$R" slot start 2 >/dev/null
-check "exclusive starts once cpu is done" running "$(field 2 7)"
-crew_as s2 "$R" slot done >/dev/null; crew_as s1 "$R" slot cancel 4 >/dev/null
+check "…which starts" running "$(field 2 7)"
+out="$(crew_as s1 "$R" slot request cpu 9)"                                    # #4: behind the running #2
+check "cpu waits while exclusive runs, ETA at its end" waiting:yes "$(field 4 7):$(contains "ETA 12:05" "$out")"
+crew_as s2 "$R" slot done >/dev/null
+crew_as s3 "$R" slot start 3 >/dev/null
+check "cpu starts once the exclusive is done" running "$(field 3 7)"
+crew_as s1 "$R" slot start 4 >/dev/null
+check "cpu alongside cpu" running "$(field 4 7)"
+crew_as s3 "$R" slot done >/dev/null; crew_as s1 "$R" slot done >/dev/null
 
 echo "-- priority order"
 crew_as s1 "$R" slot request cpu 1 >/dev/null                                  # #5 runs
@@ -69,6 +71,29 @@ crew_as s3 "$R" slot done >/dev/null
 out="$(crew_as s1 "$R" slot clear)"; rc=$?
 check "clear passes after it" 0 "$rc"
 crew_as s1 "$R" slot cancel 10 >/dev/null
+
+echo "-- a waiting exclusive is not starved by later cpu slots (PLUG-096)"
+crew_as s1 "$R" slot request cpu 5 >/dev/null                                  # #11 runs
+crew_as s2 "$R" slot request exclusive 60 >/dev/null                           # #12 waits for #11
+crew_as s3 "$R" slot request cpu 5 >/dev/null                                  # #13: shorter, but later
+check "a later cpu slot does not start beside a running cpu while an exclusive waits" running/waiting/waiting \
+    "$(field 11 7)/$(field 12 7)/$(field 13 7)"
+order="$(cd "$R" && CREW_AS=s1 bash -c '. "'"$S"'/slot.sh"; crew_init; slots_sorted' | cut -f1 | paste -sd' ' -)"
+check "…it queues behind the exclusive, shortest-first notwithstanding" "11 12 13" "$order"
+crew_as s1 "$R" slot done >/dev/null
+out="$(crew_as s3 "$R" slot start 13)"; rc=$?
+check "…nor once the machine is free: the exclusive goes first" 1 "$rc"
+out="$(crew_as s2 "$R" slot start 12)"; rc=$?
+check "…and the exclusive starts" 0:running "$rc:$(field 12 7)"
+crew_as s2 "$R" slot done >/dev/null
+crew_as s3 "$R" slot start 13 >/dev/null
+check "…then the cpu slot" running "$(field 13 7)"
+crew_as s3 "$R" slot done >/dev/null
+crew_as s1 "$R" slot request cpu 5 >/dev/null                                  # #14 runs
+crew_as s2 "$R" slot request exclusive 60 >/dev/null                           # #15 waits
+crew_as s3 "$R" slot request cpu 5 --prio failing >/dev/null                   # #16 fixes the shared branch
+check "a failing-priority cpu slot may still go first" running "$(field 16 7)"
+for i in 14 15 16; do crew_as s1 "$R" slot release $i >/dev/null; done
 
 echo "-- run"
 out="$(crew_as s2 "$R" slot run cpu 1 -- sh -c 'echo ran; exit 3' 2>/dev/null)"; rc=$?

@@ -19,11 +19,28 @@ command. Only crew members queue; working alone, see [solo.md](solo.md).
 
 **Order:** first anything failing on the shared branch (`--prio failing`), then the user's
 critical asks (`--prio critical`), then the shortest first, then first come. A `cpu` slot never
-jumps ahead of a waiting `exclusive` or `quiet` slot.
+passes a waiting `exclusive` or `quiet` slot that was requested before it, short or not, unless its
+priority is higher (PLUG-096): shortest-first alone let short `cpu` slots, each allowed beside the
+running ones, keep a long `exclusive` waiting for over an hour.
+
+**Memory and groups (PLUG-090).** The limit is often memory, not CPU: one build may use one core and
+10 GB, so two of them side by side get OOM-killed (exit 137), but making them `exclusive` idles the
+other cores. Two options on `request` and `run` say what actually conflicts:
+
+- `--mem <GB>` declares a `cpu` slot's memory. With a budget (`slotMemGB`, set per account with
+  `config set --user slotMemGB 14`: it describes the machine), `cpu` slots that declare memory start
+  while their sum fits. A slot larger than the budget runs alone. Without a budget, `--mem` is only
+  shown. A slot that declares nothing always fits.
+- `--group <name>` puts the slot in a named group: at most one slot of a group runs at a time, and
+  anything outside the group runs beside it. For example, `slot run cpu 30 --mem 10 --group heavy-build -- ./build.sh`.
+
+A slot never passes a waiting slot it competes with that was requested before it: a `cpu` slot an
+`exclusive` or `quiet` one, a slot with memory another with memory, a group member another of its
+group. `slot list` shows each slot's memory and group, and the budget in use.
 
 | Command | Use |
 |---------|-----|
-| `slot run <class> <min> [--prio P] [--why T] -- <cmd…>` | **the default.** It requests, waits, runs, and releases even on failure. It returns the command's exit code |
+| `slot run <class> <min> [--mem GB] [--group G] [--prio P] [--why T] -- <cmd…>` | **the default.** It requests, waits, runs, and releases even on failure. It returns the command's exit code. The command gets `CREW_SLOT_ID`, `CREW_SLOT_CLASS`, `CREW_SLOT_MEM` and `CREW_SLOT_GROUP`, so a lock or log it writes can name its slot |
 | `slot request <class> <min> …` then `slot start` / `slot done` | when the run is not one command |
 | `slot list` | the queue with each slot's ETA. A slot running longer than its estimate plus `slotGraceMin` shows as **STALE** |
 | `slot cancel [id]` | leave the queue |

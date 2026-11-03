@@ -13,6 +13,7 @@ while work is waiting, and it can wake an idle coordinator to deal with it.
 | `<name> silent Nm while owning: hold … · slot #… · dirty …` | the session has made no tool call for longer than `silenceMin`, **and** it holds a hold, has a slot, or has claimed dirty paths. An idle session that owns nothing is fine, and is not reported |
 | `<name> has N unread for Nm` | its oldest unread mail is older than `silenceMin`. This check needs the mailbox area (`inbox.sh`) |
 | `slot #N of <name> … is stale` | a slot has run past its estimate + `slotGraceMin`. `slot list` uses the same rule |
+| `crew time not reviewed for Nh` / `this crew waited Nm in the slot queue since the last review` | the coordinator's time review is due: `timeReviewHours` (24) without `crew time`, or `timeReviewQueueMin` (60) of this crew's queue waits since the last one ([time.md](time.md)) |
 
 Every line ends with `next:`, the step to take.
 

@@ -60,6 +60,10 @@ bind() {
     { printf 'sid=%s\nrole=%s\nsince=%s\ndisplay=%s\n' "$sid" "$role" "$(now)" "$display"; [ -z "$t" ] || printf 'task=%s\n' "$t"; } \
         | replace_file "$STATE/sessions/$name"
     reg_set "$name" "$sid"
+    # every session id a name has had, for `crew time` (PLUG-097): a /clear or restart changes the id
+    if [ -n "$sid" ] && ! awk -F'\t' -v n="$name" -v s="$sid" '($1 "") == n && ($2 "") == s { f = 1 } END { exit !f }' "$STATE/sids" 2>/dev/null; then
+        printf '%s\t%s\t%s\n' "$name" "$sid" "$(now)" >> "$STATE/sids"
+    fi
 }
 with_lock sessions bind
 echo "crew $(crew_id): you are $name ($role). Prefix every crew call with: $(prefix_for "$name")"

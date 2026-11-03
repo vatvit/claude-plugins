@@ -161,6 +161,39 @@ EOF
     return 0
 }
 
+# --- waiting on git's index lock -----------------------------------------------------------------
+# A peer's git command holds .git/index.lock for a moment. Waiting is right; deleting it never is
+# (a live holder would lose its index write). Git writes no pid into the lock, so the holder is
+# looked up from the open file (lsof, or fuser) and may be unknown.
+
+# lock_holder <file> — pid(s) with the file open, empty when unknown or no tool
+lock_holder() {
+    local p=""
+    if command -v lsof >/dev/null 2>&1; then p="$(lsof -t -- "$1" 2>/dev/null | paste -sd, - || true)"
+    elif command -v fuser >/dev/null 2>&1; then p="$(fuser "$1" 2>/dev/null | tr -s ' ' ',' | sed 's/^,//' || true)"; fi
+    printf '%s' "$p"
+}
+
+# wait_index_lock — returns once .git/index.lock is gone; fails (naming the lock and its holder) after
+# lockWaitSec seconds. Never removes the lock.
+wait_index_lock() {
+    local lock bound deadline said=0 pid
+    lock="$(git -C "$ROOT" rev-parse --path-format=absolute --git-path index.lock)"
+    [ -e "$lock" ] || return 0
+    bound="$(cfg lockWaitSec)"; case "$bound" in ''|*[!0-9]*) bound=60 ;; esac
+    deadline=$(( $(date +%s) + bound ))
+    while [ -e "$lock" ]; do
+        if [ "$(date +%s)" -ge "$deadline" ]; then
+            pid="$(lock_holder "$lock")"
+            echo "crew: $lock is still held after ${bound}s${pid:+ (pid $pid)} — another git command is running, or the lock is stale. Not removing it; nothing was changed. Retry, or raise lockWaitSec" >&2
+            return 1
+        fi
+        [ "$said" -eq 1 ] || { echo "crew: waiting for $lock (up to ${bound}s)" >&2; said=1; }
+        sleep 0.2
+    done
+    return 0
+}
+
 # --- land ------------------------------------------------------------------------------------------
 land_main() {
     local me mf="" mode coord p st h c sha bad=0
@@ -218,6 +251,7 @@ land_main() {
         echo "  git commit -F $(printf '%q' "$mf") -- $(printf '%q ' "${paths[@]}")"
         return 0
     fi
+    wait_index_lock || return 1
     [ ${#untracked[@]} -eq 0 ] || git -C "$ROOT" add -- "${untracked[@]}"
     git -C "$ROOT" commit -q -F "$mf" -- "${paths[@]}" || die "git commit failed — nothing landed"
     sha="$(git -C "$ROOT" rev-parse --short HEAD)"
