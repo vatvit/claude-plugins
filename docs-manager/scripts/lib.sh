@@ -22,7 +22,36 @@
 # this plugin's own scripts, never user input.
 docs_find() {
   local root="$1" depth="$2"; shift 2
-  find "$root" -mindepth 1 ${depth:+-maxdepth "$depth"} -name '.*' -prune -o \( "$@" -print \)
+  find "$root" -mindepth 1 ${depth:+-maxdepth "$depth"} -name '.*' -prune -o \( "$@" -print \) | drop_git_ignored "$root"
+}
+
+# drop_git_ignored <root> — stdin: paths below <root> as `find` printed them; stdout: those
+# git does not ignore (PLUG-093). A project keeps third-party material in a git-ignored docs
+# folder; indexing it would put a link to a folder that is not in git, and its file names,
+# into a committed index.
+#
+# Outside a git repo — or when <root> itself is ignored, which means the user pointed at it
+# on purpose — the stream passes through untouched. One `git check-ignore --stdin` per walk,
+# never one process per file. A tracked file is never reported ignored, so `git add -f`
+# keeps a doc listed. Paths go in relative to <root> (`git -C <root>`), NUL-separated, so a
+# root outside the current directory and odd file names both work.
+drop_git_ignored() {
+  local root="${1%/}" list ignored
+  if ! command -v git >/dev/null 2>&1 || ! git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+     || git -C "$root" check-ignore -q -- . 2>/dev/null; then
+    cat; return 0
+  fi
+  list="$(mktemp)"; ignored="$(mktemp)"
+  cat > "$list"
+  # `|| true`: check-ignore exits 1 when nothing is ignored, which is the normal case.
+  DM_PFX="$root/" awk 'BEGIN { p = ENVIRON["DM_PFX"] } index($0, p) == 1 { print substr($0, length(p) + 1) }' "$list" | tr '\n' '\0' \
+    | git -C "$root" check-ignore -z --stdin 2>/dev/null | tr '\0' '\n' > "$ignored" || true
+  if [ -s "$ignored" ]; then
+    DM_PFX="$root/" awk 'BEGIN { p = ENVIRON["DM_PFX"] } NR == FNR { skip[$0] = 1; next } !(substr($0, length(p) + 1) in skip)' "$ignored" "$list"
+  else
+    cat "$list"
+  fi
+  rm -f "$list" "$ignored"
 }
 
 # ---------------------------------------------------------------------------
@@ -172,15 +201,19 @@ normalize_path() {
 # CommonMark destinations: `<…>` may hold spaces and parentheses; a bare one ends at
 # whitespace or at the `)` that balances the opening one — so `a (1).docx` needs the `<…>`
 # form or `%20`, and `x.md "Title"` yields `x.md`. A regex stopping at the first `)` gets
-# both wrong.
+# both wrong. Lines inside a fenced code block (``` or ~~~) hold examples and yield nothing.
+# With a second argument, each line is `<line number><TAB><dest>`.
 md_link_dests() {
-  awk '{
+  awk -v withline="${2:-}" '
+  /^ *(```|~~~)/ { infence = !infence; next }
+  infence { next }
+  {
     s = $0
     while ((i = index(s, "](")) > 0) {
       s = substr(s, i + 2); sub(/^[ \t]+/, "", s)
       if (substr(s, 1, 1) == "<") {
         j = index(s, ">"); if (!j) continue
-        print substr(s, 2, j - 2); s = substr(s, j + 1); continue
+        print (withline ? NR "\t" : "") substr(s, 2, j - 2); s = substr(s, j + 1); continue
       }
       d = ""; depth = 0; n = length(s)
       for (k = 1; k <= n; k++) {
@@ -191,7 +224,7 @@ md_link_dests() {
         d = d c
       }
       s = substr(s, k)
-      if (d != "") print d
+      if (d != "") print (withline ? NR "\t" : "") d
     }
   }' "$1" 2>/dev/null
 }
@@ -210,37 +243,146 @@ md_dest() {
   case "$1" in *[\ \(\)]*) printf '<%s>' "$1" ;; *) printf '%s' "$1" ;; esac
 }
 
-# doc_links <root>
+# doc_link_records <root>
 #
-# Every relative markdown link in every .md under <root>, one record each:
+# Every relative markdown link in every .md under <root> — including a same-file `#fragment`
+# link — one record each, fields tab-separated (an awk consumer splits on tab; fields 4 and 5
+# may be empty, so never `read` them):
 #
-#   file<TAB>link<TAB>target
+#   file<TAB>line<TAB>target<TAB>fragment<TAB>link
 #
-# `link` is the destination minus any #fragment or ?query, with %XX escapes decoded; `target`
-# is the path it resolves to, normalized, as are the file paths. The **only** markdown link
-# parser in this plugin — the broken-link check and the back-link search both read this
-# stream, so they cannot disagree about what a link is.
-doc_links() {
-  local file link base
+# `link` is the destination minus any #fragment or ?query, with %XX escapes decoded (empty for a
+# same-file link); `fragment` is decoded the same way; `target` is the path the link resolves to
+# (the file itself for a same-file link), normalized, as are the file paths. The **only**
+# markdown link parser in this plugin — the broken-link check, the anchor check and the
+# back-link search all read this stream, so they cannot disagree about what a link is.
+doc_link_records() {
+  local file base entry line link frag
   while IFS= read -r file; do
     [ -n "$file" ] || continue
     file="$(normalize_path "$file")"; base="$(dirname "$file")"
-    while IFS= read -r link; do
-      case "$link" in http://*|https://*|mailto:*|\#*|"") continue ;; esac
-      link="${link%%#*}"; link="${link%%\?*}"
-      [ -n "$link" ] || continue
+    while IFS=$'\t' read -r line entry; do
+      [ -n "$entry" ] || continue
+      link="$entry"; frag=""
+      case "$link" in http://*|https://*|mailto:*|"") continue ;; esac
+      case "$link" in *#*) frag="${link#*#}"; link="${link%%#*}" ;; esac
+      link="${link%%\?*}"
+      [ -n "$link" ] || [ -n "$frag" ] || continue
       case "$link" in *%*) link="$(url_decode "$link")" ;; esac
-      case "$link" in
-        /*) printf '%s\t%s\t%s\n' "$file" "$link" "$(normalize_path "$link")" ;;
-        *)  printf '%s\t%s\t%s\n' "$file" "$link" "$(normalize_path "$base/$link")" ;;
-      esac
+      case "$frag" in *%*) frag="$(url_decode "$frag")" ;; esac
+      if [ -z "$link" ]; then
+        printf '%s\t%s\t%s\t%s\t\n' "$file" "$line" "$file" "$frag"
+      else
+        case "$link" in
+          /*) printf '%s\t%s\t%s\t%s\t%s\n' "$file" "$line" "$(normalize_path "$link")" "$frag" "$link" ;;
+          *)  printf '%s\t%s\t%s\t%s\t%s\n' "$file" "$line" "$(normalize_path "$base/$link")" "$frag" "$link" ;;
+        esac
+      fi
     done <<EOF
-$(md_link_dests "$file")
+$(md_link_dests "$file" n)
 EOF
   done <<EOF
 $(docs_find "$1" "" -type f -name '*.md' | sort)
 EOF
   return 0
+}
+
+# doc_links <root> -> `file<TAB>link<TAB>target`, one per link that names a file (a same-file
+# `#fragment` link names none). What the path-existence check and `external related` read.
+doc_links() {
+  doc_link_records "$1" | awk -F'\t' '$5 != "" { print $1 "\t" $5 "\t" $3 }'
+}
+
+# AWK_FOLD — an awk function `lc(s)`: lower-case for comparing a heading's slug with a link's
+# fragment. Run under LC_ALL=C so every awk sees bytes. `tolower` alone is not enough: BSD awk and
+# gawk lower-case `Ü`, busybox does not, so the same heading would slug differently per target.
+# Folds the UTF-8 letters that matter in practice — Latin-1, Greek, Cyrillic — and leaves the
+# rest as written, which can only make a link GitHub accepts look broken on a heading that
+# differs from it only in the case of an exotic letter.
+AWK_FOLD='
+function ord(c) { if (!ORDINIT) { for (i = 128; i < 256; i++) ORD[sprintf("%c", i)] = i; ORDINIT = 1 } return ORD[c] }
+function lc(s,   out, n, i, c, d, b) {
+  s = tolower(s); out = ""; n = length(s)
+  for (i = 1; i <= n; i++) {
+    c = substr(s, i, 1)
+    if (c == "\303" || c == "\316" || c == "\320") {
+      d = substr(s, i + 1, 1); b = ord(d)
+      if (c == "\303" && b >= 128 && b <= 158 && b != 151) { out = out c sprintf("%c", b + 32); i++; continue }
+      if (c == "\316" && b >= 145 && b <= 159) { out = out c sprintf("%c", b + 32); i++; continue }
+      if (c == "\316" && b >= 160 && b <= 171 && b != 162) { out = out "\317" sprintf("%c", b - 32); i++; continue }
+      if (c == "\320" && b >= 144 && b <= 159) { out = out c sprintf("%c", b + 32); i++; continue }
+      if (c == "\320" && b >= 160 && b <= 175) { out = out "\321" sprintf("%c", b - 32); i++; continue }
+      if (c == "\320" && b >= 128 && b <= 143) { out = out "\321" sprintf("%c", b + 16); i++; continue }
+    }
+    out = out c
+  }
+  return out
+}'
+
+# md_anchors <file> -> every anchor a link into <file> can name, one per line:
+#   `s:<slug>`  a heading's GitHub-style slug: lower-cased, punctuation dropped except `-` and
+#               `_`, each space a `-`, non-ASCII letters kept; a repeat of a slug gets `-1`, `-2`…
+#   `i:<id>`    an explicit anchor — `id="…"` or `name="…"` on any HTML tag, e.g. `<a id="x">`
+# ATX headings (`## x`) only; lines inside a code fence count for nothing. A heading's inline
+# markup reduces to its text: a link to its text, `<tags>` and punctuation (backticks, `*`) dropped.
+# Non-ASCII punctuation GitHub also drops is listed in the split() below; any other is kept,
+# which can only make this check accept a link GitHub would reject, never the reverse.
+# Bytes >= 0x80 never appear in the ASCII DROP set, so the char loop is the same on gawk
+# (chars) and busybox/BSD awk (bytes).
+md_anchors() {
+  LC_ALL=C awk "$AWK_FOLD"'
+  function attr(tag, name,   re, m, v) {
+    re = "[ \t]" name "=\"[^\"]*\""
+    if (match(tag, re)) { m = substr(tag, RSTART, RLENGTH); v = substr(m, index(m, "\"") + 1); sub(/"$/, "", v); return v }
+    re = "[ \t]" name "=\047[^\047]*\047"
+    if (match(tag, re)) { m = substr(tag, RSTART, RLENGTH); v = substr(m, index(m, "\047") + 1); sub(/\047$/, "", v); return v }
+    return ""
+  }
+  function slug(h,   i, n, c, out, k, p, m) {
+    while (match(h, /\[[^]]*\]\([^)]*\)/)) {
+      m = substr(h, RSTART, RLENGTH)
+      h = substr(h, 1, RSTART - 1) substr(m, 2, index(m, "](") - 2) substr(h, RSTART + RLENGTH)
+    }
+    gsub(/<[^>]*>/, "", h)
+    h = lc(h)
+    for (k = 1; k <= nu; k++) while ((p = index(h, UP[k])) > 0) h = substr(h, 1, p - 1) substr(h, p + length(UP[k]))
+    out = ""; n = length(h)
+    for (i = 1; i <= n; i++) {
+      c = substr(h, i, 1)
+      if (c == " " || c == "\t") out = out "-"
+      else if (index(DROP, c) == 0) out = out c
+    }
+    return out
+  }
+  BEGIN {
+    DROP = "!\"#$%&\047()*+,./:;<=>?@[\\]^`{|}~"
+    nu = split("— – “ ” ‘ ’ … « » · × ¿ ¡ • ©", UP, " ")
+  }
+  /^ *(```|~~~)/ { infence = !infence; next }
+  infence { next }
+  {
+    s = $0
+    while (match(s, /<[A-Za-z][^>]*>/)) {
+      tag = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+      if ((v = attr(tag, "id")) != "") print "i:" v
+      if ((v = attr(tag, "name")) != "") print "i:" v
+    }
+  }
+  /^ *#+([ \t]|$)/ {
+    h = $0; indent = h; sub(/[^ ].*$/, "", indent); if (length(indent) > 3) next
+    sub(/^ +/, "", h)
+    hashes = h; sub(/[^#].*$/, "", hashes); if (length(hashes) > 6) next
+    sub(/^#+[ \t]*/, "", h)
+    sub(/[ \t]+#+[ \t]*$/, "", h); sub(/^#+[ \t]*$/, "", h); sub(/[ \t]+$/, "", h)
+    base = slug(h); sl = base
+    if (base in seen) {
+      n = seen[base]
+      do { sl = base "-" n; n++ } while (sl in used)
+      seen[base] = n
+    } else seen[base] = 1
+    used[sl] = 1
+    if (sl != "") print "s:" sl
+  }' "$1"
 }
 
 # relpath <from-dir> <to-path>

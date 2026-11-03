@@ -8,7 +8,10 @@ small set of conventions that keep docs DRY and always reflecting the current st
 - **`_index.md` navigation tree** — every folder gets an auto-generated index of its sub-folders and
   docs (with one-line descriptions harvested from frontmatter). Dot-folders such as `.git/` are
   skipped, so `docs/` can be a git repository of its own.
-- **Link checking** — finds broken relative cross-doc links.
+- **Link checking** — finds broken relative cross-doc links, and `#anchor` links whose heading (GitHub-style
+  slug, `-1`/`-2` for repeats) or `<a id="…">` no longer exists, in the same file or another.
+- **Git-ignored paths are skipped** — inside a git repo, `index`, `links` and `check` leave out folders and files
+  `.gitignore` excludes, so a committed index never lists what is not in git.
 - **Diagrams** — a diagram lives in a text `*.diagram.md` source; the tool copies it into every
   doc that asks for it and keeps it current. Nothing is rendered and nothing is installed: a
   fenced block is already drawn by the viewer (GitHub, VS Code, JetBrains, Obsidian).

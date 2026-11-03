@@ -52,6 +52,10 @@ description: How to set the shop up
 # Setup
 
 Back to the [README](../README.md). API: [api](api.md). Gone: [old](missing.md).
+
+## Ports
+
+The app listens on 8080.
 EOF
     put "$R/doc/api.md" <<'EOF'
 # API

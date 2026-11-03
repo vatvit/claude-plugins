@@ -3,7 +3,7 @@
 #
 # Subcommands:
 #   index  [--write|--check] [root]   Regenerate (or verify) the AUTO-INDEX block in each _index.md
-#   links  [root]                     Report broken relative markdown links
+#   links  [root]                     Report broken relative markdown links and #anchor targets
 #   external status|check [root]      External files (pdf, docx, …) and their cards; see external.sh
 #   external stamp <file>             Record a reviewed card's digest (the only writer of digest:)
 #   external move <file> <dir> [root] Move a file and its card together; report links it broke
@@ -180,7 +180,34 @@ EOF2
 $(list_cards "$root")
 EOF
 
+  anchor_check "$root" || found=1
+
   return $found
+}
+
+# Fourth pass: the `#fragment` of every link into a markdown file must name a heading's slug
+# or an explicit anchor of that file (a link with no such file is already a BROKEN LINK, so it
+# is skipped here). Anchors are computed once per target file, not once per link.
+anchor_check() {
+  local recs targets anchors target rc=0
+  recs="$(mktemp)"; targets="$(mktemp)"; anchors="$(mktemp)"
+  # Fragments of links into an existing .md file; `#top` is the browser's own top-of-page anchor.
+  doc_link_records "$1" | awk -F'\t' '$4 != "" && $4 != "top" && $3 ~ /\.md$/' > "$recs"
+  cut -f3 "$recs" | sort -u > "$targets"
+  while IFS= read -r target; do
+    [ -f "$target" ] || continue
+    printf '%s\tK\n' "$target"        # the file exists, even if it has no anchor at all
+    md_anchors "$target" | awk -v t="$target" '{ print t "\t" $0 }'
+  done < "$targets" > "$anchors"
+  # Both sides lower-cased the same way for a heading slug; an explicit id matches exactly.
+  LC_ALL=C awk -F'\t' "$AWK_FOLD"'
+    NR == FNR { have[$1 SUBSEP $2] = 1; known[$1] = 1; next }
+    ($3 in known) && !(($3 SUBSEP "i:" $4) in have) && !(($3 SUBSEP "s:" lc($4)) in have) {
+      printf "BROKEN ANCHOR: %s:%s -> %s#%s\n", $1, $2, $5, $4; bad = 1
+    }
+    END { exit bad ? 1 : 0 }' "$anchors" "$recs" || rc=1
+  rm -f "$recs" "$targets" "$anchors"
+  return $rc
 }
 
 cmd_check() {

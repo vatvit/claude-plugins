@@ -52,7 +52,9 @@ Sourced, never executed. Holds what more than one script in *this* plugin needs:
 - `docs_find <root> <maxdepth|""> <tests…>` — **every walk of the docs tree goes through it**, so
   all commands skip the same things: any dot-entry at any depth (`.git/` when `docs/` is its own
   repository, `.obsidian/`, a hidden file), pruned with what is under it; the root itself is never
-  pruned. Do not add a bare `find` over the docs tree. The one exception is `diagram.sh`'s walk of a
+  pruned. Anything git ignores is dropped too (`drop_git_ignored`: one `git check-ignore --stdin` per
+  walk; a no-op outside git, when git is missing, or when the root itself is ignored; tracked files
+  stay). Do not add a bare `find` over the docs tree. The one exception is `diagram.sh`'s walk of a
   ref's *target* folder, which is usually code and feeds stored digests (PLUG-079).
 - `normalize_path`, `block_rewrite`, `has_marker`, `write_if_changed`.
 - `relpath <from-dir> <to-path>` — lexical relative path. Exists because a ref is written relative
@@ -63,9 +65,16 @@ Sourced, never executed. Holds what more than one script in *this* plugin needs:
 - `doc_links <root>` — `file<TAB>link<TAB>target` for every relative markdown link, paths
   normalized. **The only markdown link parser** — `links` checks targets exist, `external related`
   matches targets against a card; do not grep for `](` anywhere else. Destinations come from
-  `md_link_dests` (CommonMark: `<…>`, balanced parens, `"title"` dropped) and `%XX` is decoded by
+  `md_link_dests` (skips fenced code; CommonMark: `<…>`, balanced parens, `"title"` dropped) and `%XX` is decoded by
   `url_decode` in the shell — awk's `%c` is multibyte-unsafe under gawk. It was a
   `\]\([^)]+\)` regex, which failed every name containing `(` or an escaped space.
+- `doc_link_records <root>` — the one link stream, with line and `#fragment`; `doc_links` is its
+  path-only view. `md_anchors <file>` lists the anchors a link into a file may name (`s:<slug>` per ATX
+  heading, GitHub rules, repeats `-1`/`-2`; `i:<id>` per `id=`/`name=` on any tag; code fences ignored).
+  `links` compares them in `anchor_check` (`BROKEN ANCHOR: file:line -> link#frag`). Both awk programs
+  run under `LC_ALL=C` with `AWK_FOLD`'s `lc()`, because `tolower` lower-cases `Ü` on BSD awk and gawk
+  but not on busybox. Limits: no setext headings; non-ASCII punctuation is dropped only for the list
+  in `md_anchors`; case of letters beyond Latin-1/Greek/Cyrillic is not folded.
 - `md_dest <path>` — **every link this plugin writes goes through it.** Wraps in `<…>` only when the
   name has a space or parenthesis, so ordinary names stay byte-identical (no DRIFT on upgrade) and
   odd ones render as links on GitHub/GitLab.
@@ -302,9 +311,12 @@ bash scripts/test/external.test.sh                                            # 
 docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/external.test.sh  # container
 bash scripts/test/onboard.test.sh                                             # host (git cases too)
 docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/onboard.test.sh   # container
+bash scripts/test/docs.test.sh                                                # host (git-ignore + #anchor checks)
+docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/docs.test.sh      # container
+docker run --rm -v "$PWD":/w -w /w bash:5 sh -c 'apk add -q git && git config --global --add safe.directory "*" && bash scripts/test/docs.test.sh'   # container, git cases included
 ```
 
-`bash:5` has no git, so `onboard.test.sh` reports its git cases (history kept, `.gitignore`
+`bash:5` has no git, so `docs.test.sh` and `onboard.test.sh` report its git cases (history kept, `.gitignore`
 respected) as **skipped** there; the host run covers them.
 
 **Run both, always.** The host target (macOS bash 3.2 + BSD userland) catches `declare -A`,
