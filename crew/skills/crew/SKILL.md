@@ -1,6 +1,6 @@
 ---
 name: crew
-description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, assigning tasks to sessions (one task, one session), handing off a finished change, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot, reviewing where the crew's time goes. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "assign tasks to sessions", "two sessions on one task", "crew task", "which session works on which task", "split work between sessions", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "slot memory", "slot group", "memory budget for slots", "work in a copy", "apply the copy", "rebase the copy", "remove the copy", "task worktree", "worktree per task", "tree new", "tree sync", "tree merge", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", "who commits", "who pushes", "end the crew", "close the crew", "disband the crew", "crew end", "working solo", "is a crew running", "crew active", "crew-only rules", "slots across repos", "two repos on one machine", "crew time", "where does the crew's time go", "how long do the sessions wait", "time review", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
+description: Use when several Claude Code sessions work on one working tree and one branch at the same time and must not lose each other's edits — running a crew of parallel sessions, acting as the coordinator or a worker, assigning tasks to sessions (one task, one session), handing off a finished change, landing path lists, holding a hot-spot file, asking for a slot (cpu / exclusive / quiet) before heavy runs, working in a copy and applying it back, recovering an overwritten edit from a snapshot, reviewing where the crew's time goes. Activate on "parallel sessions", "run a crew", "join the crew", "you are the coordinator", "you are a worker", "assign tasks to sessions", "two sessions on one task", "crew task", "which session works on which task", "split work between sessions", "crew status", "hand off", "handoff", "land these paths", "hold this file", "release the hold", "hot spot", "ask for a slot", "slot queue", "slot memory", "slot group", "memory budget for slots", "work in a copy", "apply the copy", "rebase the copy", "remove the copy", "task worktree", "worktree per task", "tree new", "tree sync", "tree merge", "restore from snapshot", "who holds", "inbox", "mailbox", "unread crew mail", "adopt crew mid-project", "import the holds", "set the hot spots", "crew watch", "watchdog", "silent session", "who commits", "who pushes", "end the crew", "close the crew", "disband the crew", "crew end", "working solo", "is a crew running", "crew active", "crew-only rules", "slots across repos", "two repos on one machine", "stuck slot", "slot says can start now but never starts", "ignore another crew's slots", "watch is not running", "watch heartbeat", "progress report to the coordinator", "crew time", "where does the crew's time go", "how long do the sessions wait", "time review", or /crew. Also activate when a crew SessionStart line ("crew: you are …") is in context and the session is about to edit, commit, push or start a long run.
 ---
 
 # crew — parallel Claude sessions on one working tree
@@ -36,7 +36,9 @@ to it. Names must be unique on the machine, because another repo may run its own
 - relays the user's words to the crew verbatim, and relays every hold and release;
 - assigns each task to one session; a task too big for one is split into sub-tasks first;
 - owns machine time (the slot queue) and tells waiting sessions their new times and why;
-- keeps `watch --wait` running in the background, so a silent crew wakes it (`references/watch.md`);
+- keeps `watch --wait --max 20` running in the background at all times, restarts it after every wake and
+  after a compaction (SessionStart says when none runs), and reports to the user on every wake where something
+  changed (`references/watch.md`);
 - reviews where the crew's time goes with `crew time`, at least once a working day and after a long
   stretch of queue waits (`watch` reminds), reports it to the user and proposes levers, never
   applying one that changes how the crew works without the user's word (`references/time.md`);
@@ -55,6 +57,7 @@ to it. Names must be unique on the machine, because another repo may run its own
 - builds each change in a copy, test-first, and lands it with `apply`;
 - holds a hot spot before editing it;
 - asks for a slot before any heavy run;
+- sends progress as `msg status` and keeps `msg decision` for decisions, which the coordinator records;
 - finishes each change with a hand-off (`msg handoff`), never with its own commit, unless
   `committer` says otherwise.
 

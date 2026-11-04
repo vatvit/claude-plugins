@@ -41,11 +41,20 @@ check "a session that just worked is not silent" no "$(has "s2 silent" "$(W 5)")
 crew_as s2 "$R" release a.txt --unchanged >/dev/null
 
 echo "-- silent with a slot, or with dirty paths"
-id="$(crew_as s3 "$R" slot request cpu 3 | sed -n 's/.*#\([0-9]*\).*/\1/p' | head -1)"
+id="$(CREW_NOW="$(at 0)" crew_as s3 "$R" slot request cpu 30 | sed -n 's/.*#\([0-9]*\).*/\1/p' | head -1)"
 out="$(W 17)"
-check "a waiting slot counts" yes "$(has "s3 silent" "$out")"
-check "…named" yes "$(has "slot #$id" "$out")"
+check "a member running its own slot within its estimate is not silent (PLUG-103)" no "$(has "s3 silent" "$out")"
 crew_as s3 "$R" slot cancel "$id" >/dev/null
+CREW_NOW="$(at 0)" crew_as s1 "$R" slot request exclusive 60 >/dev/null
+id="$(CREW_NOW="$(at 0)" crew_as s3 "$R" slot request cpu 3 | sed -n 's/.*#\([0-9]*\).*/\1/p' | head -1)"
+out="$(W 17)"
+check "a member waiting in the queue is not silent either" no "$(has "s3 silent" "$out")"
+check "…status shows what it waits on" yes "$(has "(slot #$id waiting 17m" "$(CREW_NOW="$(at 17)" crew_as s1 "$R" status)")"
+check "no queue finding before slotWaitMin" no "$(has "queue" "$out")"
+out="$(W 21)"
+check "this crew's slot waiting past slotWaitMin is a finding" yes "$(has "slot #$id of s3 has waited 21m in the queue" "$out")"
+check "…naming what holds the machine" yes "$(has "behind #" "$out")"
+for i in $(cut -f1 "$CREW_HOME/slots"); do crew_as s1 "$R" slot release "$i" >/dev/null; done
 edit "$R" s3 c.txt "s3 work"
 out="$(W 17)"
 check "claimed dirty paths count" yes "$(has "s3 silent" "$out")"
@@ -81,6 +90,41 @@ out="$(CREW_NOW="$(at 17)" CREW_WATCH_ROUNDS=3 crew_as s1 "$R" watch --every 0 2
 check "three rounds, one line" 1 "$(printf '%s\n' "$out" | grep -c "s2 silent")"
 check "the loop prints nothing when quiet" no "$(has "watch: quiet" "$out")"
 crew_as s2 "$R" release a.txt --unchanged >/dev/null
+
+echo "-- --wait reports a finding once, until it clears (PLUG-103)"
+crew_as s2 "$R" hold a.txt >/dev/null
+out="$(CREW_NOW="$(at 17)" crew_as s1 "$R" watch --wait --every 0 2>&1)"; rc=$?
+check "the first --wait exits 2 on the finding" 2:yes "$rc:$(has "s2 silent" "$out")"
+out="$(CREW_NOW="$(at 18)" CREW_WATCH_ROUNDS=2 crew_as s1 "$R" watch --wait --every 0 2>&1)"; rc=$?
+check "the next --wait does not exit on the same finding" 0:no "$rc:$(has "s2 silent" "$out")"
+out="$(CREW_NOW="$(at 18)" crew_as s1 "$R" watch --wait --max 0 --every 0 2>&1)"; rc=$?
+check "--max: exits 0 with a heartbeat when nothing is new" 0:yes "$rc:$(has "watch: no new finding" "$out")"
+check "…counting what is still open" yes "$(has "open: 1" "$out")"
+crew_as s2 "$R" release a.txt --unchanged >/dev/null
+CREW_NOW="$(at 19)" CREW_WATCH_ROUNDS=1 crew_as s1 "$R" watch --wait --every 0 >/dev/null 2>&1
+crew_as s2 "$R" hold a.txt >/dev/null
+out="$(CREW_NOW="$(at 40)" crew_as s1 "$R" watch --wait --every 0 2>&1)"; rc=$?
+check "a finding that cleared fires again when it comes back" 2 "$rc"
+crew_as s2 "$R" release a.txt --unchanged >/dev/null
+
+echo "-- the coordinator is told when no watch runs (PLUG-105)"
+out="$(hook session-start.sh "$(payload sid-s1 "$R" x x x)")"
+check "SessionStart: no watch running" yes "$(has "watch is not running" "$out")"
+check "…with the command" yes "$(has "watch --wait --max 20" "$out")"
+check "a worker is not told" no "$(has "watch is not running" "$(hook session-start.sh "$(payload sid-s2 "$R" x x x)")")"
+sleep 30 & live=$!
+printf '%s\ts1\n' "$live" > "$ST/watch.pid"
+check "a live watch: nothing said" no "$(has "watch is not running" "$(hook session-start.sh "$(payload sid-s1 "$R" x x x)")")"
+kill "$live" 2>/dev/null; wait "$live" 2>/dev/null
+check "a dead watch's pid file: told again" yes "$(has "watch is not running" "$(hook session-start.sh "$(payload sid-s1 "$R" x x x)")")"
+check "status tells the coordinator too" yes "$(has "watch is not running" "$(crew_as s1 "$R" status)")"
+rm -f "$ST/watch.pid"
+CREW_WATCH_ROUNDS=1 crew_as s1 "$R" watch --every 0 >/dev/null 2>&1
+check "watch leaves no pid file behind" no "$( [ -f "$ST/watch.pid" ] && echo yes || echo no)"
+( CREW_WATCH_ROUNDS=4 crew_as s1 "$R" watch --every 1 >/dev/null 2>&1 ) &
+sleep 2
+check "a running watch is seen" no "$(has "watch is not running" "$(hook session-start.sh "$(payload sid-s1 "$R" x x x)")")"
+wait
 
 echo "-- without the mailbox"
 mkdir -p "$TMP/solo"; cp -R "$S/.." "$TMP/solo/crew"; rm -f "$TMP/solo/crew/scripts/inbox.sh"

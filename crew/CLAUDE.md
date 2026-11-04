@@ -139,11 +139,19 @@ crew/
 - **lib.sh owns the one EXIT trap.** It drops a lock left by a dying process and then runs
   `CREW_ON_EXIT` (for example, `slot run` releasing its slot). A script that sets its own `trap … EXIT`
   silently disables both, so it sets `CREW_ON_EXIT` instead. That includes tests that source `lib.sh`.
-- **The queue never lets a slot pass an earlier one it competes with (PLUG-096, PLUG-090).** Shortest-first
-  alone starved a long `exclusive` behind a stream of short `cpu` slots. `_slots_no_pass` is the one rule: a
-  `cpu` slot vs an `exclusive`/`quiet` one, two slots that declare memory under `slotMemGB`, two of one group.
+- **The queue never lets a slot pass an earlier one it competes with (PLUG-096, PLUG-090, PLUG-101).** Shortest-first
+  alone starved a long `exclusive` behind a stream of short `cpu` slots, then behind shorter `exclusive` ones.
+  `_slots_no_pass` is the one rule: anything vs an earlier `exclusive`/`quiet` one, two slots that declare memory
+  under the budget, two of one group.
   Memory and group live in fields 11-12 of a slot row and 16-17 of `slots_plan`, after the five computed
-  fields, so readers of 11-15 never see the row grow.
+  fields, so readers of 11-15 never see the row grow; the budget is field 13, the flag 18-19.
+- **One plan for every viewer (PLUG-102).** `slots_plan` and `_slots_no_pass` read only the queue: the budget
+  is `slots_budget` (row field 13, the requester's `slotMemGB`, max over the queue), never `cfg slotMemGB`. A
+  per-account budget let two accounts' waiters each see the other's slot first, and the machine stood still for
+  nine hours. The one deliberate per-crew input is `slotIgnoreCrews` (PLUG-104), which only removes waiting.
+  As a backstop for views that still differ (an older crew version), a startable slot whose waiter's note in
+  `$SLOTS.wait` is newer than the last event in `slots.log`, or that saw no event for `slotStuckMin`, is
+  `stuck` (field 18) and holds nobody back.
 - **Every slot event is history (PLUG-097).** `$CREW_HOME/slots.log` gets one line per request, start, finish
   and reap, under the slots lock; `crew time` splits a `slot run` into queue and run with it, and `watch`'s
   review reminder sums this crew's queue waits from it.
@@ -155,6 +163,10 @@ crew/
   `lockWaitSec`; `copy apply` reaches it through `load_area land`.
 - **`status` collapses an untracked directory (PLUG-091)** with `git status -unormal`; `dirty_owned` and
   `dirty_paths` still expand with `-uall`, so `land`, `watch` and `my_dirty` see every file.
+- **A finding wakes `--wait` once (PLUG-103).** Its memory is `$STATE/watch.reported`, which outlives the run
+  and drops a key once it clears; the loop keeps its per-run memory. A member waiting in the queue or running
+  its own slot within the estimate is waiting, not silent (`watch_waits`). A loop or `--wait` leaves
+  `$STATE/watch.pid`; `watch_off_note` is the one test SessionStart and `status` use (PLUG-105).
 - **Silence is measured, not guessed.** Every tool call bumps `<state>/seen/<sid>` (fast.sh: `crew_fast_seen`,
   a redirection on a builtin, so no fork), and `watch.sh` reads its mtime. A session counts as silent only
   while it owns something (hold, slot, claimed dirty path). An idle session that owns nothing is just idle.

@@ -26,6 +26,7 @@ crew_fast_skip && exit 0
         crew_rules_print
         load_area inbox; declare -F mail_start >/dev/null && mail_start "$NAME" "$SID"
         load_area watch; declare -F watch_stamp >/dev/null && watch_stamp "$SID"
+        declare -F watch_off_note >/dev/null && watch_off_note "$NAME"
     else
         echo "crew: this repo runs crew $(crew_id) ($(crew_line)); you are not in it — its guards do not apply to you, work as usual. Only if the user puts this session in the crew: crew whoami \"<the name peers address you by in SendMessage>\" [worker|coordinator] — spaces are fine; it must be unique on this machine. Working rules: the crew skill."
     fi

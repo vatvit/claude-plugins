@@ -16,7 +16,7 @@ CREW_USER_CONFIG="${CREW_USER_CONFIG:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/crew.j
 # Per MACHINE: the session-name registry deliberately ignores CLAUDE_CONFIG_DIR — SendMessage
 # addresses sessions of every account on this machine, so all accounts must see one registry.
 CREW_HOME="${CREW_HOME:-$HOME/.claude/crew}"
-CREW_KEYS="crewId sharedBranch committer push tree treeSync taskPush treeLink treeSetup crewRules hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin slotMemGB silenceMin lockWaitSec timeReviewHours timeReviewQueueMin"
+CREW_KEYS="crewId sharedBranch committer push tree treeSync taskPush treeLink treeSetup crewRules hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin slotMemGB slotStuckMin slotWaitMin slotIgnoreCrews silenceMin lockWaitSec timeReviewHours timeReviewQueueMin"
 
 die()  { echo "crew: $*" >&2; exit 1; }
 note() { echo "crew: $*" >&2; }
@@ -195,11 +195,11 @@ cfg_default() {
     case "$1" in
         committer) echo human-approved ;; push) echo human ;; hookMode) echo deny ;;
         tree) echo shared ;; treeSync) echo merge ;;
-        snapshotKeep) echo 20 ;; snapshotMaxKB) echo 1024 ;; slotGraceMin) echo 10 ;; slotMemGB) echo 0 ;; silenceMin) echo 15 ;; lockWaitSec) echo 60 ;; timeReviewHours) echo 24 ;; timeReviewQueueMin) echo 60 ;;
+        snapshotKeep) echo 20 ;; snapshotMaxKB) echo 1024 ;; slotGraceMin) echo 10 ;; slotMemGB) echo 0 ;; slotStuckMin) echo 10 ;; slotWaitMin) echo 20 ;; silenceMin) echo 15 ;; lockWaitSec) echo 60 ;; timeReviewHours) echo 24 ;; timeReviewQueueMin) echo 60 ;;
     esac
     return 0
 }
-cfg_project_only() { case "$1" in crewId|sharedBranch|hotSpots|landCheck|tree|treeSync|taskPush|treeLink|treeSetup|crewRules) return 0 ;; esac; return 1; }
+cfg_project_only() { case "$1" in crewId|sharedBranch|hotSpots|slotIgnoreCrews|landCheck|tree|treeSync|taskPush|treeLink|treeSetup|crewRules) return 0 ;; esac; return 1; }
 # crew_rules_print — the project's crew-only rules (crewRules: a file in the tree), for a member
 # only: printed on join and by SessionStart, so a solo session or a non-member never pays for them
 crew_rules_print() {

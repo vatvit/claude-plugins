@@ -41,7 +41,10 @@ not start a crew. Adopting crew in a running project: [adopt.md](adopt.md).
 | `snapshotKeep` | project, user | `20` | snapshots kept per path |
 | `snapshotMaxKB` | project, user | `1024` | larger files are not snapshotted |
 | `slotGraceMin` | project, user | `10` | minutes past its estimate before a running slot shows as stale |
-| `slotMemGB` | project, user | `0` (no budget) | the machine's memory budget for slots, in GB: `cpu` slots that declare `--mem` start while their sum fits ([slots.md](slots.md)). Set it per account in the user file, since it describes the machine |
+| `slotMemGB` | project, user | `0` (no budget) | the machine's memory budget for slots, in GB: `cpu` slots that declare `--mem` start while their sum fits ([slots.md](slots.md)). Set it per account in the user file, since it describes the machine. Each slot carries the value it was requested under, and the queue uses the largest, so every crew and account on the machine computes one plan |
+| `slotStuckMin` | project, user | `10` | minutes a waiting slot may be able to start, with no slot event on the machine, before it counts as STUCK and the queue passes it ([slots.md](slots.md)) |
+| `slotWaitMin` | project, user | `20` | minutes in the queue after which a slot of this crew is a `watch` finding, and a member's slot that starts after waiting this long is mailed to the coordinator |
+| `slotIgnoreCrews` | project | none | crew ids whose slots this crew does not wait for: they still show in `slot list`, marked `ignored`. Set it only on the user's word ([slots.md](slots.md)) |
 | `lockWaitSec` | project, user | `60` | seconds `land` and `apply` wait for a foreign `.git/index.lock` to clear before failing. The lock is never removed; the failure names it and, when it can be found, the holder's pid ([land.md](land.md)) |
 | `timeReviewHours` | project, user | `24` | hours without `crew time` before `watch` reminds the coordinator to review the crew's time; `0` turns it off ([time.md](time.md)) |
 | `timeReviewQueueMin` | project, user | `60` | minutes this crew's slots waited in the queue since the last review before `watch` reminds early; `0` turns it off |

@@ -30,6 +30,17 @@ msg_decision() {
     echo "record it in the task file as $by decision, verbatim."
 }
 
+# status <text> [--task ID] — progress for the coordinator's picture, not a decision: nothing to record (PLUG-106)
+msg_status() {
+    local task="" text=""
+    while [ $# -gt 0 ]; do
+        case "$1" in --task) task="${2:-}"; shift 2 ;; *) text="$text${text:+ }$1"; shift ;; esac
+    done
+    msg_head STATUS "$TO" "$task"
+    echo "$text"
+    echo "for information — nothing to record (a decision goes as: msg decision)."
+}
+
 # stop <HH:MM> — a hard stop time
 msg_stop() {
     msg_head "STOP TIME" "$TO" "${1:?stop needs HH:MM}"

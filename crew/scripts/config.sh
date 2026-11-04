@@ -22,7 +22,7 @@ config_show() {
 # key_type <key> — how a key is written: a (array of strings), n (number), s (string)
 key_type() {
     case "$1" in
-        hotSpots|taskPush|treeLink) echo a ;; snapshotKeep|snapshotMaxKB|slotGraceMin|slotMemGB|lockWaitSec|timeReviewHours|timeReviewQueueMin) echo n ;; *) echo s ;;
+        hotSpots|taskPush|treeLink|slotIgnoreCrews) echo a ;; snapshotKeep|snapshotMaxKB|slotGraceMin|slotMemGB|slotStuckMin|slotWaitMin|lockWaitSec|timeReviewHours|timeReviewQueueMin) echo n ;; *) echo s ;;
     esac
 }
 
@@ -30,7 +30,7 @@ key_type() {
 check_value() {
     local k="$1" v; shift
     [ $# -gt 0 ] || die "config set $k needs a value (to remove it: config unset $k)"
-    [ "$(key_type "$k")" = a ] || [ $# -eq 1 ] || die "$k takes one value; only hotSpots, taskPush and treeLink take several"
+    [ "$(key_type "$k")" = a ] || [ $# -eq 1 ] || die "$k takes one value; only hotSpots, taskPush, treeLink and slotIgnoreCrews take several"
     for v in "$@"; do
         case "$v" in '') die "empty value for $k (to remove it: config unset $k)" ;;
                      *[\"\\]*) die "$k: a value cannot contain \" or \\ (put such a command in a script)" ;; esac

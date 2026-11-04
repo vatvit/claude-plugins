@@ -7,6 +7,14 @@ join "$R" s1 coordinator; join "$R" s2; join "$R" s3
 M="$R/.git/crew/mail"
 unread() { ls "$M/$1/new" 2>/dev/null | grep -c . ; }   # unread <name> -> count
 
+echo "-- msg status: progress that is not a decision (PLUG-106)"
+out="$(crew_as s2 "$R" msg status "unit suite green, e2e next" --task PLUG-1 2>&1)"; rc=$?
+check "status is a kind" 0 "$rc"
+check "…with its own head" yes "$(contains "s2 → s1: STATUS — PLUG-1" "$out")"
+check "…the text" yes "$(contains "unit suite green, e2e next" "$out")"
+check "…and nothing to record" no:yes "$(contains "record it in the task file" "$out"):$(contains "nothing to record" "$out")"
+check "the kinds list names it" yes "$(contains " status" "$(crew_as s2 "$R" msg)")"
+
 echo "-- msg --send"
 out="$(crew_as s2 "$R" msg decision plain print)"
 check "msg without --send writes no mail" no "$( [ -d "$M" ] && echo yes || echo no)"

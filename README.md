@@ -130,7 +130,10 @@ Sessions opt in with `crew whoami "<name>" [worker|coordinator]`. crew then adds
 - `crew status`: one screen showing every dirty path and who owns it;
 - hand-off messages with a durable mailbox;
 - **holds** on hot-spot files, and a **slot** queue for heavy runs, shared by every repo's crew
-  on the machine, with a memory budget and named groups for runs that only clash on memory;
+  on the machine, with a memory budget and named groups for runs that only clash on memory; a slot
+  that can start but does not is passed, and a crew can ignore a named light crew's slots;
+- a watchdog that wakes the coordinator once per new finding (a silent member, a long queue wait, a
+  stuck slot), and a reminder when it is not running;
 - `crew time`: where each session's time went (working, waiting on a run, the queue, a peer, you),
   which the coordinator reviews daily;
 - a snapshot before every edit, so an overwritten edit can be recovered;

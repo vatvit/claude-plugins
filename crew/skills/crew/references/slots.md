@@ -18,10 +18,36 @@ this crew's pushes. A slot whose owner is gone (left, ended, replaced) is droppe
 command. Only crew members queue; working alone, see [solo.md](solo.md).
 
 **Order:** first anything failing on the shared branch (`--prio failing`), then the user's
-critical asks (`--prio critical`), then the shortest first, then first come. A `cpu` slot never
-passes a waiting `exclusive` or `quiet` slot that was requested before it, short or not, unless its
-priority is higher (PLUG-096): shortest-first alone let short `cpu` slots, each allowed beside the
-running ones, keep a long `exclusive` waiting for over an hour.
+critical asks (`--prio critical`), then the shortest first, then first come. No slot passes a waiting
+`exclusive` or `quiet` slot that was requested before it, short or not, unless its priority is higher.
+Shortest-first alone let short `cpu` slots, each allowed beside the running ones, keep a long
+`exclusive` waiting for over an hour (PLUG-096), and later, shorter `exclusive` slots pushed a 50-minute
+review run back by hours (PLUG-101).
+
+**One plan for everyone (PLUG-102).** Every crew and every Claude account on the machine computes the
+same order from the queue alone. The memory budget is the largest `slotMemGB` any queued slot was
+requested under, never the viewer's own. Two accounts with different budgets once each saw the other's
+slot first, and neither started for nine hours.
+
+**A stuck slot is passed.** A waiting slot that can start now but does not shows as `STUCK` and holds
+nobody back. Its owner can still start it. Two things make it stuck:
+- `its waiter sees: behind #N`: its `slot run` waiter checked after the last slot event and still saw
+  something ahead. Each waiter leaves that reason in `~/.claude/crew/slots.wait` on every poll.
+- `no start for Nm`: no slot started, ended or was requested on the machine for `slotStuckMin` (10)
+  minutes. This catches a waiter from an older crew, or a `slot request` nobody started.
+
+`watch` reports every stuck slot, whichever crew it belongs to.
+
+**Ignoring another crew (PLUG-104).** `config set slotIgnoreCrews <crew-id>…` (project layer) lets
+this crew stop waiting for a crew whose work is known to be light. Its slots still show in `slot list`,
+marked `ignored`, but hold back none of ours, running or waiting. The other crew still waits for ours.
+Set it only on the user's word, like `committer` and `push`: it trades the other crew's protection
+from load for ours.
+
+**A member's wait reaches the coordinator (PLUG-107).** When a member's slot starts after waiting
+longer than `slotWaitMin` (20), or a `slot run` goes past its estimate, the coordinator gets a mail
+(`SLOT — #N started after 40m waiting`, `#N is past its 20m estimate, still running`). The
+coordinator's own slots mail nobody.
 
 **Memory and groups (PLUG-090).** The limit is often memory, not CPU: one build may use one core and
 10 GB, so two of them side by side get OOM-killed (exit 137), but making them `exclusive` idles the
