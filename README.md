@@ -223,6 +223,10 @@ bash test suite under `<plugin>/scripts/test/`. The suites run on the host and i
 (Alpine/busybox) container, so both BSD and GNU userlands stay covered. The repo-wide shell rules
 are in [CLAUDE.md](CLAUDE.md).
 
+Before a release, `bash scripts/check-descriptions.sh` checks that every plugin's description is
+at most 250 characters and identical, with its version, in `plugin.json` and `marketplace.json`.
+Its tests: `bash scripts/test/check-descriptions.test.sh`, on the host or in `bash:5`.
+
 ## License
 
 [MIT](LICENSE)

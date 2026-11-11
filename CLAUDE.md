@@ -27,6 +27,7 @@ claude-plugins/
 ├── crew/                      ← plugin
 ├── kickoff/                   ← plugin
 ├── .tasks/                    ← this repo's own task files (NOT a plugin)
+├── scripts/                   ← repo tooling (release checks), NOT a plugin; no plugin sources it
 ├── .task-config.json          ← task skill config (tasksDir, prefix)
 ├── CLAUDE.md                  ← this file (repo-level)
 ├── README.md                  ← repo-level overview
@@ -192,12 +193,21 @@ updated together. The marketplace entry is what people read before installing, a
 skill description is what decides whether the plugin ever activates — both are easy to
 forget because neither is exercised by any test.
 
-1. `<plugin>/.claude-plugin/plugin.json` — bump `version`, refresh `description` and `keywords`
+1. `<plugin>/.claude-plugin/plugin.json` — bump `version`, and refresh `keywords`. Touch
+   `description` only if what the plugin *is for* has changed
 2. `.claude-plugin/marketplace.json` — sync that plugin's `description` and `version`
+   (identical text in both files)
 3. `<plugin>/skills/<name>/SKILL.md` — add trigger phrases to `description:`, or the new
    capability is unreachable no matter how good it is
 4. The plugin's section in the root `README.md`, when the capability is worth a line there. It
    carries no versions, so a bump alone never touches it
+
+**The plugin description is a pitch, not a changelog: 250 characters at most.** It says what
+the plugin is for, in a sentence or two. The `/plugin` screen prints it in full, and when each
+release added its feature to the text, five of seven grew to 800–2600 characters (PLUG-137). A new
+capability goes to the README (step 4) and the trigger phrases (step 3), not here. Before a
+release, run `bash scripts/check-descriptions.sh`: it fails on a description over the limit and
+on any plugin whose `plugin.json` and `marketplace.json` disagree on description or version.
 
 **Check trigger phrases against the other plugins' skill descriptions.** Two plugins
 competing for the same words is a coin flip at activation time. Today the vocabularies are

@@ -1,7 +1,7 @@
 {
   "name": "session-storage",
-  "description": "Session-scoped key-value storage for Claude Code. Store and retrieve data tied to individual sessions with automatic cleanup. Pure bash, no jq; a write that fails says so.",
-  "version": "1.0.1",
+  "description": "Session-scoped key-value storage for Claude Code with automatic cleanup. Pure bash, no dependencies.",
+  "version": "1.0.2",
   "author": {
     "name": "Vat",
     "url": "https://github.com/vatvit"
