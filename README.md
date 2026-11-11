@@ -52,7 +52,8 @@ Each task is a `PREFIX-NNN.md` file with YAML frontmatter and a **workflow table
 task goes through (context, requirements, tests, implementation, reflection, …) and where it
 stands. The table *is* the state. `/task do` reads it and continues from the current step.
 Epics group sub-tasks, and `/task do` or `/task finish` on an epic works the whole of it. ID
-allocation is atomic and lock-guarded, so parallel sessions never take the same number.
+allocation is atomic and lock-guarded, so parallel sessions never take the same number; opt in to
+`idSource: git` and clones on other machines share one counter on the remote too.
 Listing is scripted, with filters, grouping, sorting and epic views that collapse closed work.
 Every new task records when it was created; the list shows it and `sort=created` orders by it.
 Optional tags label tasks across epics, and the list filters and groups by them; Claude can
@@ -90,6 +91,8 @@ A hook regenerates it whenever a task file changes. [More →](task-roadmap/READ
 - **External reference files:** a PDF, Word, Excel, PowerPoint or OpenDocument file dropped into `docs/external/` gets a
   **card** saying what it holds and where inside it to look, and `check` reports files with no
   card or a stale one.
+- **Google Drive docs:** with a Drive MCP connected, a Drive doc or folder becomes a remote card without
+  being copied. It is listed as ☁ in the index, and Claude says when Drive has a newer version.
 - **Legacy projects:** surveys the docs a project already has and, once you approve the plan,
   builds `docs/` from them, keeping git history and links.
 
