@@ -1,35 +1,31 @@
 #!/usr/bin/env bash
-# Captures session_id from SessionStart hook input and injects it into Claude's context.
-# This allows Claude to discover its own session_id and use it for session-specific storage.
+# SessionStart hook: captures session_id from the hook's JSON on stdin and injects it, with
+# the storage commands, into Claude's context. Always exits 0; reports on stderr.
 
-BASE_TMP="${CLAUDE_CODE_TMPDIR:-/tmp}"
-STORAGE_DIR="${BASE_TMP}/claude-session-storage"
-mkdir -p "$STORAGE_DIR"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib.sh
+. "$SCRIPT_DIR/lib.sh"
+STORAGE_DIR="$SS_STORAGE_DIR"
 
-input=$(cat)
-
-session_id=$(echo "$input" | jq -r '.session_id // empty' 2>/dev/null)
-
-if [ -z "$session_id" ]; then
+session_id=$(ss_json_session_id)
+[ -n "$session_id" ] || exit 0
+if ! ss_safe_name "$session_id"; then
+  echo "session-storage: invalid session id in the SessionStart input; no storage for this session" >&2
   exit 0
 fi
 
-# Create session directory
-mkdir -p "${STORAGE_DIR}/${session_id}"
+mkdir -p "${STORAGE_DIR}/${session_id}" 2>/dev/null || {
+  echo "session-storage: cannot write ${STORAGE_DIR}; no storage for this session" >&2; exit 0; }
 
-# Write a "last session" file as fallback discovery mechanism
+# A "last session" file as fallback discovery mechanism
 echo "$session_id" > "${STORAGE_DIR}/.current_session"
 
-# Determine the directory where this script lives (plugin root/scripts/)
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PLUGIN_ROOT="$(dirname "$SCRIPT_DIR")"
-
-# Inject session_id and usage instructions into Claude's context
+STORAGE="${SCRIPT_DIR}/storage.sh"
 cat <<EOF
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "SESSION STORAGE PLUGIN: Your session_id is: ${session_id}. You can store key-value data scoped to this session by running: bash ${PLUGIN_ROOT}/scripts/storage.sh set ${session_id} <key> <value> — retrieve with: bash ${PLUGIN_ROOT}/scripts/storage.sh get ${session_id} <key> — clear with: bash ${PLUGIN_ROOT}/scripts/storage.sh clear ${session_id} [key] — list keys: bash ${PLUGIN_ROOT}/scripts/storage.sh list ${session_id}"
+    "additionalContext": "SESSION STORAGE PLUGIN: Your session_id is: ${session_id}. You can store key-value data scoped to this session by running: bash ${STORAGE} set ${session_id} <key> <value> — retrieve with: bash ${STORAGE} get ${session_id} <key> — clear with: bash ${STORAGE} clear ${session_id} [key] — list keys: bash ${STORAGE} list ${session_id}"
   }
 }
 EOF

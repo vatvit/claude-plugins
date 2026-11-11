@@ -8,9 +8,17 @@
 #   storage.sh list [session_id]                   — List sessions, or keys for a session
 #   storage.sh cleanup [max_age_hours]             — Remove stale sessions (default: 24h)
 
-BASE_TMP="${CLAUDE_CODE_TMPDIR:-/tmp}"
-STORAGE_DIR="${BASE_TMP}/claude-session-storage"
+# shellcheck source=lib.sh
+. "$(cd "$(dirname "$0")" && pwd)/lib.sh"
+STORAGE_DIR="$SS_STORAGE_DIR"
 mkdir -p "$STORAGE_DIR" 2>/dev/null
+
+# A session id or key goes into a path only after ss_safe_name accepted it (PLUG-132).
+need_safe() { # need_safe <what> <value>
+  ss_safe_name "$2" && return 0
+  echo "session-storage: invalid $1 '$2' — use letters, digits, '.', '_' and '-' only, not starting with '.'" >&2
+  exit 1
+}
 
 # A write that fails is reported as a failure, never as "Stored" (PLUG-122).
 cannot_write() {
@@ -28,6 +36,7 @@ case "${1:-}" in
       echo "Usage: storage.sh set <session_id> <key> <value>" >&2
       exit 1
     fi
+    need_safe "session id" "$session_id"; need_safe key "$key"
     { mkdir -p "${STORAGE_DIR}/${session_id}" && echo "$value" > "${STORAGE_DIR}/${session_id}/${key}"; } 2>/dev/null \
       || cannot_write
     echo "Stored [${key}]: ${value}"
@@ -40,6 +49,7 @@ case "${1:-}" in
       echo "Usage: storage.sh get <session_id> <key>" >&2
       exit 1
     fi
+    need_safe "session id" "$session_id"; need_safe key "$key"
     file="${STORAGE_DIR}/${session_id}/${key}"
     if [ -f "$file" ]; then
       cat "$file"
@@ -55,6 +65,7 @@ case "${1:-}" in
       echo "Usage: storage.sh clear <session_id> [key]" >&2
       exit 1
     fi
+    need_safe "session id" "$session_id"; [ -z "$key" ] || need_safe key "$key"
     if [ -n "$key" ]; then
       rm -f "${STORAGE_DIR}/${session_id}/${key}"
       # Remove session dir if empty
@@ -76,6 +87,7 @@ case "${1:-}" in
   list)
     session_id="${2:-}"
     if [ -n "$session_id" ]; then
+      need_safe "session id" "$session_id"
       # List keys for a specific session
       session_dir="${STORAGE_DIR}/${session_id}"
       if [ ! -d "$session_dir" ]; then
@@ -101,13 +113,7 @@ case "${1:-}" in
         echo "$dirs" | while read -r d; do
           session=$(basename "$d")
           key_count=$(find "$d" -type f -not -name ".*" 2>/dev/null | wc -l | tr -d ' ')
-          # macOS stat format
-          if stat -f %m "$d" >/dev/null 2>&1; then
-            age_min=$(( ($(date +%s) - $(stat -f %m "$d")) / 60 ))
-          else
-            # Linux stat format
-            age_min=$(( ($(date +%s) - $(stat -c %Y "$d")) / 60 ))
-          fi
+          age_min=$(( ($(date +%s) - $(ss_mtime "$d")) / 60 ))
           echo "  ${session}: ${key_count} key(s)  (${age_min}m ago)"
         done
       fi

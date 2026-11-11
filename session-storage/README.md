@@ -103,6 +103,7 @@ The `session-storage` skill tells Claude how and when to use key-value storage w
 
 - **Location**: `$CLAUDE_CODE_TMPDIR/claude-session-storage/` (falls back to `/tmp/claude-session-storage/` if unset)
 - **Format**: One directory per session (named by `session_id`), one file per key containing plain text
+- **Names**: session ids and keys use letters, digits, `.`, `_` and `-` only, not starting with `.`; anything else is refused, so no name can reach outside the storage dir
 - **Hidden files**: `.current_session` stores the last session_id (fallback discovery)
 - **Cleanup**: SessionEnd removes the session directory; stale sessions (>24h) auto-purge
 
@@ -115,7 +116,6 @@ The `session-storage` skill tells Claude how and when to use key-value storage w
 ## Requirements
 
 - Claude Code with hooks support
-- `jq` (for JSON parsing in hook scripts)
 - `bash` (POSIX-compatible shell)
 
 ## License

@@ -30,6 +30,7 @@ bash <PLUGIN_ROOT>/scripts/storage.sh list <session_id>
 ```
 
 Replace `<PLUGIN_ROOT>` with the actual plugin path and `<session_id>` with the session ID injected by the SessionStart hook.
+A key uses letters, digits, `.`, `_` and `-` only and does not start with `.` (`task-id`, `active-tasks`); anything else is refused.
 
 ## When to Use
 

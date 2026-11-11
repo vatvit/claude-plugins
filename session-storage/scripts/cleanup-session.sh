@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
-# Cleans up session-specific storage when a session ends.
+# SessionEnd hook: removes this session's storage, then sessions idle for over 24 hours.
+# Always exits 0; reports on stderr.
 
-BASE_TMP="${CLAUDE_CODE_TMPDIR:-/tmp}"
-STORAGE_DIR="${BASE_TMP}/claude-session-storage"
+# shellcheck source=lib.sh
+. "$(cd "$(dirname "$0")" && pwd)/lib.sh"
+STORAGE_DIR="$SS_STORAGE_DIR"
 
-input=$(cat)
-session_id=$(echo "$input" | jq -r '.session_id // empty' 2>/dev/null)
-
+session_id=$(ss_json_session_id)
 if [ -n "$session_id" ]; then
-  rm -rf "${STORAGE_DIR}/${session_id}"
+  if ss_safe_name "$session_id"; then
+    rm -rf "${STORAGE_DIR:?}/${session_id}"
+  else
+    echo "session-storage: invalid session id in the SessionEnd input; nothing removed for it" >&2
+  fi
 fi
 
 # Also clean up stale session directories older than 24 hours
