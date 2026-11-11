@@ -228,9 +228,27 @@ the skill (Claude) talks to Drive through an MCP; the scripts stay offline.
 - **`### External documents` opens for remote cards too**, local files first; a folder with neither
   still regenerates byte-identical (E2, RC3).
 - **`.source.md` is per-folder data, not config** (the `.docs-manager.json` rule stands). It is a
-  dot-file, so `docs_find` never lists it; scripts read it by path beside the card.
-- **`DM_KEEP_IGNORED=1` is the one opt-out of `drop_git_ignored`**, used only by `external remote`, so a
-  local-only (git-ignored) attachment stays findable while no committed `_index.md` names it.
+  dot-file, so `docs_find` never lists it; scripts find it by path: `source_of` takes
+  the nearest one from the card's folder up, since a folder attachment's sub-folders share one.
+- **`DM_KEEP_IGNORED=1` is the one opt-out of `drop_git_ignored`**, used by `external remote`,
+  `remote-diff` and the local-copy listing, so a local-only (git-ignored) attachment stays findable
+  while no committed `_index.md` names it.
+- **`remote-diff` matches by Drive id, never by name or path** (PLUG-113). A rename or move is
+  `changed` at most, never gone + new. Ids are compared as strings (`$1 ""`, RF7), and so are times:
+  `…11Z` and `…11.986Z` do not order, so a time is only equal or not. Never compare them with `<`.
+- **A script never deletes a gone card.** `remote-gone` marks it (`remote-gone: yes`), `check` fails
+  with `REMOTE GONE` until the user decides, and `remote-stamp` clears the mark when the file is back.
+  A marked card is not reported `gone` again; a marked card whose id is listed again is `changed`.
+- **The listing is Claude's, written to a temp file from the MCP.** `remote-diff` validates it (4
+  fields, non-empty id) before anything else and prints nothing on a bad line. Scope (`recursive`,
+  `include`, `exclude` in `.source.md`) is applied with `case` globs in `remote_in_scope`, the one place.
+- **A local copy is `<name>.<provider>.local.md`, classified by name** (`is_remote_copy`), never a card and
+  never a document (`list_docs` skips it). Its stamp is the card's `copy-modified`, written only by
+  `copy-stamp`, which refuses unless `source_of` the card says `processed: local`: the agreement is
+  checked by the script, not only by the skill (PLUG-115). Stale = `copy-modified` ≠ `remote-modified`,
+  string inequality. Copies are listed with `DM_KEEP_IGNORED=1`, so a git-ignored copy is still checked.
+- **No bytes through the MCP.** Copies are Drive's text rendering, written as text; a binary download is
+  base64 that would be retyped with no checksum, so `content: sync` was rejected (PLUG-114).
 
 ## scripts/extract.sh
 

@@ -49,6 +49,33 @@ is_remote_card() {
   return 1
 }
 
+# is_remote_copy <path> -> 0 if <path> is `<name>.<provider>.local.md`: the local text copy of the
+# remote card `<name>.<provider>.md` beside it (PLUG-115). Never a card, never a document.
+is_remote_copy() {
+  local p
+  for p in $REMOTE_PROVIDERS; do
+    case "$1" in ?*."$p".local.md) return 0 ;; esac
+  done
+  return 1
+}
+
+# list_remote_copies <dir> -> local copies under <dir>, git-ignored ones included (a copy the
+# user keeps local-only must still be checked), sorted, one per line
+list_remote_copies() {
+  local f
+  while IFS= read -r f; do
+    [ -n "$f" ] && is_remote_copy "$f" && printf '%s\n' "$f"
+  done <<EOF
+$(DM_KEEP_IGNORED=1 docs_find "$1" "" -type f -name '*.local.md' | sort)
+EOF
+  return 0
+}
+
+# valid_rfc3339 <time> -> 0 if <time> is an RFC 3339 UTC time as Drive reports it
+valid_rfc3339() {
+  printf '%s\n' "$1" | awk '!/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9](\.[0-9]+)?Z$/ { bad = 1 } END { exit bad }'
+}
+
 # list_remote_cards <dir> [maxdepth] -> remote cards under <dir>, sorted, one per line
 list_remote_cards() {
   local f
@@ -123,7 +150,11 @@ external_place() {
 # state: ok | new (no card) | unstamped (card has no digest) | changed (digest differs)
 #        | orphan (card whose file is gone)
 #        | remote (remote card, file kept by the provider; `file` is "-")
-#        | incomplete (remote card without remote-id or remote-modified).
+#        | incomplete (remote card without remote-id or remote-modified)
+#        | gone (remote card marked `remote-gone: yes`: its file left Drive; PLUG-113)
+#        | copy | copy-stale | copy-unstamped | copy-unasked | copy-orphan (a remote card's local
+#          text copy, `file` is the copy: in step with the card, behind it, never stamped, not
+#          agreed in `.source.md`, without a card; PLUG-115).
 # An empty field is "-": tab is whitespace to `read`, so a truly empty field would collapse
 # and shift the ones after it.
 external_status() {
@@ -155,13 +186,35 @@ $(list_cards "$root")
 EOF
   while IFS= read -r card; do
     [ -n "$card" ] || continue
-    if [ -n "$(fm_field "$card" remote-id)" ] && [ -n "$(fm_field "$card" remote-modified)" ]; then
+    if [ "$(fm_field "$card" remote-gone)" = yes ]; then
+      printf 'gone\t%s\t-\t%s\n' "$(external_place "$root" "$card")" "$card"
+    elif [ -n "$(fm_field "$card" remote-id)" ] && [ -n "$(fm_field "$card" remote-modified)" ]; then
       printf 'remote\t%s\t-\t%s\n' "$(external_place "$root" "$card")" "$card"
     else
       printf 'incomplete\t%s\t-\t%s\n' "$(external_place "$root" "$card")" "$card"
     fi
   done <<EOF
 $(list_remote_cards "$root")
+EOF
+  # Local copies (PLUG-115): compared with their card, never with Drive (scripts stay offline).
+  local copy src cm place state
+  while IFS= read -r copy; do
+    [ -n "$copy" ] || continue
+    card="${copy%.local.md}.md"; place="$(external_place "$root" "$copy")"
+    if [ ! -f "$card" ]; then
+      printf 'copy-orphan\t%s\t%s\t-\n' "$place" "$copy"; continue
+    fi
+    src="$(source_of "$card" "$root")"
+    if [ -z "$src" ] || [ "$(fm_field "$src" processed)" != local ]; then
+      printf 'copy-unasked\t%s\t%s\t%s\n' "$place" "$copy" "$card"; continue
+    fi
+    cm="$(fm_field "$card" copy-modified)"
+    if [ -z "$cm" ]; then state=copy-unstamped
+    elif [ "$cm" != "$(fm_field "$card" remote-modified)" ]; then state=copy-stale
+    else state=copy; fi
+    printf '%s\t%s\t%s\t%s\n' "$state" "$place" "$copy" "$card"
+  done <<EOF
+$(list_remote_copies "$root")
 EOF
   return 0
 }
@@ -221,6 +274,11 @@ EOF2
                  ;;
       orphan)    echo "ORPHAN CARD: $card (its file is gone)"; rc=1 ;;
       incomplete) echo "REMOTE INCOMPLETE: $card (needs remote-id and remote-modified)"; rc=1 ;;
+      gone)      echo "REMOTE GONE: $card (removed from Drive: delete the card, or restore the file)"; rc=1 ;;
+      copy-stale)     echo "LOCAL COPY STALE: $f (the card is newer: rewrite it from Drive, then: docs.sh external copy-stamp $card <time>)"; rc=1 ;;
+      copy-unstamped) echo "LOCAL COPY UNSTAMPED: $f (run: docs.sh external copy-stamp $card <time>)"; rc=1 ;;
+      copy-unasked)   echo "LOCAL COPY NOT AGREED: $f (its .source.md does not say processed: local: ask the user, or delete it)"; rc=1 ;;
+      copy-orphan)    echo "LOCAL COPY ORPHAN: $f (no card beside it)"; rc=1 ;;
     esac
   done <<EOF
 $(external_status "$root")
@@ -272,32 +330,158 @@ cmd_external_remote_stamp() {
   [ -n "$card" ] && [ -n "$t" ] || { echo "Usage: docs.sh external remote-stamp <remote-card> <rfc3339-time>" >&2; return 2; }
   is_remote_card "$card" || { echo "Not a remote card: $card" >&2; return 1; }
   [ -f "$card" ] || { echo "No such card: $card" >&2; return 1; }
-  printf '%s\n' "$t" | awk '!/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9](\.[0-9]+)?Z$/ { bad = 1 } END { exit bad }' \
-    || { echo "Not an RFC 3339 UTC time: $t" >&2; return 1; }
-  if [ "$(fm_field "$card" remote-modified)" = "$t" ]; then
+  valid_rfc3339 "$t" || { echo "Not an RFC 3339 UTC time: $t" >&2; return 1; }
+  # A card stamped again describes a file that is back on Drive: clear the gone mark
+  # (only when set, so a card never marked gets no `remote-gone` key at all).
+  if [ "$(fm_field "$card" remote-gone)" = yes ]; then
+    fm_set "$card" remote-gone no
+  elif [ "$(fm_field "$card" remote-modified)" = "$t" ]; then
     echo "UNCHANGED: $card"; return 0
   fi
   fm_set "$card" remote-modified "$t"
   echo "STAMPED: $card"
 }
 
+# copy-stamp <card> <time> — record that the card's local copy (`<name>.<provider>.local.md`) was
+# written from the Drive version of <time> (PLUG-115). The only writer of `copy-modified:`. Refuses
+# when the copy is missing or the card's `.source.md` does not say `processed: local`: a local copy
+# goes against the plugin's default, so it exists only when the user agreed to it.
+cmd_external_copy_stamp() {
+  local card="${1:-}" t="${2:-}" copy src
+  [ -n "$card" ] && [ -n "$t" ] || { echo "Usage: docs.sh external copy-stamp <remote-card> <rfc3339-time>" >&2; return 2; }
+  is_remote_card "$card" || { echo "Not a remote card: $card" >&2; return 1; }
+  [ -f "$card" ] || { echo "No such card: $card" >&2; return 1; }
+  valid_rfc3339 "$t" || { echo "Not an RFC 3339 UTC time: $t" >&2; return 1; }
+  copy="${card%.md}.local.md"
+  [ -f "$copy" ] || { echo "No local copy: $copy" >&2; return 1; }
+  src="$(source_of "$card" "/")"
+  [ -n "$src" ] && [ "$(fm_field "$src" processed)" = local ] \
+    || { echo "Not agreed: no .source.md above $card says processed: local" >&2; return 1; }
+  if [ "$(fm_field "$card" copy-modified)" = "$t" ]; then echo "UNCHANGED: $card"; return 0; fi
+  fm_set "$card" copy-modified "$t"
+  echo "STAMPED: $card"
+}
+
+# remote-gone <card> — mark a remote card whose file is no longer on Drive (or no longer in
+# its attachment's scope). Never deletes: whether the card goes is the user's call, and
+# `check` reports it until then.
+cmd_external_remote_gone() {
+  local card="${1:-}"
+  [ -n "$card" ] || { echo "Usage: docs.sh external remote-gone <remote-card>" >&2; return 2; }
+  is_remote_card "$card" || { echo "Not a remote card: $card" >&2; return 1; }
+  [ -f "$card" ] || { echo "No such card: $card" >&2; return 1; }
+  if [ "$(fm_field "$card" remote-gone)" = yes ]; then
+    echo "UNCHANGED: $card"; return 0
+  fi
+  fm_set "$card" remote-gone yes
+  echo "MARKED GONE: $card"
+}
+
+# remote_in_scope <path> <recursive> <includes> <excludes> — 0 if a Drive listing path is in an
+# attachment's scope. <includes>/<excludes> are newline-separated shell globs (`case` patterns,
+# so `*` also matches `/`). No includes means everything; an exclude always wins.
+remote_in_scope() {
+  local p="$1" pat hit=no
+  case "$2" in false|no) case "$p" in */*) return 1 ;; esac ;; esac
+  [ -n "$3" ] || hit=yes
+  while IFS= read -r pat; do
+    [ -n "$pat" ] || continue
+    case "$p" in $pat) hit=yes; break ;; esac
+  done <<EOF
+$3
+EOF
+  [ "$hit" = yes ] || return 1
+  while IFS= read -r pat; do
+    [ -n "$pat" ] || continue
+    case "$p" in $pat) return 1 ;; esac
+  done <<EOF
+$4
+EOF
+  return 0
+}
+
+# remote-diff <attachment-dir> <listing.tsv> — compare a Drive folder listing, written by
+# Claude through the MCP, with the attachment's remote cards (PLUG-113). The listing is
+# `id<TAB>path<TAB>mimeType<TAB>modifiedTime` per Drive item; folder rows are skipped. Prints one
+# record per difference, sorted; nothing means in sync:
+#
+#   new<TAB>id<TAB>path<TAB>mimeType<TAB>modifiedTime    in scope on Drive, no card
+#   changed<TAB>id<TAB>card<TAB>modifiedTime             Drive's time differs from the card's
+#   gone<TAB>id<TAB>card                                 card whose file is gone or out of scope
+#
+# Files match cards by Drive id, so a rename or a move is not gone + new. Ids and times are
+# compared as strings: an id can look like a number to awk, and `…11Z` / `…11.986Z` do not
+# sort, so a time is only ever equal or not. A card already marked gone is not reported again,
+# and is `changed` once its file is back, so stamping it clears the mark.
+cmd_external_remote_diff() {
+  local dir="${1:-}" listing="${2:-}" src rec inc exc rows cards card id path mime mod
+  [ -n "$dir" ] && [ -n "$listing" ] || { echo "Usage: docs.sh external remote-diff <attachment-dir> <listing.tsv>" >&2; return 2; }
+  dir="${dir%/}"; src="$dir/.source.md"
+  [ -f "$src" ] || { echo "No .source.md in $dir: not an attached Drive folder" >&2; return 1; }
+  [ -n "$(fm_field "$src" remote-id)" ] || { echo "No remote-id in $src: not an attached Drive folder" >&2; return 1; }
+  [ -f "$listing" ] || { echo "No such listing: $listing" >&2; return 1; }
+  awk -F'\t' 'NF == 0 { next }
+    NF != 4 || $1 == "" { printf "Bad listing, line %d: want id<TAB>path<TAB>mimeType<TAB>modifiedTime\n", NR; bad = 1 }
+    END { exit bad }' "$listing" >&2 || return 1
+  rec="$(fm_field "$src" recursive)"; inc="$(fm_list "$src" include)"; exc="$(fm_list "$src" exclude)"
+  rows="$(mktemp)"; cards="$(mktemp)"
+  while IFS=$'\t' read -r id path mime mod; do
+    [ -n "$id" ] || continue
+    [ "$mime" = "application/vnd.google-apps.folder" ] && continue
+    remote_in_scope "$path" "$rec" "$inc" "$exc" || continue
+    printf '%s\t%s\t%s\t%s\n' "$id" "$path" "$mime" "$mod"
+  done < "$listing" > "$rows"
+  while IFS= read -r card; do
+    [ -n "$card" ] || continue
+    id="$(fm_field "$card" remote-id)"
+    [ -n "$id" ] || continue          # incomplete: `check` reports it
+    printf '%s\t%s\t%s\t%s\n' "$id" "$card" "$(fm_field "$card" remote-modified)" "$(fm_field "$card" remote-gone)"
+  done > "$cards" <<EOF
+$(DM_KEEP_IGNORED=1 list_remote_cards "$dir")
+EOF
+  # FILENAME, not FNR==NR: either input may be empty.
+  awk -F'\t' -v OFS='\t' -v C="$cards" '
+    FILENAME == C { k = $1 ""; card[k] = $2; mod[k] = $3 ""; gone[k] = $4 ""; next }
+    { k = $1 ""; seen[k] = 1
+      if (!(k in card)) print "new", k, $2, $3, $4
+      else if (($4 "") != mod[k] || gone[k] == "yes") print "changed", k, card[k], $4 }
+    END { for (k in card) if (!(k in seen) && gone[k] != "yes") print "gone", k, card[k] }
+  ' "$cards" "$rows" | LC_ALL=C sort
+  rm -f "$rows" "$cards"
+  return 0
+}
+
+# source_of <card> <root> — the `.source.md` governing a remote card: the nearest one from the card's
+# folder up to <root>, since a folder attachment mirrors Drive sub-folders under one `.source.md`
+# (PLUG-113, F10). Prints nothing when there is none.
+source_of() {
+  local d root="${2%/}"
+  d="$(dirname "$1")"
+  while :; do
+    [ -f "$d/.source.md" ] && { echo "$d/.source.md"; return 0; }
+    [ "$d" = "$root" ] || [ "$d" = . ] || [ "$d" = / ] && return 0
+    d="$(dirname "$d")"
+  done
+}
+
 # remote [root] — every remote card, git-ignored ones included, one record each:
 #
-#   card<TAB>publish<TAB>remote-modified<TAB>description<TAB>read-when
+#   card<TAB>publish<TAB>remote-modified<TAB>description<TAB>read-when<TAB>local-copy
 #
-# `publish` comes from `.source.md` beside the card (commit | local; "-" when there is none).
+# `publish` comes from the card's `.source.md` (`source_of`) (commit | local; "-" when there is none).
 # A local-only attachment is git-ignored, so `index` never lists it and no committed file
 # names it; this listing is how Claude still finds it (PLUG-112, R12).
 cmd_external_remote() {
-  local root="${1:-$ROOT_DEFAULT}" card src pub mod desc when
+  local root="${1:-$ROOT_DEFAULT}" card src pub mod desc when copy
   [ -d "$root" ] || { echo "No such root: $root" >&2; return 1; }
   while IFS= read -r card; do
     [ -n "$card" ] || continue
-    src="$(dirname "$card")/.source.md"; pub=""
-    [ -f "$src" ] && pub="$(fm_field "$src" publish)"
+    src="$(source_of "$card" "$root")"; pub=""
+    [ -n "$src" ] && pub="$(fm_field "$src" publish)"
     mod="$(fm_field "$card" remote-modified)"; desc="$(fm_field "$card" description)"
     when="$(fm_field "$card" read-when)"
-    printf '%s\t%s\t%s\t%s\t%s\n' "$card" "${pub:--}" "${mod:--}" "${desc:--}" "${when:--}"
+    copy="${card%.md}.local.md"; [ -f "$copy" ] || copy=-
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$card" "${pub:--}" "${mod:--}" "${desc:--}" "${when:--}" "$copy"
   done <<EOF
 $(DM_KEEP_IGNORED=1 list_remote_cards "$root")
 EOF
@@ -349,9 +533,12 @@ cmd_external() {
     stamp)  cmd_external_stamp "$@" ;;
     remote) cmd_external_remote "$@" ;;
     remote-stamp) cmd_external_remote_stamp "$@" ;;
+    remote-diff) cmd_external_remote_diff "$@" ;;
+    remote-gone) cmd_external_remote_gone "$@" ;;
+    copy-stamp)  cmd_external_copy_stamp "$@" ;;
     move)   cmd_external_move "$@" ;;
     related) cmd_external_related "$@" ;;
     outline|text) cmd_external_extract "$op" "$@" ;;
-    *) echo "Usage: docs.sh external {status|check|stamp <file>|remote|remote-stamp <card> <time>|move <file> <dest-dir>|related <file>|outline <file>|text <file>} [root]" >&2; return 2 ;;
+    *) echo "Usage: docs.sh external {status|check|stamp <file>|remote|remote-stamp <card> <time>|remote-diff <dir> <listing>|remote-gone <card>|copy-stamp <card> <time>|move <file> <dest-dir>|related <file>|outline <file>|text <file>} [root]" >&2; return 2 ;;
   esac
 }

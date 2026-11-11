@@ -62,9 +62,11 @@ at all, whether to skip a step, append-or-switch when two tasks compete for a se
 - **session-storage is optional and detected, never required.** The skill finds it by a
   context string and skips silently when absent. Every command must work with it missing;
   that is the path most installs are in.
-- **Claude never invents a tag.** `tags.sh add` refuses a tag no task uses yet unless given
-  `--new`, which stands for the user's OK; reusing a tag in use needs no asking
-  (`references/tags.md`). `tags` is decoded in `read-tasks.sh` only, into `["a", "b"]`.
+- **A new tag is deliberate, never quiet.** `tags.sh add` refuses a tag no task uses yet unless
+  given `--new`. Claude passes it when a tag is logically needed: on its own for a member of a
+  family already in use (a per-plugin tag for a new plugin), named in the reply; after asking for a
+  new kind of grouping; never for a near-duplicate of a tag in use. Reusing a tag in use needs no
+  asking (`references/tags.md`). `tags` is decoded in `read-tasks.sh` only, into `["a", "b"]`.
 - **`.task-config.json` is a shared data contract.** `task-roadmap` reads `tasksDir` from
   it. Moving or renaming it breaks that plugin — the file stays where it is.
 

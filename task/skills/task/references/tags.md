@@ -36,11 +36,23 @@ The tags already in use come first: `tags.sh <tasksDir> <prefix> list` prints ea
 
 - **Reuse without asking.** When a task you create or shape clearly fits a tag in use, add it.
   The user should not have to name the same tag on every task.
-- **Never invent a tag.** A tag no task has yet is added only when the user asked for it or
-  agreed to it. `tags.sh add` refuses one unless given `--new`, and `--new` is that OK — never
-  pass it on your own judgement.
-- **Ask when unsure** whether a tag fits, and when a wanted tag looks like one in use
-  (`perf` / `performance`, `tech-debt` / `tech debt`): name the existing tag and ask which.
+- **Create a tag when one is logically needed.** A task that no tag in use describes, while it
+  clearly belongs to a group that will recur, should not stay untagged. Two cases:
+  - **It extends a family already in use**, so the name is already settled: per-component
+    tags (`billing`, `search`, … and the task is about a new component `export`), per-layer tags
+    (`api`, `ui`, … and a `cli` task arrives). Create it (`--new`), named like its siblings, and **name
+    it in your reply**: "new tag `export`, in line with the per-component tags".
+  - **It is a new kind of grouping**, a topic nothing in use resembles (`security`, `accessibility`).
+    **Ask first**, proposing the name and the tasks it would cover; `--new` only on a yes.
+  - Never quietly: a tag created without the user hearing of it is the one that drifts.
+- **Never create a near-duplicate.** When a wanted tag looks like one in use (`perf` /
+  `performance`, `tech-debt` / `tech debt`), use the existing one; when unsure whether it is the
+  same thing, name the existing tag and ask which.
+- **Ask when unsure** whether a tag fits a task at all.
+
+`tags.sh add` refuses a tag no task has yet unless given `--new`: the flag is the statement that
+the tag is new on purpose (a family extension named in the reply, or the user's yes), never a way
+past a typo.
 
 Add and remove through the script, on a new task or one in flight alike — tags are labels, not
 history, so the append-only rule does not cover them:

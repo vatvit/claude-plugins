@@ -5,6 +5,7 @@ type: epic
 epic-name: docs-gdrive
 priority: low
 created: 2026-11-11 15:58
+tags: ["docs-manager-plugin"]
 ---
 
 ## Workflow
@@ -155,10 +156,19 @@ tools search, read and list Drive files), not by a fixed tool name; scripts neve
   *attaching Drive files as reference material*.
 - The plugin works standalone (repo rule: copy it alone and run its suite).
 
+## Decision: no content: sync (2026-11-11, the user)
+
+PLUG-114 rejected: the connector delivers a file only as base64 in Claude's context, so a copy means
+retyping it, with no checksum to catch corruption. Text copies of native files are PLUG-115's
+`processed: local`; binaries stay remote, or the user downloads them into `docs/external/` by hand.
+The `content` setting therefore has one value, `remote`, for now.
+
 ## Current State
 
 In progress. POC done; PLUG-112 completed (remote cards: `*.gdrive.md`, `external remote`,
-`external remote-stamp`, how-to § Remote documents). Next: PLUG-113, PLUG-114, PLUG-115 can run in
-parallel sessions; PLUG-116 after PLUG-115. **No release until the epic is finished** (user's rule):
+`external remote-stamp`, how-to § Remote documents). PLUG-113 completed (folder attach + refresh:
+`remote-diff`, `remote-gone`). PLUG-114 rejected (see Decision). PLUG-115 completed (local copies: `copy-stamp`, `LOCAL COPY …` checks).
+PLUG-116 rejected (processed copy on Drive: redundant with the connector's text rendering). All
+sub-tasks closed; left: the epic's own closing rows and the release. **No release until the epic is finished** (user's rule):
 docs-manager stays 1.11.0 in plugin.json / marketplace / root README; bump at this epic's Reflection.
-A throwaway Drive test doc exists in the user's test folder (location in session memory, not here).
+Throwaway Drive test items (`dm-e2e-*`) exist in the user's test folder (location in session memory, not here).

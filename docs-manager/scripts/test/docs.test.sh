@@ -247,6 +247,21 @@ if needs_git RC9; then
   bash "$DOCS" check "$R/docs" >/dev/null 2>&1; check "RC9c check clean" "0" "$?"
 fi
 
+# --- LC10: a git-ignored local copy is still checked (PLUG-115) ------------------------------------
+if needs_git LC10; then
+  R=$(fresh lc10)
+  doc "$R/docs/a.md" "Doc A" </dev/null
+  mkdir -p "$R/docs/external/acme"
+  printf -- '---\ntitle: t\ndescription: Spec\nread-when: x\nremote-id: 1s\nremote-modified: 2026-11-12T09:00:00Z\ncopy-modified: 2026-11-11T17:27:11Z\n---\n' \
+    > "$R/docs/external/acme/spec.gdrive.md"
+  printf -- '---\nprovider: gdrive\nprocessed: local\ncopy-publish: local\n---\n' > "$R/docs/external/acme/.source.md"
+  printf 'text\n' > "$R/docs/external/acme/spec.gdrive.local.md"
+  printf 'docs/external/acme/*.gdrive.local.md\n' > "$R/.gitignore"
+  git -C "$R" init -q
+  out=$(bash "$DOCS" check "$R/docs" 2>&1)
+  check "LC10 ignored copy still reported stale" "yes" "$(has "$out" "LOCAL COPY STALE: $R/docs/external/acme/spec.gdrive.local.md")"
+fi
+
 echo
 echo "passed: $pass  failed: $fail  skipped: $skipped"
 [ "$fail" -eq 0 ]

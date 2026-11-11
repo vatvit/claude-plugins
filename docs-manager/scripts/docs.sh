@@ -41,7 +41,7 @@ list_subdirs() { docs_find "$1" 1 -type d | sort; }
 list_docs() {
   local f
   while IFS= read -r f; do
-    [ -n "$f" ] && ! is_card "$f" && ! is_remote_card "$f" && printf '%s\n' "$f"
+    [ -n "$f" ] && ! is_card "$f" && ! is_remote_card "$f" && ! is_remote_copy "$f" && printf '%s\n' "$f"
   done <<EOF
 $(docs_find "$1" 1 -type f -name '*.md' ! -name '_index.md' ! -name '*.diagram.md' | sort)
 EOF

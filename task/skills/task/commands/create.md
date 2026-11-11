@@ -19,7 +19,8 @@ Then ask: "Add more details?"
 ## Tags
 
 Before writing the body, run `tags.sh <tasksDir> <prefix> list`. Put the tags in use that
-clearly fit into the body's `tags:` line, without asking; a new tag only with the user's OK.
+clearly fit into the body's `tags:` line, without asking. When none fits and one is logically
+needed, create it or ask first, by the rule in `references/tags.md`.
 The rule and the syntax: `references/tags.md`.
 
 ## The body

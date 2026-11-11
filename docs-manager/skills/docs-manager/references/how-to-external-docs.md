@@ -96,7 +96,7 @@ wrong is worse than none: the next session trusts it and reads the wrong pages.
 
 ```bash
 bash <PLUGIN_ROOT>/scripts/docs.sh external status [root]   # one record per file: state, place, file, card
-bash <PLUGIN_ROOT>/scripts/docs.sh external check  [root]   # NO CARD / UNSTAMPED / CHANGED / ORPHAN CARD
+bash <PLUGIN_ROOT>/scripts/docs.sh external check  [root]   # NO CARD / UNSTAMPED / CHANGED / ORPHAN CARD / REMOTE INCOMPLETE / REMOTE GONE / LOCAL COPY …
 bash <PLUGIN_ROOT>/scripts/docs.sh external stamp <file>    # record the reviewed digest
 bash <PLUGIN_ROOT>/scripts/docs.sh external move <file> <dest-dir> [root]   # file + card together
 bash <PLUGIN_ROOT>/scripts/docs.sh external related <file> [root]  # docs that depend on the file
@@ -105,12 +105,16 @@ bash <PLUGIN_ROOT>/scripts/docs.sh external text <file>     # paragraphs / rows 
 bash <PLUGIN_ROOT>/scripts/docs.sh index --write [root]     # lists cards under "External documents"
 bash <PLUGIN_ROOT>/scripts/docs.sh external remote [root]   # every remote card, git-ignored ones too
 bash <PLUGIN_ROOT>/scripts/docs.sh external remote-stamp <card> <time>   # record the provider's modifiedTime
+bash <PLUGIN_ROOT>/scripts/docs.sh external remote-diff <dir> <listing.tsv>   # Drive folder listing vs its cards: new / changed / gone
+bash <PLUGIN_ROOT>/scripts/docs.sh external remote-gone <card>   # mark a card whose file left Drive (never deletes)
+bash <PLUGIN_ROOT>/scripts/docs.sh external copy-stamp <card> <time>   # record the Drive version a local copy was written from
 ```
 
 `status` emits `state<TAB>place<TAB>file<TAB>card`, with `-` for an empty field.
-`state` is `ok | new | unstamped | changed | orphan | remote | incomplete`; `place` is
-`filed | unfiled | outside`. The last two are remote cards (see *Remote documents* below), whose
-`file` is always `-`.
+`state` is `ok | new | unstamped | changed | orphan | remote | incomplete | gone | copy | copy-stale |
+copy-unstamped | copy-unasked | copy-orphan`; `place` is `filed | unfiled | outside`. `remote`,
+`incomplete` and `gone` are remote cards (see *Remote documents* below), whose `file` is always `-`;
+the `copy…` states are their local copies, whose `file` is the copy.
 `docs.sh check` runs `external check` with everything else; under each `CHANGED` file it prints a
 `REVIEW:` line per dependent doc.
 
@@ -291,15 +295,102 @@ reference material.
 5. **Index and verify.** `index --write` (a local-only folder is not indexed: that is the point), then
    `docs.sh check` must be clean.
 
+### Attaching a Drive folder
+
+When the user attaches a Drive **folder** rather than one file, the local folder mirrors it: one card
+per Drive file, and each Drive sub-folder becomes a sub-folder of the attachment, its name in kebab-case,
+so `index` and the topic layout work unchanged. Its `.source.md` also records the Drive folder and the scope:
+
+```markdown
+---
+provider: gdrive
+content: remote
+processed: none
+publish: commit
+remote-id: 1AbC…               # the Drive folder's id
+remote-url: https://drive.google.com/drive/folders/1AbC…
+recursive: true                # false: only the files directly in the folder
+include: [specs/*, *.pdf]      # optional; globs on the listing path, `*` also matches `/`
+exclude: [*draft*]             # optional; an exclude always wins
+---
+```
+
+Ask the publish question as in step 3 above, write `.source.md`, then run **Refreshing** below: on a
+new attachment every file is `new`.
+
+### Refreshing a Drive folder
+
+Run this when the user asks to refresh the Drive docs, or the first time in a session that an attached
+folder's material is used.
+
+1. **List the folder through the MCP** into a temp file outside the repo, never into it: every page of
+   results, and every sub-folder when `recursive` is not `false`. One row per Drive item, tab-separated:
+   `id<TAB>path<TAB>mimeType<TAB>modifiedTime`, where `path` is relative to the attached folder
+   (`specs/payments-spec.pdf`). Take `modifiedTime` as Drive reports it; never reformat it.
+2. **`external remote-diff <dir> <listing>`** compares it with the attachment's cards, matching by Drive
+   id, so a renamed or moved file is not gone + new. It skips folders and out-of-scope rows, and rejects
+   a malformed listing by line number. Nothing printed means in sync.
+3. **Act on each record:**
+   - `new<TAB>id<TAB>path<TAB>mime<TAB>time`: read the file, write its card at the mirrored path, then
+     `remote-stamp <card> <time>`. **More than 20 new files: ask first**, saying how many; above a few,
+     delegate the reading to sub-agents that return drafted cards.
+   - `changed<TAB>id<TAB>card<TAB>time`: re-read the file, update the card (rename or move it when the
+     Drive title or folder changed), then `remote-stamp <card> <time>` with **that** time. If the card has
+     a local copy, rewrite it too (*Keeping a local copy*) and `copy-stamp <card> <time>`.
+   - `gone<TAB>id<TAB>card`: the file was deleted, moved out of the folder or out of scope.
+     `external remote-gone <card>`, then ask the user whether to delete the card. Never delete it on
+     your own: `check` fails with `REMOTE GONE` until the user decides, and if the file comes back, it
+     shows up as `changed` and stamping it clears the mark.
+4. **Index and verify:** `index --write`, then `docs.sh check` must be clean, apart from `REMOTE GONE`
+   cards the user chose to keep for now.
+
+### Keeping a local copy
+
+A remote card is the default: the file stays on Drive. A **local copy** (`<name>.gdrive.local.md` beside
+the card) lets the user read the material offline, at their own risk: it can fall behind Drive, and a
+committed copy puts the file's content in the repo. It goes against the default, so **ask once per
+folder** before writing any, and record the answer in `.source.md`:
+
+```markdown
+processed: local         # local copies allowed in this folder (absent or `none`: no copies)
+copy-publish: local      # local: git-ignore the copies; commit: commit them with the cards
+```
+
+For `copy-publish: local`, add `<folder>/*.gdrive.local.md` to `.gitignore`, as for `publish: local`. With a
+public remote, say plainly that `commit` publishes the files' contents.
+
+Writing a copy:
+
+1. **Read the file's text rendering** through the MCP (the call that returns a file's content as text,
+   not the base64 download). Above about 200 KB of text, ask first.
+2. **Write it verbatim** to `<name>.gdrive.local.md`: never summarise, reorder or fix it; it is a copy,
+   and the card is where judgement goes. No frontmatter: the stamp lives in the card.
+3. **`external copy-stamp <card> <modifiedTime>`**, the same time the card was stamped with. It refuses
+   when `.source.md` does not say `processed: local`, or the copy is missing. With `copy-publish:
+   commit`, link the copy from the card body: `Local copy: [<name>.gdrive.local.md](<name>.gdrive.local.md)
+   (may be behind Drive).` With `local`, **do not link it**: the copy is git-ignored, so the link would
+   be broken in every other clone. `external remote` names it either way.
+
+`check` reports `LOCAL COPY STALE` when the card was restamped and the copy was not,
+`UNSTAMPED`, `NOT AGREED` for a copy in a folder that never allowed one (ask, or delete it), and
+`ORPHAN` for a copy without its card. A git-ignored copy is checked all the same.
+
+**Binary files are never copied through the MCP.** A Drive download arrives as base64 that would have
+to be retyped, with no checksum to catch a wrong byte (PLUG-114). If the user wants the original file,
+they download it into `docs/external/` themselves; it is then an ordinary external file with its own
+card and digest.
+
 ### Finding and reading remote material
 
 - **Run `external remote [root]`** when looking for reference material: it lists every remote card,
-  local-only ones included (`card<TAB>publish<TAB>remote-modified<TAB>description<TAB>read-when`), which
+  local-only ones included (`card<TAB>publish<TAB>remote-modified<TAB>description<TAB>read-when<TAB>local-copy`), which
   `_index.md` never shows for a git-ignored folder.
 - **Open Drive only when the card says the answer is there**, and only the part `## Where to look` names.
 - **Compare `modifiedTime`.** When you open the file and Drive's `modifiedTime` is newer than the card's
   `remote-modified`, tell the user the card is out of date and offer to refresh it (re-read, rewrite
   the card, `remote-stamp`), as for a `changed` local file.
+- **A local copy** (sixth field of `external remote`) can be read without Drive. When you answer from it,
+  say so and give its date: "from the local copy of 2026-11-11; Drive may be newer".
 - **Drive not reachable** (no MCP, signed out, no access): say so. Never answer from the card as if
   you had read the file; the card says where to look, not what is there now.
 

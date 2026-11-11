@@ -397,15 +397,17 @@ check "D2b check passes on a dot-named root"    "0" "$rc"
 
 echo "== remote cards (PLUG-112) =="
 
-# rcard <path> [description] [omit-field] — a remote card (Drive doc kept on Drive), no local file.
+# rcard <path> [description] [omit-field] [id] [modified] — a remote card (Drive doc kept on
+# Drive), no local file. omit-field drops remote-id or remote-modified; "-" omits nothing.
 rcard() {
+    local id="${4:-1AbC-dEf_9}" mod="${5:-2026-11-10T13:37:23.036Z}"
     mkdir -p "$(dirname "$1")"
     {
       printf -- '---\ntitle: t\ndescription: %s\nread-when: mapping vendor codes\n' "${2:-Remote spec}"
-      [ "${3:-}" = remote-id ]       || printf 'remote-id: 1AbC-dEf_9\n'
-      printf 'remote-url: https://docs.google.com/document/d/1AbC-dEf_9/edit\n'
+      [ "${3:-}" = remote-id ]       || printf 'remote-id: %s\n' "$id"
+      printf 'remote-url: https://docs.google.com/document/d/%s/edit\n' "$id"
       printf 'remote-type: application/pdf\n'
-      [ "${3:-}" = remote-modified ] || printf 'remote-modified: 2026-11-10T13:37:23.036Z\n'
+      [ "${3:-}" = remote-modified ] || printf 'remote-modified: %s\n' "$mod"
       printf -- '---\n\n# Spec\n'
     } > "$1"
 }
@@ -496,6 +498,189 @@ check "RC8a rc 0" "0" "$rc"
 check "RC8b record with publish" "yes" "$(has "$out" "$(printf '%s/external/vendor/spec.pdf.gdrive.md\tcommit\t2026-11-10T13:37:23.036Z\tVendor spec\tmapping vendor codes' "$R")")"
 check "RC8c no .source.md -> -" "yes" "$(has "$out" "$(printf '%s/external/loose/pricing.gdrive.md\t-\t' "$R")")"
 check "RC8d .source.md is not a doc" "no" "$(bash "$DOCS" index --write "$R" >/dev/null 2>&1; has "$(cat "$R/external/vendor/_index.md")" 'source')"
+
+echo "== remote folders (PLUG-113) =="
+
+T1=2026-11-10T13:37:23.036Z; T2=2026-11-11T09:00:00.000Z
+DOCMIME=application/vnd.google-apps.document; DIRMIME=application/vnd.google-apps.folder
+# attach <root> [extra .source.md lines] — the attached folder external/acme, three cards
+attach() {
+    local A="$1/external/acme"
+    mkdir -p "$A"
+    { printf -- '---\nprovider: gdrive\nremote-id: F0\nrecursive: true\n'; [ -n "${2:-}" ] && printf '%s\n' "$2"
+      printf -- 'publish: commit\n---\n'; } > "$A/.source.md"
+    rcard "$A/a.gdrive.md" "A" - 1a "$T1"
+    rcard "$A/sub/b.gdrive.md" "B" - 1b "$T1"
+    rcard "$A/old.gdrive.md" "Old" - 1z "$T1"
+    echo "$A"
+}
+# listing rows: id path mime modified (tab-separated), one argument per row
+listing() { local r; for r in "$@"; do printf '%s\n' "$r" | tr '|' '\t'; done; }
+diff_of() { bash "$DOCS" external remote-diff "$1" "$2" 2>/dev/null; }   # stdout only
+
+# --- RF1/RF2/RF3/RF4/RF5: in sync, new, changed (by id, not name), gone, folders skipped ---------
+R=$(fresh rf1); A=$(attach "$R")
+listing "1a|a|$DOCMIME|$T1" "S1|sub|$DIRMIME|$T1" "1b|sub/b|$DOCMIME|$T1" "1z|old|$DOCMIME|$T1" > "$R/l.tsv"
+out=$(bash "$DOCS" external remote-diff "$A" "$R/l.tsv" 2>&1); rc=$?
+check "RF1 in sync: nothing, rc 0" "0:" "$rc:$out"
+listing "1a|renamed-a|$DOCMIME|$T2" "S1|sub|$DIRMIME|$T1" "1b|sub/b|$DOCMIME|$T1" "1n|sub/new doc|$DOCMIME|$T1" > "$R/l.tsv"
+out=$(diff_of "$A" "$R/l.tsv")
+check "RF2 new row" "yes" "$(has "$out" "$(printf 'new\t1n\tsub/new doc\t%s\t%s' "$DOCMIME" "$T1")")"
+check "RF3a changed by id, Drive time given" "yes" "$(has "$out" "$(printf 'changed\t1a\t%s/a.gdrive.md\t%s' "$A" "$T2")")"
+check "RF3b renamed is not new" "no" "$(has "$out" 'renamed-a')"
+check "RF4 gone" "yes" "$(has "$out" "$(printf 'gone\t1z\t%s/old.gdrive.md' "$A")")"
+check "RF5 folder row never new" "no" "$(has "$out" "$(printf 'new\tS1')")"
+check "RF2b exactly three records" "3" "$(echo "$out" | grep -c .)"
+
+# --- RF6: scope — recursive: false, include, exclude ------------------------------------------
+R=$(fresh rf6a); A=$(attach "$R")
+awk '{ sub(/^recursive: true$/, "recursive: false"); print }' "$A/.source.md" > "$R/t" && mv "$R/t" "$A/.source.md"
+listing "1a|a|$DOCMIME|$T1" "1b|sub/b|$DOCMIME|$T1" "1z|old|$DOCMIME|$T1" "1n|sub/n|$DOCMIME|$T1" > "$R/l.tsv"
+out=$(diff_of "$A" "$R/l.tsv")
+check "RF6a not recursive: sub-folder row not new" "no" "$(has "$out" '1n')"
+check "RF6b not recursive: card of a sub-folder row is gone" "yes" "$(has "$out" "$(printf 'gone\t1b\t')")"
+R=$(fresh rf6b); A=$(attach "$R" "$(printf 'include: [sub/*, a]\nexclude: [*draft*]')")
+listing "1a|a|$DOCMIME|$T1" "1b|sub/b|$DOCMIME|$T1" "1z|old|$DOCMIME|$T1" \
+        "1d|sub/b draft|$DOCMIME|$T1" "1n|sub/n|$DOCMIME|$T1" > "$R/l.tsv"
+out=$(diff_of "$A" "$R/l.tsv")
+check "RF6c include admits sub/n" "yes" "$(has "$out" "$(printf 'new\t1n\t')")"
+check "RF6d exclude drops the draft" "no" "$(has "$out" '1d')"
+check "RF6e outside include: old is gone" "yes" "$(has "$out" "$(printf 'gone\t1z\t')")"
+check "RF6f included cards in sync" "nono" "$(has "$out" "$(printf '\t1a\t')")$(has "$out" "$(printf '\t1b\t')")"
+
+# --- RF7: ids are strings, never numbers --------------------------------------------------------
+R=$(fresh rf7); A="$R/external/num"; mkdir -p "$A"
+printf -- '---\nprovider: gdrive\nremote-id: F1\n---\n' > "$A/.source.md"
+rcard "$A/x.gdrive.md" "X" - 010 "$T1"; rcard "$A/y.gdrive.md" "Y" - 75e763 "$T1"
+listing "10|x|$DOCMIME|$T1" "7e1794|y|$DOCMIME|$T1" > "$R/l.tsv"
+out=$(diff_of "$A" "$R/l.tsv")
+check "RF7 numeric-looking ids stay distinct" "2:2" \
+  "$(echo "$out" | grep -c '^new'):$(echo "$out" | grep -c '^gone')"
+
+# --- RF8/RF11: bad input is an error, nothing on stdout ----------------------------------------
+R=$(fresh rf8); A=$(attach "$R")
+listing "1a|a|$DOCMIME|$T1" "1b|sub/b|$DOCMIME" > "$R/l.tsv"
+out=$(bash "$DOCS" external remote-diff "$A" "$R/l.tsv" 2>/dev/null); rc=$?
+err=$(bash "$DOCS" external remote-diff "$A" "$R/l.tsv" 2>&1 >/dev/null)
+check "RF8a short row: rc 1, stdout empty" "1:" "$rc:$out"
+check "RF8b error names line 2" "yes" "$(has "$err" 'line 2')"
+listing "|a|$DOCMIME|$T1" > "$R/l.tsv"
+bash "$DOCS" external remote-diff "$A" "$R/l.tsv" >/dev/null 2>&1; check "RF8c empty id rejected" "1" "$?"
+mkdir -p "$R/plain"; listing "1a|a|$DOCMIME|$T1" > "$R/l.tsv"
+bash "$DOCS" external remote-diff "$R/plain" "$R/l.tsv" >/dev/null 2>&1; check "RF11a no .source.md" "1" "$?"
+printf -- '---\nprovider: gdrive\n---\n' > "$R/plain/.source.md"
+err=$(bash "$DOCS" external remote-diff "$R/plain" "$R/l.tsv" 2>&1); rc=$?
+check "RF11b .source.md without remote-id" "1:yes" "$rc:$(has "$err" 'remote-id')"
+
+# --- RF9/RF10: remote-gone marks, check reports, remote-stamp clears --------------------------
+R=$(fresh rf9); A=$(attach "$R")
+out=$(bash "$DOCS" external remote-gone "$A/old.gdrive.md" 2>&1); rc=$?
+check "RF9a marked" "0:yes" "$rc:$(has "$out" "MARKED GONE: $A/old.gdrive.md")"
+check "RF9b field written" "yes" "$(has "$(cat "$A/old.gdrive.md")" 'remote-gone: yes')"
+before=$(cat "$A/old.gdrive.md")
+out=$(bash "$DOCS" external remote-gone "$A/old.gdrive.md" 2>&1)
+check "RF9c repeat UNCHANGED, bytes kept" "yes:same" \
+  "$(has "$out" UNCHANGED):$([ "$before" = "$(cat "$A/old.gdrive.md")" ] && echo same || echo changed)"
+doc "$R/plain.md" </dev/null
+bash "$DOCS" external remote-gone "$R/plain.md" >/dev/null 2>&1; rc=$?
+check "RF9d not a remote card rejected" "nz:no" "$([ "$rc" -ne 0 ] && echo nz || echo z):$(has "$(cat "$R/plain.md")" 'remote-gone')"
+rm -f "$R/plain.md"
+st=$(bash "$DOCS" external status "$R" 2>&1)
+check "RF10a status: gone row" "yes" "$(has "$st" "$(printf 'gone\tfiled\t-\t%s/old.gdrive.md' "$A")")"
+out=$(bash "$DOCS" external check "$R" 2>&1); rc=$?
+check "RF10b check fails on a gone card" "1:yes" "$rc:$(has "$out" "REMOTE GONE: $A/old.gdrive.md")"
+bash "$DOCS" external remote-stamp "$A/old.gdrive.md" "$T2" >/dev/null 2>&1
+check "RF10c remote-stamp clears the mark" "yes" "$(has "$(cat "$A/old.gdrive.md")" 'remote-gone: no')"
+bash "$DOCS" external check "$R" >/dev/null 2>&1; check "RF10d check clean again" "0" "$?"
+bash "$DOCS" external remote-stamp "$A/a.gdrive.md" "$T2" >/dev/null 2>&1
+check "RF10e a card never gone gets no remote-gone key" "no" "$(has "$(cat "$A/a.gdrive.md")" 'remote-gone')"
+
+# --- RF12: a card in a sub-folder of an attachment takes publish from the attachment's .source.md --
+# (found by the e2e run: `external remote` looked only beside the card, so sub/ cards read "-")
+R=$(fresh rf12); A=$(attach "$R")
+mkdir -p "$R/external/plain"; rcard "$R/external/plain/lone.gdrive.md" "Lone"
+out=$(bash "$DOCS" external remote "$R")
+check "RF12a sub-folder card: publish from the nearest .source.md above" "yes" \
+    "$(has "$out" "$(printf '%s/sub/b.gdrive.md\tcommit\t' "$A")")"
+check "RF12b no .source.md anywhere above: -" "yes" \
+    "$(has "$out" "$(printf '%s/external/plain/lone.gdrive.md\t-\t' "$R")")"
+printf -- '---\npublish: local\n---\n' > "$A/sub/.source.md"
+check "RF12c the nearest one wins" "yes" \
+    "$(has "$(bash "$DOCS" external remote "$R")" "$(printf '%s/sub/b.gdrive.md\tlocal\t' "$A")")"
+
+echo "== local copies (PLUG-115) =="
+
+# lattach <root> <processed> — an attachment with one remote card (modified T1) and, unless
+# processed is "-", a .source.md saying so. Prints the attachment dir.
+TC1=2026-11-11T17:27:11.986Z; TC2=2026-11-12T09:00:00Z
+lattach() {
+    local A="$1/external/acme"
+    mkdir -p "$A"
+    [ "$2" = - ] || printf -- '---\nprovider: gdrive\nprocessed: %s\ncopy-publish: commit\n---\n' "$2" > "$A/.source.md"
+    rcard "$A/spec.gdrive.md" "Spec" - 1s "$TC1"
+    echo "$A"
+}
+copy() { printf 'Spec\n\n1\\. Authentication\n' > "$1"; }   # copy <path> — a Drive text rendering
+
+# --- LC1: a copy is never a document in _index.md; its card is still ☁ ----------------------------
+R=$(fresh lc1); A=$(lattach "$R" local); copy "$A/spec.gdrive.local.md"
+bash "$DOCS" index --write "$R" >/dev/null 2>&1
+idx=$(cat "$A/_index.md")
+check "LC1a copy not indexed" "no" "$(has "$idx" 'spec.gdrive.local')"
+check "LC1b card still listed" "yes" "$(has "$idx" '☁')"
+
+# --- LC2/LC3: copy-stamp refuses an unagreed or missing copy ----------------------------------------
+R=$(fresh lc2); A=$(lattach "$R" none); copy "$A/spec.gdrive.local.md"
+before=$(cat "$A/spec.gdrive.md")
+err=$(bash "$DOCS" external copy-stamp "$A/spec.gdrive.md" "$TC1" 2>&1); rc=$?
+check "LC2a refused without processed: local" "1:yes" "$rc:$(has "$err" 'processed: local')"
+check "LC2b card untouched" "$before" "$(cat "$A/spec.gdrive.md")"
+R=$(fresh lc2b); A=$(lattach "$R" -); copy "$A/spec.gdrive.local.md"
+bash "$DOCS" external copy-stamp "$A/spec.gdrive.md" "$TC1" >/dev/null 2>&1; check "LC2c refused with no .source.md" "1" "$?"
+R=$(fresh lc3); A=$(lattach "$R" local)
+err=$(bash "$DOCS" external copy-stamp "$A/spec.gdrive.md" "$TC1" 2>&1); rc=$?
+check "LC3 refused with no copy" "1:yes" "$rc:$(has "$err" 'spec.gdrive.local.md')"
+
+# --- LC4: copy-stamp writes copy-modified, idempotent, checks the time shape ---------------------
+R=$(fresh lc4); A=$(lattach "$R" local); copy "$A/spec.gdrive.local.md"
+out=$(bash "$DOCS" external copy-stamp "$A/spec.gdrive.md" "$TC1" 2>&1); rc=$?
+check "LC4a stamped" "0:yes" "$rc:$(has "$out" "STAMPED: $A/spec.gdrive.md")"
+check "LC4b field" "yes" "$(has "$(cat "$A/spec.gdrive.md")" "copy-modified: $TC1")"
+out=$(bash "$DOCS" external copy-stamp "$A/spec.gdrive.md" "$TC1" 2>&1)
+check "LC4c unchanged on repeat" "yes" "$(has "$out" 'UNCHANGED')"
+bash "$DOCS" external copy-stamp "$A/spec.gdrive.md" "yesterday" >/dev/null 2>&1; check "LC4d bad time rejected" "1" "$?"
+bash "$DOCS" external copy-stamp "$A/spec.gdrive.local.md" "$TC1" >/dev/null 2>&1; check "LC4e not a card" "1" "$?"
+
+# --- LC5/LC6: in step, then stale after the card is refreshed, then clean again -----------------
+st=$(bash "$DOCS" external status "$R")
+check "LC5a status copy" "yes" "$(has "$st" "$(printf 'copy\tfiled\t%s/spec.gdrive.local.md\t%s/spec.gdrive.md' "$A" "$A")")"
+bash "$DOCS" external check "$R" >/dev/null 2>&1; check "LC5b check clean" "0" "$?"
+bash "$DOCS" external remote-stamp "$A/spec.gdrive.md" "$TC2" >/dev/null 2>&1
+out=$(bash "$DOCS" external check "$R" 2>&1); rc=$?
+check "LC6a stale after the card moved on" "1:yes" "$rc:$(has "$out" "LOCAL COPY STALE: $A/spec.gdrive.local.md")"
+check "LC6b status copy-stale" "yes" "$(has "$(bash "$DOCS" external status "$R")" "$(printf 'copy-stale\t')")"
+bash "$DOCS" external copy-stamp "$A/spec.gdrive.md" "$TC2" >/dev/null 2>&1
+bash "$DOCS" external check "$R" >/dev/null 2>&1; check "LC6c clean after copy-stamp" "0" "$?"
+
+# --- LC7/LC8/LC9: unstamped, unagreed, orphan ---------------------------------------------------
+R=$(fresh lc7); A=$(lattach "$R" local); copy "$A/spec.gdrive.local.md"
+out=$(bash "$DOCS" external check "$R" 2>&1); rc=$?
+check "LC7 unstamped" "1:yes" "$rc:$(has "$out" "LOCAL COPY UNSTAMPED: $A/spec.gdrive.local.md")"
+R=$(fresh lc8); A=$(lattach "$R" none); copy "$A/spec.gdrive.local.md"
+out=$(bash "$DOCS" external check "$R" 2>&1); rc=$?
+check "LC8 not agreed" "1:yes" "$rc:$(has "$out" "LOCAL COPY NOT AGREED: $A/spec.gdrive.local.md")"
+R=$(fresh lc9); A=$(lattach "$R" local); copy "$A/gone.gdrive.local.md"
+out=$(bash "$DOCS" external check "$R" 2>&1); rc=$?
+check "LC9 orphan copy" "1:yes" "$rc:$(has "$out" "LOCAL COPY ORPHAN: $A/gone.gdrive.local.md")"
+check "LC9b a copy is not a remote card" "no" "$(has "$out" "REMOTE INCOMPLETE: $A/gone.gdrive.local.md")"
+
+# --- LC11: external remote names the copy in a 6th field ----------------------------------------
+R=$(fresh lc11); A=$(lattach "$R" local); copy "$A/spec.gdrive.local.md"
+rcard "$A/other.gdrive.md" "Other"
+out=$(bash "$DOCS" external remote "$R")
+check "LC11a copy named" "$A/spec.gdrive.local.md" "$(echo "$out" | awk -F'\t' -v c="$A/spec.gdrive.md" '($1 "") == c { print $6 }')"
+check "LC11b no copy: -" "-" "$(echo "$out" | awk -F'\t' -v c="$A/other.gdrive.md" '($1 "") == c { print $6 }')"
+check "LC11c the copy is not listed as a card" "no" "$(has "$out" "$(printf '%s/spec.gdrive.local.md\t' "$A")")"
 
 echo
 echo "passed: $pass   failed: $fail"

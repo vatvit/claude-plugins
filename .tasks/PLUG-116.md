@@ -1,11 +1,12 @@
 ---
 title: "docs-manager — processed: remote for a Drive attachment: write the <doc>.md to Drive, asked once"
-status: proposed
+status: rejected
 type: feature
 priority: low
 epic: docs-gdrive
 deps: [PLUG-115]
 created: 2026-11-11 18:02
+tags: ["docs-manager-plugin"]
 ---
 
 ## Workflow
@@ -36,6 +37,13 @@ needs the content.
 - The card links the remote processed copy; refresh notices when the source is newer than the copy.
 - With no write access, Claude says so and falls back to `none`.
 
+## Decision (2026-11-11, the user)
+
+Rejected. The connector already returns any Drive file as text on demand (`read_file_content`), so a
+processed copy on Drive adds nothing for reading; and `update_file` cannot change content, so every
+refresh would create a new file and trash the old one in a possibly shared folder. Offline reading is
+PLUG-115's local copy.
+
 ## Current State
 
-Proposed. After PLUG-115.
+Rejected.
