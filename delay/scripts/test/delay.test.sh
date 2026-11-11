@@ -622,6 +622,28 @@ check "17b cancels our wake" "yes" "$(has "$TMP/pmset.log" "schedule cancel wake
 check "17c removes plist and scripts" "no" "$([ -f "$AP" ] || [ -d "$BIN" ] && echo yes || echo no)"
 check "17d keeps the registry" "yes" "$([ -f "$JF" ] && echo yes || echo no)"
 
+echo "== without HOME: a plain refusal, never shell noise (PLUG-120) =="
+# delay is host-bound by design (root CLAUDE.md, Without HOME): with no writable home for its
+# queue it refuses to queue and says why. "file" stands for a HOME nothing can be created under.
+: > "$TMP/home-is-a-file"
+nohome() { # nohome <unset|file> <delay.sh args...>
+    local m="$1"; shift
+    case "$m" in
+        unset) env -u HOME -u DELAY_HOME bash "$S/delay.sh" --project "$P" "$@" 2>&1 ;;
+        file)  env -u DELAY_HOME HOME="$TMP/home-is-a-file" bash "$S/delay.sh" --project "$P" "$@" 2>&1 ;;
+    esac
+}
+noise() { local w; for w in unbound mkdir "No such file" "Not a directory"; do [ "$(saysf "$1" "$w")" = yes ] && { echo yes; return; }; done; echo no; }
+for m in unset file; do
+    out="$(nohome "$m" add scripts/test-all.sh -- nohome)"; rc=$?
+    check "23a HOME $m: add refuses" "1" "$rc"
+    check "23b HOME $m: add says why" "yes" "$(saysf "$out" "delay runs only on the machine it is installed on")"
+    check "23c HOME $m: no shell noise" "no" "$(noise "$out")"
+done
+out="$(nohome unset list)"; rc=$?
+check "23d HOME unset: list still answers" "0" "$rc"
+check "23e HOME unset: list has no shell noise" "no" "$(noise "$out")"
+
 echo "== conventions =="
 scan() { grep -nE "$1" "$S"/*.sh 2>/dev/null | grep -v '/test/' || true; }
 check "14a no sed -i" "" "$(scan 'sed -i')"

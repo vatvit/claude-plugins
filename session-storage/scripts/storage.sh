@@ -10,7 +10,13 @@
 
 BASE_TMP="${CLAUDE_CODE_TMPDIR:-/tmp}"
 STORAGE_DIR="${BASE_TMP}/claude-session-storage"
-mkdir -p "$STORAGE_DIR"
+mkdir -p "$STORAGE_DIR" 2>/dev/null
+
+# A write that fails is reported as a failure, never as "Stored" (PLUG-122).
+cannot_write() {
+  echo "session-storage: cannot write ${STORAGE_DIR} — nothing was stored. Point CLAUDE_CODE_TMPDIR at a writable directory." >&2
+  exit 1
+}
 
 case "${1:-}" in
   set)
@@ -22,8 +28,8 @@ case "${1:-}" in
       echo "Usage: storage.sh set <session_id> <key> <value>" >&2
       exit 1
     fi
-    mkdir -p "${STORAGE_DIR}/${session_id}"
-    echo "$value" > "${STORAGE_DIR}/${session_id}/${key}"
+    { mkdir -p "${STORAGE_DIR}/${session_id}" && echo "$value" > "${STORAGE_DIR}/${session_id}/${key}"; } 2>/dev/null \
+      || cannot_write
     echo "Stored [${key}]: ${value}"
     ;;
 

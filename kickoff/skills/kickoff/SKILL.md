@@ -77,7 +77,12 @@ Any other argument: say which ones exist, and do nothing else.
    - **Compute the computed defaults** (`*italics*`) before offering them, so the user confirms a concrete value:
      A1 is the repo directory name, A4 comes from the git remote owner, A5 is `git remote get-url origin`,
      D3 and K2 are the language of this conversation, R8 is 3–5 capital letters from A1, and I6 is
-     `bash <PLUGIN_ROOT>/scripts/ports.sh next`. Once I6 is confirmed, reserve it with
+     `bash <PLUGIN_ROOT>/scripts/ports.sh next`. **Before the first port**, run `ports.sh scope`: on `ask` (HOME is
+     usable and nobody has chosen) ask the user whether to keep the port list in HOME, shared by every project on
+     the machine, or in this project's folder, and record the answer with `ports.sh scope home|project`. Never
+     write to HOME unasked. On `project-no-home` HOME is not usable: say once that the ports are kept in the
+     project folder and see only this project's own compose files, and do not ask. `home` and `project`
+     are settled already (an existing `~/.claude/kickoff/ports.json` counts as an earlier yes). Once I6 is confirmed, reserve it with
      `ports.sh allocate <A1>`. Use `<A1>/<service>` for each further port. Then record the port.
      F13 = Yes (the E2E viewer) takes two more: `ports.sh viewer <A1>` derives and registers them from the
      app's port; they go into the viewer's task if one is created (step 7).

@@ -161,6 +161,22 @@ the script. An absent key is normal. This shipped as a live bug in task-roadmap 
 any `.task-roadmap.json` missing *any* key aborted generation, and it went unnoticed
 because the one read that worked happened to sit inside an `&&` list where `set -e` is
 suppressed. Helpers whose empty result is normal must end in `|| true` or `return 0`.
+- **Per-project** state lives at `$(git rev-parse --git-common-dir)/<plugin>/`, or `<project>/.<plugin>/` outside
+  git. It stays inside the project folder, is never committed, and is shared by every worktree. crew's `.git/crew/` is this kind.
+
+**Without HOME: the project folder must be enough.** Every plugin except delay and session-storage, which are
+host-bound by design, must work when HOME is unset, missing, read-only or a sandbox's throwaway home (as in
+Claude Desktop's Cowork VM). Decided in epic PLUG-117; the reasoning is in PLUG-111.
+- **HOME is usable only if the plugin can write there.** Test it by creating the plugin's own dir and a temp file in it,
+  once per run, through one helper in the plugin's `lib.sh`. A set `$HOME` proves nothing.
+- **Reading:** a missing or unreadable per-account file means defaults.
+- **Writing machine-wide state when HOME is not usable:** fall back to the per-project location, say so once in the
+  output (e.g. `slots: project scope — HOME not writable`), and never fail. With HOME usable, today's behaviour stays the default.
+- **A scope the user chooses goes in the project's own config** (`.<plugin>.json`), never in HOME, so the choice
+  is still there when HOME is not.
+- **`${CLAUDE_PLUGIN_ROOT}` is fine to read** (shipped defaults); never write there.
+- **Test it:** an affected suite runs one case with `HOME` pointed at a missing dir and one with a read-only HOME, in the container.
+- Never detect Cowork or any other host by name. The rules above handle every such host without knowing which one it is.
 
 ## Changing an Existing Plugin
 

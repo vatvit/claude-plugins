@@ -2,7 +2,7 @@
 # crew time (PLUG-097): where each member's wall time went — Claude working, waiting for a tool, a process, the
 # slot queue, the shared tree, a peer's decision or work, the user, compaction. Reads each member's Claude Code
 # transcript, found by the session ids crew recorded for that name ($STATE/sids, written by whoami), and the
-# slot history ($CREW_HOME/slots.log) to split a `slot run` into queue and run. Prints categories and tool
+# slot history (slots.log beside the queue) to split a `slot run` into queue and run. Prints categories and tool
 # names only, never transcript text. The parsing and the arithmetic are time.awk's.
 #
 # Transcripts: <config dir>/projects/<project key>/<session id>.jsonl, looked up in $CLAUDE_CONFIG_DIR,
@@ -35,8 +35,8 @@ time_since() { # <spec> -> epoch
 time_dirs() { # the dirs that hold project dirs, one per line
     if [ -n "${CREW_TRANSCRIPTS:-}" ]; then printf '%s\n' "$CREW_TRANSCRIPTS" | tr ':' '\n'; return 0; fi
     local d
-    for d in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" "$HOME"/.claude "$HOME"/.claude*; do
-        [ -d "$d/projects" ] && printf '%s\n' "$d/projects"
+    for d in "$(crew_config_dir)" ${HOME:+"$HOME"/.claude "$HOME"/.claude*}; do   # no HOME, no transcripts: time reports what it has
+        [ -n "$d" ] && [ -d "$d/projects" ] && printf '%s\n' "$d/projects"
     done | awk '!seen[$0]++'
 }
 
@@ -72,9 +72,9 @@ time_review_due() {
     if [ "$h" -gt 0 ] && [ $((t - last)) -ge $((h * 3600)) ]; then
         echo "crew time not reviewed for $(( (t - last) / 3600 ))h"; return 0
     fi
-    [ "$q" -gt 0 ] && [ -s "$CREW_HOME/slots.log" ] || return 0
+    [ "$q" -gt 0 ] && [ -s "$(slots_dir)/slots.log" ] || return 0
     waited="$(awk -F'\t' -v c="$(crew_id)" -v since="$last" \
-        '$2 == "start" && ($12 "") == c && $1 > since { w += $1 - $8 } END { print int(w / 60) }' "$CREW_HOME/slots.log")"
+        '$2 == "start" && ($12 "") == c && $1 > since { w += $1 - $8 } END { print int(w / 60) }' "$(slots_dir)/slots.log")"
     [ "$waited" -lt "$q" ] || echo "this crew waited ${waited}m in the slot queue since the last review"
     return 0
 }
@@ -97,7 +97,7 @@ time_main() {
     echo "crew time since $(fmt_epoch "$since" '%Y-%m-%d %H:%M') (local), gaps over ${idle} min not counted"
     printf '%s\n' "$files" | awk -F'\t' -v stage=events -f "$TIME_AWK" \
         | sort -t "$(printf '\t')" -k1,1 -k2,2n \
-        | awk -F'\t' -v stage=report -v since="$since" -v idle="$((idle * 60))" -v slotlog="$CREW_HOME/slots.log" \
+        | awk -F'\t' -v stage=report -v since="$since" -v idle="$((idle * 60))" -v slotlog="$(slots_dir)/slots.log" \
               -v names="$names" -f "$TIME_AWK"
     printf '%s\n' "$files" | cut -f1 | sort | uniq -c | awk '$1 > 1 { n++ } END { if (n) print "(a member with several session ids is counted across all of them)" }'
     return 0

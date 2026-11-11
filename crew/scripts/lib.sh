@@ -10,13 +10,29 @@
 CREW_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 CREW_PLUGIN_DIR="$(dirname "$CREW_LIB_DIR")"
 CREW_BIN="$CREW_LIB_DIR/crew.sh"
+# HOME may be unset, missing or not writable (a sandbox, a container, Cowork): crew then runs from the
+# project folder alone (PLUG-119). So nothing below expands a bare $HOME, and what lives in HOME is
+# used only after crew_home_ok says it can be.
 # Per ACCOUNT: the user's preferences follow the Claude account (Claude Code sets CLAUDE_CONFIG_DIR
-# for a non-default one), so each account keeps its own crew.json.
-CREW_USER_CONFIG="${CREW_USER_CONFIG:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/crew.json}"
+# for a non-default one), so each account keeps its own crew.json. Empty when there is no such dir.
+crew_config_dir() { printf '%s' "${CLAUDE_CONFIG_DIR:-${HOME:+$HOME/.claude}}"; }
+CREW_USER_CONFIG="${CREW_USER_CONFIG:-$(d="$(crew_config_dir)"; printf '%s' "${d:+$d/crew.json}")}"
 # Per MACHINE: the session-name registry deliberately ignores CLAUDE_CONFIG_DIR — SendMessage
 # addresses sessions of every account on this machine, so all accounts must see one registry.
-CREW_HOME="${CREW_HOME:-$HOME/.claude/crew}"
-CREW_KEYS="crewId sharedBranch committer push tree treeSync taskPush treeLink treeSetup crewRules hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin slotMemGB slotStuckMin slotWaitMin slotIgnoreCrews silenceMin lockWaitSec timeReviewHours timeReviewQueueMin"
+CREW_HOME="${CREW_HOME:-${HOME:+$HOME/.claude/crew}}"
+# crew_home_ok — can crew keep machine-wide state in CREW_HOME? True only when it can make the dir and a
+# file in it: a set $HOME proves nothing. The one such test; the answer is kept for the process.
+crew_home_ok() {
+    local t
+    if [ -z "${CREW_HOME_OK:-}" ]; then
+        CREW_HOME_OK=no
+        if [ -n "$CREW_HOME" ] && mkdir -p "$CREW_HOME" 2>/dev/null && t="$(mktemp "$CREW_HOME/.probe.XXXXXX" 2>/dev/null)"; then
+            rm -f "$t"; CREW_HOME_OK=yes
+        fi
+    fi
+    [ "$CREW_HOME_OK" = yes ]
+}
+CREW_KEYS="crewId sharedBranch committer push tree treeSync taskPush treeLink treeSetup crewRules hookMode hotSpots landCheck snapshotKeep snapshotMaxKB slotGraceMin slotMemGB slotStuckMin slotWaitMin slotIgnoreCrews slotScope namePrefix silenceMin lockWaitSec timeReviewHours timeReviewQueueMin"
 
 die()  { echo "crew: $*" >&2; exit 1; }
 note() { echo "crew: $*" >&2; }
@@ -50,6 +66,9 @@ crew_try_init() { # same, but returns 1 instead of dying — for hooks, which mu
     # not switch crew on for the repo (crew_active is "crew/ exists")
     CREW_PENDING="$common/crew-pending"
     cfg_load
+    # the slot area may have been sourced before there was a STATE to place its queue in
+    if declare -F slot_paths >/dev/null; then slot_paths; fi
+    return 0
 }
 # crew's own worktrees live in ONE folder of the main tree, named <repo>-<name> (PLUG-062). The
 # folder name is also the Docker Compose project name a copy gets by default.
@@ -194,12 +213,13 @@ cfg_load() { CREW_CFG="$(cfg_parse project "$ROOT/.crew.json"; cfg_parse user "$
 cfg_default() {
     case "$1" in
         committer) echo human-approved ;; push) echo human ;; hookMode) echo deny ;;
+        slotScope) echo machine ;; namePrefix) echo auto ;;
         tree) echo shared ;; treeSync) echo merge ;;
         snapshotKeep) echo 20 ;; snapshotMaxKB) echo 1024 ;; slotGraceMin) echo 10 ;; slotMemGB) echo 0 ;; slotStuckMin) echo 10 ;; slotWaitMin) echo 20 ;; silenceMin) echo 15 ;; lockWaitSec) echo 60 ;; timeReviewHours) echo 24 ;; timeReviewQueueMin) echo 60 ;;
     esac
     return 0
 }
-cfg_project_only() { case "$1" in crewId|sharedBranch|hotSpots|slotIgnoreCrews|landCheck|tree|treeSync|taskPush|treeLink|treeSetup|crewRules) return 0 ;; esac; return 1; }
+cfg_project_only() { case "$1" in slotScope|namePrefix|crewId|sharedBranch|hotSpots|slotIgnoreCrews|landCheck|tree|treeSync|taskPush|treeLink|treeSetup|crewRules) return 0 ;; esac; return 1; }
 # crew_rules_print — the project's crew-only rules (crewRules: a file in the tree), for a member
 # only: printed on join and by SessionStart, so a solo session or a non-member never pays for them
 crew_rules_print() {
@@ -260,14 +280,18 @@ crew_id() {
     printf '%s\n' "$i" | tr -c 'A-Za-z0-9_.\n-' '-'
 }
 
-# --- machine-wide name registry: $CREW_HOME/names/<name> holds state= crew= sid= ----------------
+# --- name registry: $CREW_HOME/names/<name> holds state= crew= sid= -----------------------------
 # SendMessage addresses sessions across the whole machine, so a crew name must be unique there too.
-reg_set() { mkdir -p "$CREW_HOME/names" && printf 'state=%s\ncrew=%s\nsid=%s\n' "$STATE" "$(crew_id)" "$2" | replace_file "$CREW_HOME/names/$1"; }
-reg_get() { [ -f "$CREW_HOME/names/$1" ] && sed -n "s/^$2=//p" "$CREW_HOME/names/$1" | head -1; return 0; }
+# Without a usable HOME there is no machine registry (PLUG-119): names are made unique by a project
+# prefix instead (name_prefix), a name is owned by the one crew in this repo, and a name is live while
+# its session file is in $STATE/sessions — the registry's sid check adds nothing inside one crew.
+reg_set() { crew_home_ok || return 0; mkdir -p "$CREW_HOME/names" && printf 'state=%s\ncrew=%s\nsid=%s\n' "$STATE" "$(crew_id)" "$2" | replace_file "$CREW_HOME/names/$1"; }
+reg_get() { crew_home_ok || return 0; [ -f "$CREW_HOME/names/$1" ] && sed -n "s/^$2=//p" "$CREW_HOME/names/$1" | head -1; return 0; }
 # reg_live <name> — true while the registry entry's crew still has that session with the same sid
 # (a crew ended, a session left or rebound: stale). The one liveness rule for names and slots.
 reg_live() {
     local st sid
+    crew_home_ok || { [ -f "$STATE/sessions/$1" ]; return; }
     st="$(reg_get "$1" state)"; sid="$(reg_get "$1" sid)"
     [ -n "$st" ] && [ -f "$st/sessions/$1" ] && grep -q -x "sid=$sid" "$st/sessions/$1"
 }
@@ -277,7 +301,23 @@ reg_other() {
     [ -n "$st" ] && [ "$st" != "$STATE" ] && reg_live "$1" || return 0
     printf '%s (%s)\n' "$(reg_get "$1" crew)" "$(dirname "$(dirname "$st")")"
 }
-reg_drop() { [ "$(reg_get "$1" state)" = "$STATE" ] && rm -f "$CREW_HOME/names/$1"; return 0; }
+reg_drop() { crew_home_ok || return 0; [ "$(reg_get "$1" state)" = "$STATE" ] && rm -f "$CREW_HOME/names/$1"; return 0; }
+# name_prefix — "<crewId>-" when joins get the project prefix, else nothing. namePrefix: auto (default:
+# only when there is no machine registry to keep names unique), always, never. A prefix, not a hash: peers
+# type these names in SendMessage, and "myproj-ann" says whose it is.
+name_prefix() {
+    case "$(cfg namePrefix)" in never) return 0 ;; always) ;; *) ! crew_home_ok || return 0 ;; esac
+    printf '%s-\n' "$(crew_id)"
+}
+# slot_scope — where the slot queue lives: machine (CREW_HOME, every crew and account share it) or
+# project ($STATE). slotScope in .crew.json chooses; the default is machine, and a machine scope without a
+# usable HOME falls back to project (slot_scope_fallback says so).
+slot_scope() {
+    [ "$(cfg slotScope)" = project ] && { echo project; return 0; }
+    if crew_home_ok; then echo machine; else echo project; fi
+}
+slot_scope_fallback() { [ "$(cfg slotScope)" != project ] && ! crew_home_ok; }
+slots_dir() { if [ "$(slot_scope)" = machine ]; then echo "$CREW_HOME"; else echo "$STATE"; fi; }
 # shared_branch: configured, else the branch checked out now
 shared_branch() {
     local b; b="$(cfg sharedBranch)"
@@ -293,7 +333,7 @@ crew_on_exit() { [ -n "$CREW_HELD_LOCK" ] && rm -rf "$CREW_HELD_LOCK"; CREW_HELD
 trap crew_on_exit EXIT
 
 # with_lock <name> <cmd...> — mkdir mutex in the crew's state; a lock older than 30 s is a crashed
-# holder's. with_lock_at <dir> <name> <cmd...> — the same in another dir (the machine's slots: CREW_HOME).
+# holder's. with_lock_at <dir> <name> <cmd...> — the same in another dir (the slot queue: slots_dir).
 with_lock() { with_lock_at "$STATE" "$@"; }
 with_lock_at() {
     local l="$1/.lock-$2" i=0 age rc; mkdir -p "$1"; shift 2

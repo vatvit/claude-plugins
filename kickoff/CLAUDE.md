@@ -25,7 +25,7 @@ kickoff/
 │   ├── computed.awk              ← answer.sh: is this value a computed default (*italics*)?
 │   ├── defaults.sh               ← the user layer: per-account defaults (kickoff.json)
 │   ├── json.awk                  ← json_q(), the one JSON string writer (defaults-write.awk, registry-insert.awk)
-│   ├── ports.sh                  ← the machine-wide dev-port registry (~/.claude/kickoff/ports.json)
+│   ├── ports.sh                  ← the dev-port registry: ~/.claude/kickoff/ports.json if the user chose it, else the project folder
 │   └── test/                     ← all.sh runs every *.test.sh; helpers.sh is shared by them
 ├── templates/                     ← the task workflows scaffold.sh seeds (profiles, minimal)
 └── README.md
@@ -97,7 +97,15 @@ real file, so a broken edit fails them.
   project (4p–4s). Tests pin `KICKOFF_PLUGINS` in helpers.sh, so the machine running them never decides.
 - **A practice is one sentence.** In the workflow templates each R10 practice is `<Tag>: ….` ending in a
   full stop, so workflow.awk removes a dropped one and the step still reads (scaffold 6a–6d).
-- **The port registry is machine-wide** and must never follow `CLAUDE_CONFIG_DIR`; test 3a/3b pins
+- **HOME is optional** (PLUG-121). `kickoff_home_usable` (lib.sh) probes with a temp file in `~/.claude/kickoff`, or
+  with a temp dir of its own in the nearest existing ancestor; it never creates or removes the shared dir, which
+  raced concurrent probes (home 8a/8b). A set `$HOME` proves nothing. `ports.sh` writes HOME only when the project's `.kickoff.json` says `"ports": "home"` or the
+  machine-wide file already exists (an earlier yes); otherwise and when HOME is not usable it uses `.git/kickoff/` or
+  `.kickoff/` and scans compose files under the project only. Per-account files (kickoff.json, installed_plugins.json)
+  missing or unreadable mean defaults; R7 "Outside the repo" and `defaults.sh set` say "needs HOME" and exit 1. The
+  task registry path is `task_registry_roots` in lib.sh, the one place (it was three that disagreed). Tests: home.test.sh
+  (HOME unset, a regular file, a path below one: chmod does not stop root). Do not detect Cowork by name.
+- **The machine-wide port registry** must never follow `CLAUDE_CONFIG_DIR`; test 3a/3b pins
   it. The compose scan runs on *every* allocation, not only for a new registry, so a port a project
   took without kickoff is never handed out (2a). Writes happen under a `mkdir` lock whose pid file
   lets a dead holder's lock be broken (4d).

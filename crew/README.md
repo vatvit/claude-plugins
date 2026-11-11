@@ -74,6 +74,13 @@ Optional. Each key is resolved separately: the project's `.crew.json`, then your
   heavy run in one repo makes runs in another repo wait.
 - Crew state (holds, snapshots, mail) lives in the repo's `.git/crew/`.
 
+**No usable HOME (a sandbox, Cowork, a container):** crew works from the project folder alone, with no
+setup. Joins get a project prefix (`whoami ann` becomes `<repo>-ann`) so names stay unique without the
+machine registry, the slot queue moves into the repo's `.git/crew/` (the crew says so once; it is then
+not shared with other repos' crews), and the user config layer is unavailable. In `.crew.json`,
+`slotScope` (`machine`, the default, or `project`) chooses where the queue lives, and `namePrefix`
+(`auto`, `always`, `never`) whether joins get the prefix. Nothing changes for a crew that has a HOME.
+
 **Crew-only project rules** (`crewRules`): a file in the repo with the rules that apply only while
 a crew runs, shown to members only. See [solo.md](skills/crew/references/solo.md).
 

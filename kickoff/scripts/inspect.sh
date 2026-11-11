@@ -26,7 +26,7 @@ mentions() { local f="$1" w out=""; shift; for w in "$@"; do grep -qF "\"$w" "$f
 # --- what is there at all (A0, A1) ------------------------------------------------------------
 setup=""
 for f in CLAUDE.md docs .task-config.json .kickoff-answers; do [ -e "$root/$f" ] && setup="$setup $f"; done
-content="$(ls -A "$root" 2>/dev/null | grep -v -e '^\.git$' -e '^\.kickoff-answers$' | head -1 || true)"
+content="$(ls -A "$root" 2>/dev/null | grep -v -e '^\.git$' -e '^\.kickoff-answers$' -e '^\.kickoff\.json$' -e '^\.kickoff$' | head -1 || true)"
 if [ -n "$setup" ]; then hint A0 "Existing, partly set up" "found:$setup"
 elif [ -n "$content" ]; then hint A0 "Existing code, no setup" "the directory has files but no CLAUDE.md, docs/ or task config"
 else hint A0 "New, empty repo" "the directory is empty"; fi
@@ -50,14 +50,13 @@ if [ -f "$root/.task-config.json" ]; then
     case "$td" in /*|~*) hint R7 "Outside the repo" ".task-config.json: tasksDir $td" ;; ?*) hint R7 "In the repo" ".task-config.json: tasksDir $td" ;; esac
     [ -z "$px" ] || hint R8 "$px" ".task-config.json: prefix"
 else
-    for reg in "${CLAUDE_CONFIG_DIR:-}/project-tasks/config.json" "$HOME/.claude/project-tasks/config.json"; do
-        [ -f "$reg" ] && grep -qF "\"$root\":" "$reg" || continue
+    reg="$(task_registry_entry_file "$root")"
+    if [ -n "$reg" ]; then
         px="$(awk -v r="\"$root\":" 'index($0, r) { o = 1 } o && /"prefix"/ { sub(/.*"prefix"[ \t]*:[ \t]*"/, ""); sub(/".*/, ""); print; exit }' "$reg")"
         hint R6 "Markdown task files" "the task registry lists this project"
         hint R7 "Outside the repo" "the task registry lists this project"
         [ -z "$px" ] || hint R8 "$px" "the task registry: prefix"
-        break
-    done
+    fi
 fi
 [ -f "$root/.task-roadmap.json" ] || [ -f "$root/tasks/roadmap.html" ] && hint R11 "Yes" "a task roadmap exists"
 [ -f "$root/.crew.json" ] && hint R5 "Yes" ".crew.json exists"

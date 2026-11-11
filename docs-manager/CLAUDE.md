@@ -351,7 +351,11 @@ docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/onboard.test.sh   # 
 bash scripts/test/docs.test.sh                                                # host (git-ignore + #anchor checks)
 docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/docs.test.sh      # container
 docker run --rm -v "$PWD":/w -w /w bash:5 sh -c 'apk add -q git && git config --global --add safe.directory "*" && bash scripts/test/docs.test.sh'   # container, git cases included
+docker run --rm -v "$PWD":/w -w /w bash:5 sh -c 'for t in scripts/test/*.test.sh; do env -u HOME bash "$t" | tail -1; done'   # container, no HOME
 ```
+
+**No HOME.** The plugin reads nothing from HOME; the project folder is enough (root `CLAUDE.md`, *Without HOME*;
+PLUG-123). The last line above keeps that true. Run it after any change that touches paths.
 
 `bash:5` has no git, so `docs.test.sh` and `onboard.test.sh` report its git cases (history kept, `.gitignore`
 respected) as **skipped** there; the host run covers them.

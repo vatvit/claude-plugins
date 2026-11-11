@@ -20,7 +20,7 @@ if [ "$1" = --leave ]; then
     reg_drop "$n"; rm -f "$STATE/sessions/$n"; echo "crew: $n left"; exit 0
 fi
 
-display="$1"; name="$(name_for "$1")"; shift; role=worker; take=0; sid=""
+display="$1"; name="$(name_for "$1")"; pending="$name"; shift; role=worker; take=0; sid=""
 while [ $# -gt 0 ]; do
     case "$1" in
         worker|coordinator) role="$1" ;;
@@ -31,9 +31,18 @@ while [ $# -gt 0 ]; do
     shift
 done
 valid_name "$name" || die "a crew name needs letters or digits: '$display'"
-if [ -z "$sid" ] && [ -f "$CREW_PENDING/$name" ]; then sid="$(cat "$CREW_PENDING/$name")"; fi
-rm -f "$CREW_PENDING/$name"
+if [ -z "$sid" ] && [ -f "$CREW_PENDING/$pending" ]; then sid="$(cat "$CREW_PENDING/$pending")"; fi
+rm -f "$CREW_PENDING/$pending"        # the hook parked the id under the name as typed, before any prefix
 [ -n "$sid" ] || die "cannot see this session's id — run whoami through the Bash tool with the crew plugin enabled (hooks load at session start: a session already running when crew was installed must be restarted), or pass --sid <session id>"
+# the project prefix (name_prefix) makes names unique without a machine registry; a member that is
+# already in keeps its name, so a crew running across an upgrade or a HOME that went away is not renamed
+pre="$(name_prefix)"
+if [ -n "$pre" ] && [ ! -f "$STATE/sessions/$name" ]; then
+    case "$display" in "$pre"*) ;; *)
+        display="$pre$display"; name="$(name_for "$display")"
+        note "name prefixed with the project: $name (names must be unique without the machine registry; namePrefix in .crew.json)" ;;
+    esac
+fi
 mkdir -p "$STATE/sessions"          # only now: a failed join must not switch crew on for the repo
 
 bind() {

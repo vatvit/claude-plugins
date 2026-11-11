@@ -21,7 +21,8 @@ else
     DELAY_INSTALLED=0
 fi
 DELAY_PREFIX="${DELAY_INSTALL_PREFIX:-}"
-DELAY_HOME="${DELAY_HOME:-$HOME/.claude/delay}"
+# Empty when HOME is unset (a sandbox, a bare container): reads find nothing, writes refuse (need_home).
+DELAY_HOME="${DELAY_HOME:-${HOME:+$HOME/.claude/delay}}"
 DELAY_SYSTEM="${DELAY_SYSTEM:-$DELAY_PREFIX/Library/Application Support/claude-delay}"
 DELAY_REGISTRY="${DELAY_REGISTRY:-$DELAY_SYSTEM/registry}"
 DELAY_STATE="${DELAY_STATE:-$DELAY_SYSTEM/state}"
@@ -199,9 +200,21 @@ EOF
     return $bad
 }
 
+# need_home -> returns when the queue's home can be written; otherwise dies with a plain reason.
+# delay is host-bound by design (root CLAUDE.md, Without HOME; PLUG-120): the runner, the wake and
+# the approved registry live on the machine it is installed on, so there is nothing to fall back to.
+need_home() {
+    local probe="$DELAY_HOME/.write-probe.$$"
+    if [ -n "$DELAY_HOME" ] && mkdir -p "$DELAY_HOME" 2>/dev/null && : 2>/dev/null > "$probe"; then
+        rm -f "$probe"; return 0
+    fi
+    die "nothing queued: no writable home for the queue (${DELAY_HOME:-HOME is not set}). delay runs only on the machine it is installed on, which keeps jobs in ~/.claude/delay; it cannot queue from a sandbox or a container."
+}
+
 # project_store <project_root> -> ~/.claude/delay/<enc>, created; dies on encoding collision
 project_store() {
     local d existing
+    need_home
     d="$DELAY_HOME/$(encode_path "$1")"
     mkdir -p "$d/queue" "$d/results" || return 1
     existing="$(cat "$d/project.path" 2>/dev/null)"

@@ -14,8 +14,11 @@ cmd="${1:-}"; [ $# -gt 0 ] && shift
 write_tsv() {
     local t; t="$(mktemp)"
     sort "$1" | awk -f "$KICKOFF_SCRIPTS/json.awk" -f "$KICKOFF_SCRIPTS/defaults-write.awk" > "$t"
-    mkdir -p "$(dirname "$f")"; write_if_changed "$f" "$t" 1 >/dev/null
+    mkdir -p "$(dirname "$f")" 2>/dev/null || needs_home
+    write_if_changed "$f" "$t" 1 >/dev/null
 }
+needs_home() { echo "defaults.sh: your own defaults live in the account dir (~/.claude, or CLAUDE_CONFIG_DIR) and that needs HOME, which is not usable here" >&2; exit 1; }
+[ -n "$f" ] || [ "$cmd" = list ] || needs_home
 known() { grep -q "^| $1 |" "$KICKOFF_QUESTIONNAIRE" || { echo "defaults.sh: no question $1 in the questionnaire" >&2; exit 2; }; }
 
 case "$cmd" in

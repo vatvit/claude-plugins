@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The slot queue: one queue for machine time, enforced by a script instead of by people remembering
 # to check. The machine is shared by every crew on it, so the queue is too (PLUG-074): $CREW_HOME/slots
-# (per machine, like the name registry) is TSV, one slot per line:
+# (per machine) is TSV, one slot per line:
 #   id  name  class  minutes  prio  requested  state  started  why  crew  mem  group  budget
 # class: cpu (may overlap other cpu) | exclusive (nothing else runs) | quiet (nothing else runs, and
 # this crew's pushes and background jobs wait too). prio: 0 failing on the shared branch, 1 the user's
@@ -21,6 +21,9 @@
 # under the same lock, so `crew time` can split a `slot run` into queue and run. Trimmed to the newest
 # SLOT_LOG_KEEP lines when it grows past twice that.
 #
+# Scope (PLUG-119): slotScope machine (default) keeps the queue in $CREW_HOME; project keeps it in $STATE, which
+# needs no HOME, and is also where a machine scope falls back when HOME is not writable (slot_scope).
+#
 # Sourced: slots_sorted, slot_quiet_holder (the git guard uses it to hold pushes during a quiet slot).
 # Executed: the CLI below.
 # help: slot request <cpu|exclusive|quiet> <min> [--mem GB] [--group NAME] [--prio failing|critical] [--why TEXT] — join the queue
@@ -33,10 +36,18 @@
 [ -n "${CREW_LIB_DIR:-}" ] || . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
 
 SLOT_POLL="${CREW_SLOT_POLL:-5}"
-SLOTS="$CREW_HOME/slots"
 SLOT_LOG_KEEP="${CREW_SLOT_LOG_KEEP:-10000}"
-SLOT_WAIT="$SLOTS.wait"
-slot_lock() { with_lock_at "$CREW_HOME" slots "$@"; }
+# slot_paths — where the queue is; needs STATE: set now when it is known, else by crew_try_init (lib.sh) once it is
+slot_paths() { SLOTS="$(slots_dir)/slots"; SLOT_WAIT="$SLOTS.wait"; }
+[ -z "${STATE:-}" ] || slot_paths
+slot_lock() { with_lock_at "$(dirname "$SLOTS")" slots "$@"; }
+# slot_scope_note — once per crew, when the queue is in the project only because HOME is not usable
+slot_scope_note() {
+    slot_scope_fallback || return 0
+    [ ! -e "$STATE/slot-scope-said" ] || return 0
+    : > "$STATE/slot-scope-said"
+    note "slots: project scope — HOME not writable, so this crew's queue is not shared with other crews (slotScope in .crew.json)"
+}
 slot_ours() { [ -f "$STATE/sessions/$1" ]; }               # <name> — a member of this crew
 ours_list() { sess_names | paste -sd' ' -; }               # this crew's names, for slots_plan
 
@@ -301,7 +312,7 @@ after_move() { # what the coordinator should tell the queue now
 
 slot_main() {
     local sub="${1:-list}" me cls min prio=2 why="" mem=0 group="" id rc timer; [ $# -gt 0 ] && shift
-    crew_init; need_active
+    crew_init; need_active; slot_scope_note
     case "$sub" in
         list) slots_list "${CREW_AS:-}"; return 0 ;;
         clear)

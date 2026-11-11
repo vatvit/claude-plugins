@@ -378,10 +378,13 @@ Never in a CLAUDE.md — that file holds instructions and stays small.
 
 | What | Scope | Path |
 |------|-------|------|
-| **Port registry** — every project's dev ports | machine-wide: all accounts on the machine share its ports | `~/.claude/kickoff/ports.json` — deliberately ignores `CLAUDE_CONFIG_DIR` |
+| **Port registry** — every project's dev ports | machine-wide when the user chose HOME (or it already exists): all accounts on the machine share its ports | `~/.claude/kickoff/ports.json` — deliberately ignores `CLAUDE_CONFIG_DIR` |
+| **Port registry, project scope** — this project's dev ports | per project; used when HOME is not usable or the user chose it | `.git/kickoff/ports.json`, or `.kickoff/ports.json` outside git |
+| **Project choices** — today: where the ports are kept | per project | `.kickoff.json` at the project root, `{"ports": "home" \| "project"}` |
 | **The user's defaults** — overrides of the ★ answers above | per account | `${CLAUDE_CONFIG_DIR:-~/.claude}/kickoff.json` |
 
-Both files are optional; without them the ★ defaults apply. A port is free only when neither the
+Every file is optional, and none is needed when HOME is unusable (unset, missing, not writable): kickoff then works
+from the project folder alone. Only tasks kept outside the repo (R7) and the user's own defaults need HOME, and say so. Without them the ★ defaults apply. A port is free only when neither the
 registry nor any compose file under the projects directory (`KICKOFF_PROJECTS_DIR`) publishes it.
 A port used outside compose is recorded once with `scripts/ports.sh set <name> <port>`.
 

@@ -107,7 +107,19 @@ crew/
     holds the name registry (SendMessage spans accounts), the slot queue (PLUG-074: CPU and Docker
     are the machine's, so every crew on it queues together) and the `ended` log.
   - `core.test.sh` asserts both; `crosscrew.test.sh` the shared queue.
-- **Slots are machine-wide, decisions stay per crew.** One file, `$CREW_HOME/slots`, under its own
+- **The project folder must be enough (PLUG-119).** Nothing expands a bare `$HOME` (`set -u` aborts on it),
+  and `CREW_HOME`'s content is used only after `crew_home_ok` (the one test: the dir and a temp file in it
+  can be made; a set `$HOME` proves nothing). Without it: the name registry is dropped (`reg_set/get/drop`
+  are no-ops, `reg_live` is "the session file is in `$STATE/sessions`"), joins get a project prefix
+  (`name_prefix`: `<crewId>-`, applied to the typed display so peers addressing the display get it too;
+  a member already in keeps its name, which is the upgrade rule), the queue moves to `$STATE`
+  (`slot_scope`, `slots_dir`, said once per crew in `$STATE/slot-scope-said`), `ended` is not written and
+  `config set --user` says it needs a usable HOME. Prefix over hash because peers type these names.
+  Project keys `slotScope` (`machine` default | `project`) and `namePrefix` (`auto` | `always` | `never`).
+  `slot.sh` locates its files with `slot_paths`, called when sourced with a STATE or by `crew_try_init`.
+  `home.test.sh` runs HOME unset / under a plain file / uncreatable, and new code on old-format state.
+- **Slots are machine-wide by default, decisions stay per crew.** One file, `$CREW_HOME/slots` (`$STATE/slots`
+  with `slotScope: project` or no usable HOME), under its own
   lock; the row carries the owner's crew id for display. `slots_plan` adds `ours` (field 15), the one
   place that says whether a slot is this crew's: `release`, `slot clear` / the push hold and `watch`
   act only on this crew's. A slot whose owner is no longer `reg_live` is reaped under the lock by the

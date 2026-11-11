@@ -6,8 +6,13 @@
 set -uo pipefail
 . "$(dirname "$0")/helpers.sh"
 
-# Every case gets its own HOME, so the real ~/.claude is never touched.
-setup() { H=$(fresh "$1"); mkdir -p "$H/projects"; export HOME="$H" KICKOFF_PROJECTS_DIR="$H/projects"; unset KICKOFF_PORTS_FILE CLAUDE_CONFIG_DIR; }
+# Every case gets its own HOME, so the real ~/.claude is never touched. These cases are about the
+# machine-wide registry, so each project has chosen to keep its ports in HOME (the cases without HOME are home.test.sh).
+setup() {
+    H=$(fresh "$1"); mkdir -p "$H/projects" "$H/proj"
+    export HOME="$H" KICKOFF_PROJECTS_DIR="$H/projects" CLAUDE_PROJECT_DIR="$H/proj"; unset KICKOFF_PORTS_FILE CLAUDE_CONFIG_DIR
+    bash "$S/ports.sh" scope home
+}
 ports() { bash "$S/ports.sh" "$@"; }
 REG() { echo "$HOME/.claude/kickoff/ports.json"; }
 

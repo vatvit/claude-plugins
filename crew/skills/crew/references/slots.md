@@ -10,6 +10,10 @@ failure from load.
 | `exclusive` | nothing | a browser/e2e run, anything load-sensitive |
 | `quiet` | nothing, and pushes and background jobs wait | timing measurements |
 
+**Scope.** The queue is shared by the machine by default. `config set slotScope project` keeps it in the
+repo instead (only this repo's crew queues together); that is also where it goes, with one notice per
+crew, when HOME is not writable (a sandbox, Cowork), which needs no setup.
+
 **One queue for the machine.** CPU, memory and Docker belong to the Mac, not to a repo, so every
 crew on it shares the queue (`~/.claude/crew/slots`). An `exclusive` run in one repo makes a run in
 another repo wait. `slot list` and `status` show every slot, another crew's tagged `[crew]`. Each crew

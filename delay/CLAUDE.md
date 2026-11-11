@@ -54,6 +54,10 @@ delay/
   plain `sleep` loop would not do reliably (its timer does not advance during system sleep).
 - **Never `pmset schedule cancelall`.** It wipes Apple's own wakes. Cancel only the exact strings
   recorded in `state/wakes`, and record a wake only after pmset accepted it.
+- **Host-bound: no writable home, no queue.** delay is exempt from the repo's *Without HOME* rule
+  because the runner, the wake and the registry exist only on the machine it is installed on. With HOME
+  unset or not writable, `need_home` (lib.sh) makes `add` refuse with one plain sentence, and reads such as
+  `list` answer with nothing queued. Never an unbound-variable or `mkdir` error (PLUG-120, tests 23a–e).
 - **`~/.claude/delay` is never part of the docker invocation**, so test code cannot write its own
   result.
 - Under sudo, `approve.sh` runs git and docker **as `SUDO_USER`**. Root's git refuses a

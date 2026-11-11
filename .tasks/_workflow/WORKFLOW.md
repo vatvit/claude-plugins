@@ -30,3 +30,6 @@ it records which behaviours must not regress and why.
 Step detail files resolve from `.tasks/_workflow/steps/` first, then fall back to
 `~/.claude/project-tasks/_workflow/steps/` — the global definitions are the source
 of truth and are deliberately not copied here.
+Without a usable HOME (a sandbox; root `CLAUDE.md`, *Without HOME*) the global files are absent,
+and `context` and `reflection` run from their one-liners above. That is accepted, not vendored,
+because a copy here would be a second source of truth (PLUG-124).

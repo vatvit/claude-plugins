@@ -11,10 +11,22 @@
 #                        as `e2e-view TAB port` / `e2e-ui TAB port`. Refused when <name> has no port, when it is
 #                        above 6553, or when another name or a compose file already uses a derived port.
 #   list [--all]         name TAB port; --all adds the ports found in compose files (name: the file)
+#   scope [home|project] without an argument: where this project's ports are kept, one of
+#                          home             ~/.claude/kickoff/ports.json (chosen, or already there)
+#                          project          the project folder (chosen)
+#                          ask              HOME is usable and nobody has chosen yet: ask the user
+#                          project-no-home  HOME is not usable: the project folder, nothing to ask
+#                        with an argument: record the choice in the project's .kickoff.json
 #
-# MACHINE-WIDE ON PURPOSE. The registry is ~/.claude/kickoff/ports.json and ignores
+# MACHINE-WIDE ON PURPOSE, WHEN IN HOME. The registry is ~/.claude/kickoff/ports.json and ignores
 # CLAUDE_CONFIG_DIR: two Claude accounts on one Mac share one Docker, so a per-account registry
 # would hand out the same port twice (repo CLAUDE.md, "Per account or per machine").
+#
+# HOME IS OPTIONAL (PLUG-121). Nothing is written to HOME unless the user chose it (scope home) or the
+# machine-wide registry is already there (an earlier yes). Otherwise, and whenever HOME is not usable
+# (unset, missing, not writable), the registry is the project's own: .git/kickoff/ports.json, or
+# .kickoff/ports.json outside git. It sees only this project: the port is checked against its registry
+# and the compose files under the project folder, never against other projects.
 #
 # A port is free when neither the registry nor any compose file under the projects dir uses it.
 # The compose scan always runs, not only when the registry is new, so a port a project took
@@ -22,11 +34,66 @@
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
-PORTS_FILE="${KICKOFF_PORTS_FILE:-$HOME/.claude/kickoff/ports.json}"
-PROJECTS_DIR="${KICKOFF_PROJECTS_DIR:-$HOME/projects}"
 PORT_BASE="${KICKOFF_PORT_BASE:-3030}"
 
 die() { echo "ports.sh: $*" >&2; exit "${2:-2}"; }
+
+# chosen_scope <root> — home | project from the project's .kickoff.json; empty when not chosen.
+chosen_scope() {
+    local f v; f="$(project_config_file "$1")"
+    [ -r "$f" ] || return 0
+    v="$(grep -o '"ports"[[:space:]]*:[[:space:]]*"[^"]*"' "$f" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/' || true)"
+    case "$v" in home|project) printf '%s\n' "$v" ;; esac
+    return 0
+}
+
+# current_scope <root> — home | project | ask | project-no-home (see the header).
+current_scope() {
+    local c; c="$(chosen_scope "$1")"
+    if ! kickoff_home_usable; then
+        [ "$c" != home ] || { echo home-gone; return 0; }
+        echo project-no-home; return 0
+    fi
+    if [ "$c" = home ] || { [ -z "$c" ] && [ -f "$HOME/.claude/kickoff/ports.json" ]; }; then echo home
+    elif [ "$c" = project ]; then echo project
+    else echo ask; fi
+}
+
+# resolve_registry — sets PORTS_FILE, LOCK and PROJECTS_DIR for this run. KICKOFF_PORTS_FILE and
+# KICKOFF_PROJECTS_DIR override (the tests, a custom machine).
+resolve_registry() {
+    local root scope; root="$(project_root)" || exit 1
+    scope="$(current_scope "$root")"
+    case "$scope" in
+        home) PORTS_FILE="$HOME/.claude/kickoff/ports.json"; PROJECTS_DIR="$HOME/projects" ;;
+        home-gone) die "this project keeps its port list in HOME (.kickoff.json), and HOME is not usable here: ports.sh needs HOME for that. Run ports.sh scope project to keep it in the project folder instead" 1 ;;
+        *) PORTS_FILE="$(project_state_dir "$root")/ports.json"; PROJECTS_DIR="$root"
+           case "$scope" in
+               ask) echo "ports.sh: project scope — nobody has chosen yet whether to keep the port list in HOME; ask, then run ports.sh scope home|project" >&2 ;;
+               *) echo "ports.sh: project scope — HOME not writable" >&2 ;;
+           esac ;;
+    esac
+    [ -z "${KICKOFF_PORTS_FILE:-}" ] || PORTS_FILE="$KICKOFF_PORTS_FILE"
+    [ -z "${KICKOFF_PROJECTS_DIR:-}" ] || PROJECTS_DIR="$KICKOFF_PROJECTS_DIR"
+    LOCK="$PORTS_FILE.lock"
+}
+
+# set_scope <home|project> — record the user's choice in the project's own config.
+set_scope() {
+    local root f t; root="$(project_root)" || exit 1; f="$(project_config_file "$root")"
+    if [ "$1" = home ] && ! kickoff_home_usable; then
+        die "keeping the port list in HOME needs HOME, and HOME is not usable here (unset, missing or not writable): the project folder is used instead" 1
+    fi
+    t="$(mktemp)"
+    if [ -f "$f" ] && grep -q '"ports"' "$f"; then
+        awk -v v="$1" '/"ports"[[:space:]]*:/ { sub(/"ports"[[:space:]]*:[[:space:]]*"[^"]*"/, "\"ports\": \"" v "\"") } { print }' "$f" > "$t"
+    elif [ -f "$f" ] && grep -q '{' "$f"; then
+        awk -v v="$1" '!d && /\{/ { sub(/\{/, "{\n  \"ports\": \"" v "\"" ((index($0, "}") > index($0, "{") && $0 ~ /\{[[:space:]]*\}/) ? "" : ",")); d = 1 } { print }' "$f" > "$t"
+    else
+        printf '{\n  "ports": "%s"\n}\n' "$1" > "$t"
+    fi
+    write_if_changed "$f" "$t" 1 >/dev/null
+}
 
 # registry — name TAB port, from the flat JSON object (one "name": port per line).
 registry() {
@@ -69,7 +136,6 @@ write_registry() {
 }
 
 # with_lock <fn> [args] — run fn holding the registry lock. A lock left by a dead process is broken.
-LOCK="$PORTS_FILE.lock"
 with_lock() {
     mkdir -p "$(dirname "$PORTS_FILE")"
     local tries=0 holder
@@ -131,7 +197,14 @@ do_release() {
 }
 
 cmd="${1:-}"; [ $# -gt 0 ] && shift
+case "$cmd" in next|allocate|set|release|viewer|list) resolve_registry ;; esac
 case "$cmd" in
+    scope)
+        case "${1:-}" in
+            '') s="$(current_scope "$(project_root)")"; [ "$s" != home-gone ] || s=home; echo "$s" ;;
+            home|project) set_scope "$1" ;;
+            *) die "usage: ports.sh scope [home|project]" ;;
+        esac ;;
     next) next_free || die "no free port from $PORT_BASE" 1 ;;
     allocate) [ $# -eq 1 ] || die "usage: ports.sh allocate <name>"; valid_name "$1"; with_lock do_allocate "$1" ;;
     set) [ $# -eq 2 ] || die "usage: ports.sh set <name> <port>"; valid_name "$1"
@@ -139,5 +212,5 @@ case "$cmd" in
     release) [ $# -eq 1 ] || die "usage: ports.sh release <name>"; with_lock do_release "$1" ;;
     viewer) [ $# -eq 1 ] || die "usage: ports.sh viewer <name>"; valid_name "$1"; with_lock do_viewer "$1" ;;
     list) registry; [ "${1:-}" = --all ] && scanned; true ;;
-    *) die "usage: ports.sh next | allocate <name> | set <name> <port> | release <name> | viewer <name> | list [--all]" ;;
+    *) die "usage: ports.sh next | allocate <name> | set <name> <port> | release <name> | viewer <name> | list [--all] | scope [home|project]" ;;
 esac

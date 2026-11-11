@@ -44,7 +44,7 @@ bash kickoff/scripts/charter.sh [project] [--force | --stdout]
 bash kickoff/scripts/scaffold.sh [project] [--diff | --force]   # CLAUDE.md, quality doc, task config
 bash kickoff/scripts/inspect.sh [project]                     # existing project: proposed answers + evidence
 bash kickoff/scripts/gaps.sh [project]                        # existing project: what the answers say is missing
-bash kickoff/scripts/ports.sh next | allocate <name> | set <name> <port> | release <name> | list [--all]
+bash kickoff/scripts/ports.sh next | allocate <name> | set <name> <port> | release <name> | list [--all] | scope [home|project]
 bash kickoff/scripts/defaults.sh list | set <ID> <value> | unset <ID>   # your own defaults
 ```
 
@@ -88,8 +88,12 @@ defaults apply, including the ones that follow earlier answers.
 
 ## Dev ports
 
-`ports.sh` keeps one registry per machine, at `~/.claude/kickoff/ports.json`. It deliberately ignores
+`ports.sh` can keep one registry per machine, at `~/.claude/kickoff/ports.json`. It deliberately ignores
 `CLAUDE_CONFIG_DIR`: every Claude account on the Mac shares one Docker, so they must share one list.
+kickoff writes there only after you said yes (it asks once per project; the answer is kept in the project's
+`.kickoff.json`), or when that file already exists from an earlier version. Otherwise, and whenever HOME is
+unusable (unset, missing, not writable; a sandbox), the list lives in the project folder (`.git/kickoff/` or
+`.kickoff/`) and a port is checked against that project's compose files only, not against other projects.
 A port counts as taken when it is in the registry *or* published in any compose file under
 `~/projects` (`KICKOFF_PROJECTS_DIR`). Allocation starts at 3030 (`KICKOFF_PORT_BASE`) and is safe to
 run from parallel sessions.

@@ -68,7 +68,11 @@ tests, and the one config read that worked happened to sit inside an `&&` list, 
 ```bash
 bash scripts/test/roadmap.test.sh                                            # host
 docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/roadmap.test.sh  # container
+docker run --rm -v "$PWD":/w -w /w bash:5 env -u HOME bash scripts/test/roadmap.test.sh  # container, no HOME
 ```
+
+**No HOME.** The plugin reads nothing from HOME. It needs only the project folder (root `CLAUDE.md`, *Without HOME*; PLUG-123).
+The last line above keeps that true. Run it after any change that touches paths.
 
 **Run both.** The host target (macOS bash 3.2 + BSD userland) and the container target
 (bash 5 + GNU coreutils) catch different portability bugs.

@@ -42,6 +42,8 @@ not start a crew. Adopting crew in a running project: [adopt.md](adopt.md).
 | `snapshotMaxKB` | project, user | `1024` | larger files are not snapshotted |
 | `slotGraceMin` | project, user | `10` | minutes past its estimate before a running slot shows as stale |
 | `slotMemGB` | project, user | `0` (no budget) | the machine's memory budget for slots, in GB: `cpu` slots that declare `--mem` start while their sum fits ([slots.md](slots.md)). Set it per account in the user file, since it describes the machine. Each slot carries the value it was requested under, and the queue uses the largest, so every crew and account on the machine computes one plan |
+| `slotScope` | project | `machine` | where the slot queue lives: `machine` (`~/.claude/crew`, shared by every crew and account) or `project` (the repo's `.git/crew/`, needs no HOME). Without a usable HOME the queue is project-scoped whatever this says ([slots.md](slots.md)) |
+| `namePrefix` | project | `auto` | whether `whoami` prefixes the name with `<crewId>-`: `auto` only when there is no usable HOME (no machine registry to keep names unique), `always`, `never`. A member already in keeps its name |
 | `slotStuckMin` | project, user | `10` | minutes a waiting slot may be able to start, with no slot event on the machine, before it counts as STUCK and the queue passes it ([slots.md](slots.md)) |
 | `slotWaitMin` | project, user | `20` | minutes in the queue after which a slot of this crew is a `watch` finding, and a member's slot that starts after waiting this long is mailed to the coordinator |
 | `slotIgnoreCrews` | project | none | crew ids whose slots this crew does not wait for: they still show in `slot list`, marked `ignored`. Set it only on the user's word ([slots.md](slots.md)) |

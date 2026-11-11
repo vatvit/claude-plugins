@@ -41,6 +41,8 @@ check_value() {
         hookMode) case "$1" in deny|warn) ;; *) die "hookMode is deny or warn" ;; esac ;;
         tree) case "$1" in shared|worktrees) ;; *) die "tree is shared or worktrees" ;; esac ;;
         treeSync) case "$1" in merge|rebase) ;; *) die "treeSync is merge or rebase" ;; esac ;;
+        slotScope) case "$1" in machine|project) ;; *) die "slotScope is machine or project" ;; esac ;;
+        namePrefix) case "$1" in auto|always|never) ;; *) die "namePrefix is auto, always or never" ;; esac ;;
         treeLink|crewRules) for v in "$@"; do crew_link_ok "$v" || die "$k takes paths inside the main tree (relative, no ..): $v"; done ;;
         taskPush) for v in "$@"; do valid_name "$v" || die "taskPush takes crew names: $v is not one"; done ;;
     esac
@@ -104,7 +106,11 @@ config_write() { # set|unset [--user] <key> [value...]
         die "$key is project-only: it means nothing across projects, so it goes in .crew.json (drop --user)"
     fi
     [ "$op" = unset ] || check_value "$key" "$@"
-    if [ "$layer" = user ]; then f="$CREW_USER_CONFIG"; mkdir -p "$(dirname "$f")"; else f="$ROOT/.crew.json"; fi
+    if [ "$layer" = user ]; then
+        [ -n "$CREW_USER_CONFIG" ] && mkdir -p "$(dirname "$CREW_USER_CONFIG")" 2>/dev/null \
+            || die "--user needs a usable HOME (or CLAUDE_CONFIG_DIR) to keep crew.json; here there is none — use the project layer (drop --user)"
+        f="$CREW_USER_CONFIG"
+    else f="$ROOT/.crew.json"; fi
     if [ "$op" = unset ]; then
         [ -n "$(cfg_layer "$layer" "$key")" ] || { echo "config: $key is not set in $f"; return 0; }
         locked write_layer "$f" "$layer" "$key"

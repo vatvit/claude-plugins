@@ -50,9 +50,11 @@ for n in $members; do
     [ "$n" = "$by" ] || to="$to${to:+, }$(display_of "$n")"
 done
 id="$(crew_id)"
-mkdir -p "$CREW_HOME"
+# the machine's record of ended crews; without a usable HOME there is none to keep
+if crew_home_ok; then
 printf '%s\t%s\t%s\t%s\t%s holds, %s slots\tby %s\n' "$(fmt_epoch "$(now)" '%Y-%m-%d %H:%M')" "$id" "$ROOT" \
     "${names:-none}" "$holds" "$slots" "${by:-the user (--force)}" >> "$CREW_HOME/ended"
+fi
 from="${by:+$(display_of "$by")}"
 rm -rf "$STATE" "$CREW_PENDING"
 

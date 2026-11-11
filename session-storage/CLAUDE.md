@@ -48,7 +48,14 @@ $CLAUDE_CODE_TMPDIR/claude-session-storage/   (falls back to /tmp/ if unset)
 
 ## Testing Changes
 
-No test framework. Test manually:
+```bash
+bash scripts/test/storage.test.sh                                            # host
+docker run --rm -v "$PWD":/w -w /w bash:5 bash scripts/test/storage.test.sh  # container
+```
+
+It covers the set/get/clear/list round trip, HOME unset (the plugin keeps nothing in HOME), and an
+unwritable storage dir: `set` must fail plainly, never print "Stored" (PLUG-122). The hooks are not
+covered yet. Manual checks:
 
 ```bash
 # Test multi-key storage

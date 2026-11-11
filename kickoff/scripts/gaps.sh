@@ -21,7 +21,7 @@ any() { local f; for f in "$@"; do [ -e "$root/$f" ] && return 0; done; return 1
 # setup_files — where a tool is set up: manifests and config at the root (not prose: a README
 # naming a tool does not set it up, nor do kickoff's own files), scripts/ and .github/
 setup_files() {
-    find "$root" -maxdepth 1 -type f ! -name '*.md' ! -name .kickoff-answers -print
+    find "$root" -maxdepth 1 -type f ! -name '*.md' ! -name .kickoff-answers ! -name .kickoff.json -print
     find "$root/scripts" "$root/.github" -type f -print 2>/dev/null
     return 0
 }
@@ -47,7 +47,7 @@ while IFS= read -r row; do
             any compose.yml compose.yaml docker-compose.yml docker-compose.yaml Dockerfile docker/compose.yml docker/compose.yaml \
                 || gap I0 "$v" "no compose file or Dockerfile" "the project root, docker/" ;;
         R6:"Markdown task files"*)
-            any .task-config.json || grep -qsF "\"$root\":" "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/project-tasks/config.json" "$HOME/.claude/project-tasks/config.json" \
+            any .task-config.json || [ -n "$(task_registry_entry_file "$root")" ] \
                 || gap R6 "$v" "no task setup" ".task-config.json, the task registry" ;;
         F2:Unit*)
             found -type d \( -name test -o -name tests -o -name spec -o -name __tests__ \) -o -type f \( -name '*_test.*' -o -name '*.test.*' -o -name '*.spec.*' -o -name 'test_*' \) \

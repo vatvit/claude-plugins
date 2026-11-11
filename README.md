@@ -25,6 +25,11 @@ any of them with two commands.
   pair well (see [How they fit together](#how-they-fit-together)).
 - **Config is optional.** Every setting has a working default. Where a plugin reads config, it's
   one flat JSON file at the project root, named after the plugin.
+- **The project folder is enough.** In a sandbox with no usable home directory (Claude Desktop's
+  Cowork, a container), task, task-roadmap, docs-manager, kickoff and crew keep everything in the
+  project and say so where they fall back: crew names get a project prefix and its slot queue moves
+  into the repo, and kickoff's dev-port list does too. `delay` is the exception: it runs jobs on the
+  Mac it's installed on, so it can't queue from a sandbox, and it says so.
 
 ## Plugins
 

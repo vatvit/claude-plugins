@@ -57,11 +57,15 @@ if [ -n "$R7" ]; then
     [ -n "$R8" ] || { echo "scaffold.sh: R7 is answered but the task prefix R8 is not" >&2; exit 1; }
     case "$R7" in
         Outside*)
-            # Per account, like the task skill itself: $CLAUDE_CONFIG_DIR first, then ~/.claude.
-            G="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/project-tasks"; tdir="$G/$slug"; reg="$G/config.json"
+            # Per account, like the task skill itself: $CLAUDE_CONFIG_DIR first, then ~/.claude. A capability the
+            # user chose to keep in HOME says plainly that it needs HOME, and does nothing else.
+            G="$(task_registry_roots | sed -n 1p)"
+            [ -n "$G" ] || { echo "scaffold.sh: tasks outside the repo needs HOME (or CLAUDE_CONFIG_DIR) for the task registry, and neither is set — answer R7 with 'In the repo'" >&2; exit 1; }
+            tdir="$G/$slug"; reg="$G/config.json"
             # Not a path: a client's repo must not carry the user's home directory (identity rule).
             tasks_where="outside the repo (the task skill finds them through its registry)"
-            [ "$dry" = 1 ] || mkdir -p "$G"
+            [ "$dry" = 1 ] || mkdir -p "$G" 2>/dev/null \
+                || { echo "scaffold.sh: tasks outside the repo needs HOME, and the task registry dir is not writable — answer R7 with 'In the repo'" >&2; exit 1; }
             if [ -f "$reg" ] && grep -qF "\"$root\":" "$reg"; then report exists "$reg"
             elif [ "$dry" = 1 ]; then report would-update "$reg"
             else
