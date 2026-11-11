@@ -58,6 +58,13 @@ constraints, not preferences — a plugin that breaks them breaks on someone's m
 - **Target bash 3.2.** That is the system bash on macOS, and `#!/usr/bin/env bash`
   does *not* avoid it — it resolves to 3.2 there too. So **no associative arrays
   (`declare -A`)**, no `globstar`, no `${var^^}`. Indexed arrays (`declare -a`) are fine.
+  And no `case` inside `$( )`: bash 3.2 reads a pattern's `)` as the end of the substitution
+  and fails with a syntax error, *for the whole script*. Put the code in a function and call
+  that inside `$( )`. Found in task 1.6 (PLUG-125), in `resolve-config.sh`.
+- **Plumbing commits that act as a lock need a nonce.** Two clones that `commit-tree` the same
+  tree with the same parent, message and author in the same second produce one *identical*
+  commit, so the second `push` is a no-op success and the compare-and-swap is gone. Found in
+  task 1.6 (PLUG-125), where both clones received the same id.
 - **Both BSD and GNU userland.** No GNU-only flags in shipped code.
 - **Never `sed -i` in shipped code** — `-i ''` is BSD-only, bare `-i` is GNU-only.
   Write via temp file and `mv`, which is also what makes writes atomic.
@@ -154,13 +161,6 @@ machine; Claude Code sets `CLAUDE_CONFIG_DIR` for a non-default one.
   session-name registry, the run window) lives in `~/.claude/<plugin>/` and deliberately ignores
   `CLAUDE_CONFIG_DIR`, because two accounts sharing one Docker must see each other. crew's home
   (the name registry and the slot queue every repo's crew shares) and delay's home are this kind.
-
-**Beware `set -euo pipefail` when reading config.** `grep` exits non-zero when it matches
-nothing, and with `pipefail` that status propagates out of `v="$(json_str …)"` and kills
-the script. An absent key is normal. This shipped as a live bug in task-roadmap 1.0.1:
-any `.task-roadmap.json` missing *any* key aborted generation, and it went unnoticed
-because the one read that worked happened to sit inside an `&&` list where `set -e` is
-suppressed. Helpers whose empty result is normal must end in `|| true` or `return 0`.
 - **Per-project** state lives at `$(git rev-parse --git-common-dir)/<plugin>/`, or `<project>/.<plugin>/` outside
   git. It stays inside the project folder, is never committed, and is shared by every worktree. crew's `.git/crew/` is this kind.
 
@@ -177,6 +177,13 @@ Claude Desktop's Cowork VM). Decided in epic PLUG-117; the reasoning is in PLUG-
 - **`${CLAUDE_PLUGIN_ROOT}` is fine to read** (shipped defaults); never write there.
 - **Test it:** an affected suite runs one case with `HOME` pointed at a missing dir and one with a read-only HOME, in the container.
 - Never detect Cowork or any other host by name. The rules above handle every such host without knowing which one it is.
+
+**Beware `set -euo pipefail` when reading config.** `grep` exits non-zero when it matches
+nothing, and with `pipefail` that status propagates out of `v="$(json_str …)"` and kills
+the script. An absent key is normal. This shipped as a live bug in task-roadmap 1.0.1:
+any `.task-roadmap.json` missing *any* key aborted generation, and it went unnoticed
+because the one read that worked happened to sit inside an `&&` list where `set -e` is
+suppressed. Helpers whose empty result is normal must end in `|| true` or `return 0`.
 
 ## Changing an Existing Plugin
 
@@ -215,6 +222,11 @@ The project workflow is `.tasks/_workflow/WORKFLOW.md` — it deliberately omits
 `bdd` step, since this repo has no Cucumber/Gherkin infrastructure; behavioural
 coverage lives in each task's acceptance criteria and is implemented at the `tests`
 step as plain bash test scripts.
+
+**Tag names say what kind of label they are.** A task about a plugin is tagged
+`<plugin>-plugin` (`task-plugin`, `crew-plugin`), never the bare plugin name: a bare
+`task` reads as "this is a task". A cross-cutting capability is tagged `<name>-feature`
+(`git-sync-feature`). Topic tags with no clash (`e2e`, `quality`) stay as they are.
 
 ## Working on a Specific Plugin
 

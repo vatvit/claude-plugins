@@ -67,6 +67,7 @@ step is noise.
 | `epic` | the `epic-name` of the epic this task belongs to |
 | `epic-name` | an epic's own short identifier, referenced by its children |
 | `created` | `YYYY-MM-DD HH:MM`, local time, written by `allocate-id.sh` at creation and never by hand. `/task list` shows the date as a Created column and `sort=created` orders by it; older tasks without it sort last |
+| `renumbered-from` | the id a task had before `renumber.sh` moved it (`references/renumber.md`) |
 | `tags` | optional labels, `["performance", "tech debt"]` — `references/tags.md` |
 
 Any other field is free — and any of them can be filtered on by `/task list`.

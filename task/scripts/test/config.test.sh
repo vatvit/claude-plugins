@@ -69,4 +69,44 @@ check "step file from CLAUDE_CONFIG_DIR wins" "$ALT/project-tasks/_workflow/step
 mkdir -p "$T/_workflow/steps"; echo proj > "$T/_workflow/steps/assessment.md"
 check "project step file still wins" "$T/_workflow/steps/assessment.md" "$(step)"
 
+echo "-- without HOME: the project folder is enough (root CLAUDE.md, Without HOME; PLUG-118) --"
+
+# nohome <mode> <script> [args...] — run a script with HOME unset, missing, or not a directory.
+# "file" stands for a HOME nothing can be created under; chmod would not stop root in the container.
+: > "$TMP/home-is-a-file"
+nohome() {
+    local mode="$1"; shift
+    case "$mode" in
+        unset)   env -u HOME -u CLAUDE_CONFIG_DIR bash "$@" ;;
+        missing) env -u CLAUDE_CONFIG_DIR HOME="$TMP/no-such-home" bash "$@" ;;
+        file)    env -u CLAUDE_CONFIG_DIR HOME="$TMP/home-is-a-file" bash "$@" ;;
+    esac
+}
+for m in unset missing file; do
+    out=$(nohome "$m" "$SC/resolve-config.sh" "$PROJ" 2>&1); code=$?
+    check "HOME $m: resolve-config exits 0" "0" "$code"
+    contains "HOME $m: project config resolves" "prefix=LOC" "$out"
+    out=$(nohome "$m" "$SC/resolve-task.sh" "$T" WF 1 2>&1); code=$?
+    check "HOME $m: resolve-task exits 0" "0" "$code"
+    contains "HOME $m: project step file found" "step_file=$T/_workflow/steps/assessment.md" "$out"
+    lacks "HOME $m: resolve-task does not crash on HOME" "unbound" "$out"
+    out=$(printf -- '---\ntitle: n\nstatus: proposed\n---\n' | nohome "$m" "$SC/allocate-id.sh" "$PROJ" --stdin 2>&1); code=$?
+    check "HOME $m: allocate-id exits 0" "0" "$code"
+    contains "HOME $m: allocate-id writes into the project" "=$T/LOC-" "$out"
+done
+
+out=$(env -u HOME CLAUDE_CONFIG_DIR="$ALT" bash "$SC/resolve-config.sh" "$TMP/unlisted" 2>&1); code=$?
+check "HOME unset, CLAUDE_CONFIG_DIR set: no config still exits 1, cleanly" "1" "$code"
+lacks "…and without an unbound-variable crash" "unbound" "$out"
+
+mkdir -p "$TMP/bare"
+out=$(nohome unset "$SC/resolve-config.sh" "$TMP/bare" 2>&1); code=$?
+check "HOME unset, no config: exits 1" "1" "$code"
+contains "…and asks for a project .task-config.json" ".task-config.json" "$out"
+lacks "…without offering a registry it cannot reach" "project-tasks/config.json" "$out"
+lacks "…and without an unbound-variable crash" "unbound" "$out"
+out=$(nohome missing "$SC/resolve-config.sh" "$TMP/bare" 2>&1)
+contains "HOME missing, no config: asks for a project .task-config.json" ".task-config.json" "$out"
+lacks "…without offering a registry under a HOME that does not exist" "project-tasks/config.json" "$out"
+
 report config

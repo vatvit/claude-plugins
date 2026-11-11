@@ -14,6 +14,8 @@ increment `nextId`, do not compute an id from it, do not write to a path you bui
 (`--count N` reserves N files in one lock, for creating a batch of sub-tasks. Each holds only a frontmatter
 with `created:`; Read it, then write the body into it keeping that `created:` line.)
 
+If it prints a `WARNING`/`ERROR` about `idSource` or a push, the project allocates through git: tell the user what it says and what to do, from `references/id-sources.md`. Never retry with a computed id.
+
 Then ask: "Add more details?"
 
 ## Tags

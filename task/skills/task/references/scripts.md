@@ -19,6 +19,8 @@ is what each is *for*, and the guarantees that are not obvious from the usage li
 | `resolve-epic.sh <tasksDir> <prefix> <epic-ref>` | epic-name **or** id → epic metadata, same format as `resolve-task.sh`. Exit 1 = not found or not an epic. |
 | `update-epic-index.sh <tasksDir> <prefix>` | rebuilds `_epic-index.json`. Idempotent, diff-guarded. |
 | `epic-dashboard.sh <tasksDir> <prefix> <epic-ref>` | epic + every sub-task (by `epic:` field) in work order + the `queue` still to work + a recommendation, as JSON. |
+| `id-source.sh <project-dir> git\|local\|sync\|status` | switches the project to the git id source (creates or adopts the counter branch, edits the config, never commits) / back to local (claims pending ids first, writes `nextId` back, deletes the clone cache, leaves the branch) / claims the ids allocated offline (pending) / shows source, counter, cache. `id-git.sh` is its sourced library, shared with `allocate-id.sh` and `resolve-config.sh` (`id-sources.md`). |
+| `renumber.sh <project-dir> <OLD-ID> [--update <ID>...]` | moves a task to a new id from `allocate-id.sh` (content, `created:`, artifacts, own mentions, `renumbered-from:`); rewrites only the `--update` tasks and prints every other mention as `ref=<ID>:<line>` (`renumber.md`). |
 
 ## What the guarantees are
 
@@ -35,7 +37,10 @@ It stamps `created: YYYY-MM-DD HH:MM` (local time) into every file it writes, `-
 included, unless the `--stdin` body already has a `created:` line; it is the only writer of that
 date. `TASK_CREATED_NOW` overrides the clock in tests and is validated, never executed.
 
-It also persists the new `nextId` to whichever config `resolve-config.sh` resolved.
+It also persists the new `nextId` to whichever config `resolve-config.sh` resolved — or, with
+`idSource: git`, reserves the numbers first by pushing the remote counter branch and keeps
+`nextId` in the clone's cache. A push is a compare-and-swap: every reservation is a distinct
+commit (a nonce), never force-pushed, and the task file is written only after it lands.
 
 **`session-active.sh` never requires session-storage.** It is handed `TASK_STORAGE_BIN` and
 `TASK_SESSION_ID` by the caller and knows nothing about which plugin provides them. With

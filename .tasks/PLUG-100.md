@@ -3,7 +3,7 @@ title: "kickoff: inspect.sh proposes F12 as one check → tool line per tool"
 status: completed
 type: bugfix
 priority: low
-tags: [kickoff]
+tags: ["kickoff-plugin"]
 ---
 
 ## Workflow

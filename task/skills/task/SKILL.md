@@ -1,6 +1,6 @@
 ---
 name: task
-description: Use for task management when user references task IDs (TASK-001, DOCS-004), creates/lists/shows tasks, updates task status, works on tasks, works on or finishes a whole epic ("work on the epic", "finish the epic"), tags tasks or filters them by tag ("tag this task", "tagged", "list tasks with tag performance", "filter by tag", "review the backlog for a tag", "tag the backlog"), lists tasks by when they were created ("created column", "sort by created", "oldest tasks first"), summarises the backlog ("backlog digest", "what is each task about"), checks workflows, or invokes /task. Also invoke automatically when creating tech debt tickets, subtasks, or any task management during work. Manages task files for planning and tracking project work (storage location configurable per project).
+description: Use for task management when user references task IDs (TASK-001, DOCS-004), creates/lists/shows tasks, updates task status, works on tasks, works on or finishes a whole epic ("work on the epic", "finish the epic"), tags tasks or filters them by tag ("tag this task", "tagged", "list tasks with tag performance", "filter by tag", "review the backlog for a tag", "tag the backlog"), lists tasks by when they were created ("created column", "sort by created", "oldest tasks first"), summarises the backlog ("backlog digest", "what is each task about"), shares task ids across clones and machines through git ("task ids clash between machines", "duplicate task id", "sync task ids through git", "idSource git", "set up the task-ids branch", "switch task ids back to local"), renumbers a task ("renumber a task", "change a task's id", "two tasks with the same id"), checks workflows, or invokes /task. Also invoke automatically when creating tech debt tickets, subtasks, or any task management during work. Manages task files for planning and tracking project work (storage location configurable per project).
 version: 1.5.0
 argument-hint: <create|list|show|do|finish|status|workflow> [args]
 disable-model-invocation: false
@@ -114,5 +114,7 @@ working on?" — falling back to `/task list status=in-progress` when there is n
 | `references/workflow-system.md` | How the workflow table drives work, step definition files |
 | `references/configuration.md` | Config resolution, directory layouts |
 | `references/scripts.md` | What each script does, its arguments and guarantees |
+| `references/renumber.md` | Two tasks with one id: `renumber.sh`, which one moves, a clash before or during a merge |
+| `references/id-sources.md` | `idSource` local / git: switching a project to git ids, what an allocation warning or error means and what to do |
 | `references/workflow-guide.md` | Extended workflow documentation |
 | `examples/TASK-001.md` | An example task file |

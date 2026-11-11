@@ -48,6 +48,14 @@ IDs accept either form: `4`, `004` or `TASK-004`.
   counter can never cause a reuse, and creates files with `noclobber`. From a linked git
   worktree it resolves to the main tree, so all worktrees share one sequence and one set of
   task files.
+- **Optionally safe across clones too.** With `"idSource": "git"` the numbers are reserved by
+  pushing a counter on a dedicated `task-ids` branch of the remote, so other machines and other
+  people never take the same id; your index, working tree and branches are never touched. One
+  command switches a project (`scripts/id-source.sh <project-dir> git`); offline it allocates
+  locally, records the id as pending and claims it on the next push, warning if another clone
+  took the number meanwhile, and `id-source.sh <project-dir> local` switches back. Details and troubleshooting: `skills/task/references/id-sources.md`.
+  When two tasks did end up with one id, `scripts/renumber.sh` moves one to a fresh id
+  (`skills/task/references/renumber.md`).
 
 ## Configuration
 
@@ -88,9 +96,16 @@ bash scripts/test/review.test.sh           # digest, tags.sh candidates, epic hi
 bash scripts/test/port.test.sh             # packaging, independence, standalone copy
 bash scripts/test/config.test.sh           # global registry, CLAUDE_CONFIG_DIR
 bash scripts/test/worktree.test.sh         # a linked git worktree resolves to the main tree
+bash scripts/test/git-source.test.sh       # idSource git: setup, push reservation, concurrency, fallbacks
+bash scripts/test/migration.test.sh        # switching a project with several active clones
+bash scripts/test/offline.test.sh          # offline git allocation: pending ids, sync, clashes
+bash scripts/test/renumber.test.sh         # moving a task to a fresh id
+bash scripts/test/lock.test.sh             # a stale id lock is broken on every userland
+bash scripts/test/run.sh                   # all of them
 ```
 
-Run on the host *and* in a container (`docker run --rm -v "$PWD":/w -w /w bash:5 …`) — the
+Run on the host *and* in a container (`docker build -t task-test scripts/test` once: `bash:5` + git;
+then `docker run --rm -v "$PWD":/w -w /w task-test bash scripts/test/run.sh`) — the
 two targets differ in `diff` output shape and in userland flags, and only running both catches
 it. The suite is also expected to pass from a copy of this directory placed outside the
 marketplace repo, with no sibling plugins present.

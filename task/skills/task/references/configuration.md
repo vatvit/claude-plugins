@@ -17,6 +17,8 @@ Search order:
 account, then `~/.claude/project-tasks`. Both are searched, in that order, for the registry
 and for `_workflow/` files; the first registry that lists the project wins. A new registry
 belongs in the first. `resolve-config.sh` reports the one it used as `configFile`.
+With HOME unset there is no `~/.claude` root, and with no usable HOME (for example in a sandbox) only the
+project-local config and the project's `_workflow/` apply.
 
 ## Project-local
 
@@ -28,9 +30,15 @@ belongs in the first. `resolve-config.sh` reports the one it used as `configFile
 }
 ```
 
+Any valid JSON layout is read, one line or many; values are strings or numbers. `allocate-id.sh`
+rewrites only the `nextId` number in place, so the file keeps its layout. That holds for a
+project's entry in the global registry as well.
+
 `tasksDir` may be relative (resolved against the project root), absolute, or `~`-prefixed.
 `nextId` is maintained by `allocate-id.sh` — never edited by hand, never used to derive an
-id.
+id. Optional `idSource` (`local` default, or `git`), `idRemote` and `idBranch` choose where ids
+come from; with `git` the file has no `nextId` and `resolve-config.sh` reports the clone's cached
+one (`id-sources.md`).
 
 This file is a shared data contract: other tools read `tasksDir` out of it. It stays where
 it is and keeps its name.

@@ -4,7 +4,7 @@ status: completed
 type: feature
 priority: medium
 related: [PLUG-087]
-tags: ["kickoff", "quality", "e2e"]
+tags: ["quality", "e2e", "kickoff-plugin"]
 ---
 
 ## Workflow

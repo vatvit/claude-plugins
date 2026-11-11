@@ -26,8 +26,12 @@ task/
     ├── resolve-epic.sh       epic-name or id → epic metadata
     ├── update-epic-index.sh  rebuilds _epic-index.json
     ├── epic-dashboard.sh     epic + sub-tasks in work order + queue + recommendation
-    ├── lib.sh                global roots, worktree → main tree, task_canonical_id (number → PREFIX-NNN), task_fm_set (the one frontmatter writer)
-    └── test/*.test.sh        each sources test/lib.sh: TMP, counters, check/contains/lacks, report
+    ├── id-source.sh          switch a project to the git id source and back / sync pending ids / show it
+    ├── id-git.sh             sourced: the git id source (probe, fetch, reserve by push, clone cache)
+    ├── renumber.sh           move a task to a fresh id; rewrites only the tasks named, reports the rest
+    ├── lib.sh                global roots, worktree → main tree, task_canonical_id (number → PREFIX-NNN), task_fm_set (the one frontmatter writer), task_highest_id, _TASK_JSON_AWK (the one JSON reader, as awk functions), task_config_read, task_config_set_num (nextId in place), task_config_edit (keys set/removed), task_id_replace / task_id_lines (the one id matcher, boundary-aware)
+    └── test/*.test.sh        each sources test/lib.sh: TMP, counters, check/contains/lacks, report;
+                              run.sh runs all; Dockerfile = bash:5 + git, the container target
 ```
 
 Scripts are referenced from the skill as `<PLUGIN_ROOT>/scripts/…`, and would be
@@ -50,6 +54,16 @@ at all, whether to skip a step, append-or-switch when two tasks compete for a se
   no stale counter, self-healing `max(nextId, highest+1)`, `noclobber`, `mkdir` mutex —
   exist because parallel Claude sessions genuinely raced and destroyed each other's task
   files. Never compute an id from `nextId`, never write to a constructed path.
+- **The git id source reserves before it writes, and never touches the user's git state.** The
+  task file is created only after the counter push lands. Plumbing only: a temporary index,
+  `commit-tree`, `push <sha>:refs/heads/<branch>`. No checkout, no index, no local branch, never
+  `--force`. Every reservation commit carries a nonce: without it two clones reserving one number
+  in the same second build *identical* commits, and the second push is a no-op "success" that
+  hands both the id. `git-source.test.sh` goes red without it.
+  Every git call that reaches the remote goes through `idgit_net` (a deadline, output via temp
+  files so a surviving ssh cannot block a `$( )`, a lock heartbeat); never call the network
+  through `idgit_git` directly (`net-timeout.test.sh`). In `git` mode `nextId` lives in the
+  clone's cache under the git common dir, never in the shared config (`references/id-sources.md`).
 - **A linked git worktree is the main tree.** `task_project_dir` in `lib.sh` maps it, and
   every script that takes a project dir goes through it. Resolve from the worktree's own
   copy and each worktree gets its own lock and its own sequence — the race above, again.
@@ -69,6 +83,10 @@ at all, whether to skip a step, append-or-switch when two tasks compete for a se
   asking (`references/tags.md`). `tags` is decoded in `read-tasks.sh` only, into `["a", "b"]`.
 - **`.task-config.json` is a shared data contract.** `task-roadmap` reads `tasksDir` from
   it. Moving or renaming it breaks that plugin — the file stays where it is.
+- **Works without HOME.** With HOME unset, missing or read-only, a project's own `.task-config.json`
+  and `_workflow/` are enough. `task_global_roots` skips the `~/.claude` root when HOME is empty, and
+  the "no config" error offers a global registry only where one could be created (root `CLAUDE.md`,
+  *Without HOME*; PLUG-118). Regression-tested in `config.test.sh`.
 
 ## Testing
 
@@ -79,15 +97,24 @@ bash scripts/test/status-session.test.sh   # 35 cases — status writes, cascade
 bash scripts/test/tags.test.sh             # 48 cases — tags decoding, filter, group=tags, tags.sh
 bash scripts/test/review.test.sh           # 33 cases — digest excerpts and filters, candidates, epic hints
 bash scripts/test/port.test.sh             # 19 cases — packaging + standalone copy
-bash scripts/test/config.test.sh           # 13 cases — global registry + step lookup, CLAUDE_CONFIG_DIR
+bash scripts/test/config.test.sh           # 42 cases — global registry + step lookup, CLAUDE_CONFIG_DIR, no HOME
+bash scripts/test/config-layout.test.sh    # 18 cases — any JSON layout: one-line project config and registry, odd whitespace, escapes, nextId written in place
 bash scripts/test/worktree.test.sh         # 14 cases — a linked git worktree resolves to the main tree
 bash scripts/test/created.test.sh          # 22 cases — created: stamp, Created column, sort=created, digest
+bash scripts/test/git-source.test.sh       # 46 cases — idSource git: setup/adopt, push reservation, --count, user state untouched, concurrent clones, refusals, fallbacks
+bash scripts/test/migration.test.sh        # 16 cases — switching with several clones: a clone's own unpushed tasks claimed or reported on first use, setup warnings
+bash scripts/test/offline.test.sh          # 24 cases — idSource git offline: pending, claimed in one push, clash reported and kept, sync, renumber clears
+bash scripts/test/switch-back.test.sh      # 18 cases — back from git to local: pending claimed, clash named, nextId from the counter (last fetched offline), cache gone, branch kept, idempotent
+bash scripts/test/renumber.test.sh         # 22 cases — renumber.sh: move, created kept, artifacts, --update only, refs, id boundaries, epic index
+bash scripts/test/net-timeout.test.sh      # 11 cases — git calls within TASK_ID_NET_TIMEOUT: hung remote falls back, hung push fails clean, long lock wait, lock heartbeat
+bash scripts/test/lock.test.sh             #  3 cases — a stale id lock is broken (busybox stat)
+bash scripts/test/run.sh                   # every suite
 ```
 
 A new suite sources `scripts/test/lib.sh` and ends with `report <suite>`; it never defines
 its own assertions (PLUG-081 removed seven copies).
 
-Dual-target (host + `bash:5` container) per the repo convention, and the suite must pass
+Dual-target (host + the `task-test` image: `bash:5` + git, `scripts/test/Dockerfile`) per the repo convention, and the suite must pass
 from a copy of `task/` outside this repo with no siblings present. The container run is
 not optional: it is busybox awk, and `list-render.awk` is the largest awk program here.
 

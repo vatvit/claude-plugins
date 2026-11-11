@@ -4,7 +4,7 @@ status: completed
 type: feature
 priority: high
 related: [PLUG-036, PLUG-087]
-tags: ["kickoff"]
+tags: ["kickoff-plugin"]
 ---
 
 ## Workflow
