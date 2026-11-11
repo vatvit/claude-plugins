@@ -1,6 +1,6 @@
 ---
 title: "EPIC: docs-manager — attach Google Drive docs and folders to docs/, through a connected Google Drive MCP"
-status: in-progress
+status: completed
 type: epic
 epic-name: docs-gdrive
 priority: low
@@ -12,10 +12,10 @@ tags: ["docs-manager-plugin"]
 
 | # | Step | Status | Notes |
 |---|------|--------|-------|
-| 10 | Context | — | |
+| 10 | Context | done | done in the sub-tasks' Context sections (PLUG-112, 113, 115) and the POC |
 | 40 | POC | done | 2026-11-11, claude.ai Google Drive connector, read-only calls on 1–2 files; see POC findings |
-| 60 | Architecture | — | `.source.md` format, card fields for remote files, listing TSV format the comparison script reads |
-| 110 | Reflection | — | how-to doc, SKILL.md triggers, plugin.json / marketplace / README release |
+| 60 | Architecture | done | settled per sub-task: `.source.md` fields, card fields, listing TSV (PLUG-112/113/115); docs-manager/CLAUDE.md § Remote cards |
+| 110 | Reflection | done | how-to, SKILL.md triggers, CLAUDE.md done per sub-task; **release deferred** by the user (see Closing) |
 
 ## Goal
 
@@ -163,12 +163,27 @@ retyping it, with no checksum to catch corruption. Text copies of native files a
 `processed: local`; binaries stay remote, or the user downloads them into `docs/external/` by hand.
 The `content` setting therefore has one value, `remote`, for now.
 
+## Closing (2026-11-11)
+
+Success criteria:
+- No Drive MCP: no behaviour change; every existing docs-manager suite passes unchanged (E2, RC3 pin it).
+- Attaching a doc gives `.source.md` + a card that `index` lists as ☁ and `links` / `check` accept (PLUG-112).
+- Options against a default are asked once and recorded in `.source.md`: `publish`, `processed: local` +
+  `copy-publish`; `copy-stamp` itself refuses an unagreed copy (PLUG-115). Writing to Drive was dropped (PLUG-116).
+- Scripts tested offline on fixture cards and listings; no test needs network or an MCP.
+- Triggers: docs-manager owns attaching Drive material as reference; its description says "not for creating
+  or editing Google files, which is the built-in Google Workspace skill's job".
+- Standalone: all suites green from a copy of the plugin alone, on the host, `bash:5` and without HOME.
+
+Delivered: remote cards, folder attach + refresh, local copies. Dropped: `content: sync` (PLUG-114),
+processed copies on Drive (PLUG-116).
+
+**Release deferred (the user, 2026-11-11):** docs-manager stays 1.11.0 while other features gather. The
+release then bumps `docs-manager/.claude-plugin/plugin.json` (version, description, keywords: Google
+Drive, remote cards, local copies), `.claude-plugin/marketplace.json`, and the docs-manager section of
+the root `README.md` (remote Drive material).
+
 ## Current State
 
-In progress. POC done; PLUG-112 completed (remote cards: `*.gdrive.md`, `external remote`,
-`external remote-stamp`, how-to § Remote documents). PLUG-113 completed (folder attach + refresh:
-`remote-diff`, `remote-gone`). PLUG-114 rejected (see Decision). PLUG-115 completed (local copies: `copy-stamp`, `LOCAL COPY …` checks).
-PLUG-116 rejected (processed copy on Drive: redundant with the connector's text rendering). All
-sub-tasks closed; left: the epic's own closing rows and the release. **No release until the epic is finished** (user's rule):
-docs-manager stays 1.11.0 in plugin.json / marketplace / root README; bump at this epic's Reflection.
-Throwaway Drive test items (`dm-e2e-*`) exist in the user's test folder (location in session memory, not here).
+Completed; the release is pending (see Closing). Throwaway Drive test items (`dm-e2e-*`) stay in the
+user's test folder (location in session memory, not here).
