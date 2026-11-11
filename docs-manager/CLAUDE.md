@@ -213,6 +213,25 @@ Key behaviors (don't regress these):
   once however many files changed. A missing `relates-to:` target is reported by `links` as
   `BROKEN REF`, not by `related` — one place per breakage.
 
+### Remote cards (PLUG-112, epic `docs-gdrive`)
+
+A remote card (`<name>.gdrive.md`) describes a file kept on Google Drive, with no local copy. Only
+the skill (Claude) talks to Drive through an MCP; the scripts stay offline.
+
+- **The name is the classifier.** `is_remote_card` matches `*.<provider>.md` for `REMOTE_PROVIDERS`;
+  no script reads frontmatter to decide what a file is. Because `<name>.gdrive` is no external name, a
+  remote card never reaches the orphan loop. Do not make orphan detection smarter instead.
+- **The Drive id lives in the card** (`remote-id:`): a documented exception to "the file name is the
+  link", since there is no local file. Do not add a `source:` key to local cards on its strength.
+- **`remote-stamp` is the only writer of `remote-modified:`**, as `stamp` is of `digest:`, diff-guarded,
+  shape-checked (RFC 3339 UTC). The value comes from Drive through Claude.
+- **`### External documents` opens for remote cards too**, local files first; a folder with neither
+  still regenerates byte-identical (E2, RC3).
+- **`.source.md` is per-folder data, not config** (the `.docs-manager.json` rule stands). It is a
+  dot-file, so `docs_find` never lists it; scripts read it by path beside the card.
+- **`DM_KEEP_IGNORED=1` is the one opt-out of `drop_git_ignored`**, used only by `external remote`, so a
+  local-only (git-ignored) attachment stays findable while no committed `_index.md` names it.
+
 ## scripts/extract.sh
 
 `external outline|text <file>`: docx, xlsx, pptx (OOXML) and odt, ods, odp (OpenDocument) are zip

@@ -34,6 +34,32 @@ is_card() {
   case "$1" in *.md) is_external_name "${1%.md}" ;; *) return 1 ;; esac
 }
 
+# A remote card describes a file that stays with a provider (Google Drive) and has no local
+# copy: `<name>.<provider>.md` (PLUG-112). The name alone classifies it, like `is_card`, and
+# since `<name>.gdrive` is no external name, a remote card is never read as an orphan.
+REMOTE_PROVIDERS="gdrive"
+
+# is_remote_card <path> -> 0 if <path> is `<name>.<provider>.md` for a known provider
+is_remote_card() {
+  local p
+  case "$1" in *.md) ;; *) return 1 ;; esac
+  for p in $REMOTE_PROVIDERS; do
+    case "$1" in ?*."$p".md) return 0 ;; esac
+  done
+  return 1
+}
+
+# list_remote_cards <dir> [maxdepth] -> remote cards under <dir>, sorted, one per line
+list_remote_cards() {
+  local f
+  while IFS= read -r f; do
+    [ -n "$f" ] && is_remote_card "$f" && printf '%s\n' "$f"
+  done <<EOF
+$(docs_find "$1" "${2:-}" -type f -name '*.md' | sort)
+EOF
+  return 0
+}
+
 # list_externals <dir> [maxdepth]
 #
 # External files under <dir>, sorted, one per line. Dot-files are skipped, and so is a
@@ -95,8 +121,11 @@ external_place() {
 #   state<TAB>place<TAB>file<TAB>card
 #
 # state: ok | new (no card) | unstamped (card has no digest) | changed (digest differs)
-#        | orphan (card whose file is gone). An empty field is "-": tab is whitespace to
-#        `read`, so a truly empty field would collapse and shift the ones after it.
+#        | orphan (card whose file is gone)
+#        | remote (remote card, file kept by the provider; `file` is "-")
+#        | incomplete (remote card without remote-id or remote-modified).
+# An empty field is "-": tab is whitespace to `read`, so a truly empty field would collapse
+# and shift the ones after it.
 external_status() {
   local root="$1" f card want have
   while IFS= read -r f; do
@@ -123,6 +152,16 @@ EOF
     [ -f "${card%.md}" ] || printf 'orphan\t-\t-\t%s\n' "$card"
   done <<EOF
 $(list_cards "$root")
+EOF
+  while IFS= read -r card; do
+    [ -n "$card" ] || continue
+    if [ -n "$(fm_field "$card" remote-id)" ] && [ -n "$(fm_field "$card" remote-modified)" ]; then
+      printf 'remote\t%s\t-\t%s\n' "$(external_place "$root" "$card")" "$card"
+    else
+      printf 'incomplete\t%s\t-\t%s\n' "$(external_place "$root" "$card")" "$card"
+    fi
+  done <<EOF
+$(list_remote_cards "$root")
 EOF
   return 0
 }
@@ -181,6 +220,7 @@ $(external_related "$f" "$links")
 EOF2
                  ;;
       orphan)    echo "ORPHAN CARD: $card (its file is gone)"; rc=1 ;;
+      incomplete) echo "REMOTE INCOMPLETE: $card (needs remote-id and remote-modified)"; rc=1 ;;
     esac
   done <<EOF
 $(external_status "$root")
@@ -221,6 +261,47 @@ cmd_external_stamp() {
   fi
   fm_set "$card" digest "$digest"
   echo "STAMPED: $card"
+}
+
+# remote-stamp <card> <time> — record the provider's modifiedTime the card was written from.
+# The only writer of `remote-modified:`, as `stamp` is of `digest:`. The time comes from the
+# provider through Claude (no command here makes a network call), so its shape is checked:
+# RFC 3339 UTC, `YYYY-MM-DDTHH:MM:SS[.fff]Z`.
+cmd_external_remote_stamp() {
+  local card="${1:-}" t="${2:-}"
+  [ -n "$card" ] && [ -n "$t" ] || { echo "Usage: docs.sh external remote-stamp <remote-card> <rfc3339-time>" >&2; return 2; }
+  is_remote_card "$card" || { echo "Not a remote card: $card" >&2; return 1; }
+  [ -f "$card" ] || { echo "No such card: $card" >&2; return 1; }
+  printf '%s\n' "$t" | awk '!/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9](\.[0-9]+)?Z$/ { bad = 1 } END { exit bad }' \
+    || { echo "Not an RFC 3339 UTC time: $t" >&2; return 1; }
+  if [ "$(fm_field "$card" remote-modified)" = "$t" ]; then
+    echo "UNCHANGED: $card"; return 0
+  fi
+  fm_set "$card" remote-modified "$t"
+  echo "STAMPED: $card"
+}
+
+# remote [root] — every remote card, git-ignored ones included, one record each:
+#
+#   card<TAB>publish<TAB>remote-modified<TAB>description<TAB>read-when
+#
+# `publish` comes from `.source.md` beside the card (commit | local; "-" when there is none).
+# A local-only attachment is git-ignored, so `index` never lists it and no committed file
+# names it; this listing is how Claude still finds it (PLUG-112, R12).
+cmd_external_remote() {
+  local root="${1:-$ROOT_DEFAULT}" card src pub mod desc when
+  [ -d "$root" ] || { echo "No such root: $root" >&2; return 1; }
+  while IFS= read -r card; do
+    [ -n "$card" ] || continue
+    src="$(dirname "$card")/.source.md"; pub=""
+    [ -f "$src" ] && pub="$(fm_field "$src" publish)"
+    mod="$(fm_field "$card" remote-modified)"; desc="$(fm_field "$card" description)"
+    when="$(fm_field "$card" read-when)"
+    printf '%s\t%s\t%s\t%s\t%s\n' "$card" "${pub:--}" "${mod:--}" "${desc:--}" "${when:--}"
+  done <<EOF
+$(DM_KEEP_IGNORED=1 list_remote_cards "$root")
+EOF
+  return 0
 }
 
 # move <file-or-card> <dest-dir> [root] — relocate a file and its card together, then
@@ -266,9 +347,11 @@ cmd_external() {
     status) cmd_external_status "$@" ;;
     check)  cmd_external_check "$@" ;;
     stamp)  cmd_external_stamp "$@" ;;
+    remote) cmd_external_remote "$@" ;;
+    remote-stamp) cmd_external_remote_stamp "$@" ;;
     move)   cmd_external_move "$@" ;;
     related) cmd_external_related "$@" ;;
     outline|text) cmd_external_extract "$op" "$@" ;;
-    *) echo "Usage: docs.sh external {status|check|stamp <file>|move <file> <dest-dir>|related <file>|outline <file>|text <file>} [root]" >&2; return 2 ;;
+    *) echo "Usage: docs.sh external {status|check|stamp <file>|remote|remote-stamp <card> <time>|move <file> <dest-dir>|related <file>|outline <file>|text <file>} [root]" >&2; return 2 ;;
   esac
 }

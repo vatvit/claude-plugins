@@ -41,7 +41,7 @@ list_subdirs() { docs_find "$1" 1 -type d | sort; }
 list_docs() {
   local f
   while IFS= read -r f; do
-    [ -n "$f" ] && ! is_card "$f" && printf '%s\n' "$f"
+    [ -n "$f" ] && ! is_card "$f" && ! is_remote_card "$f" && printf '%s\n' "$f"
   done <<EOF
 $(docs_find "$1" 1 -type f -name '*.md' ! -name '_index.md' ! -name '*.diagram.md' | sort)
 EOF
@@ -75,11 +75,15 @@ EOF
 $(list_docs "$dir")
 EOF
   fi
-  # Only when there is something to list, so an index in a folder without externals is
-  # byte-identical to what earlier versions generated — no DRIFT on upgrade.
-  if [ -n "$(list_externals "$dir" 1)" ]; then
+  # Only when there is something to list, so an index in a folder without externals or
+  # remote cards is byte-identical to what earlier versions generated — no DRIFT on upgrade.
+  # Local files first, then remote cards (☁, the file stays with the provider; PLUG-112).
+  local externals remotes card
+  externals="$(list_externals "$dir" 1)"; remotes="$(list_remote_cards "$dir" 1)"
+  if [ -n "$externals$remotes" ]; then
     printf '\n### External documents\n'
     while IFS= read -r ext; do
+      [ -n "$ext" ] || continue
       name="$(basename "$ext")"
       if [ -f "$ext.md" ]; then
         desc="$(fm_field "$ext.md" description)"
@@ -88,7 +92,14 @@ EOF
         printf -- '- [`%s`](%s) — _(no card yet)_\n' "$name" "$(md_dest "$name")"
       fi
     done <<EOF
-$(list_externals "$dir" 1)
+$externals
+EOF
+    while IFS= read -r card; do
+      [ -n "$card" ] || continue
+      name="$(basename "$card")"; desc="$(fm_field "$card" description)"
+      printf -- '- ☁ [`%s`](%s) — %s\n' "${name%.*.md}" "$(md_dest "$name")" "${desc:-_(no description)_}"
+    done <<EOF
+$remotes
 EOF
   fi
   printf '%s\n' "$END"
@@ -177,7 +188,7 @@ EOF
 $(fm_list "$card" relates-to)
 EOF2
   done <<EOF
-$(list_cards "$root")
+$(list_cards "$root"; list_remote_cards "$root")
 EOF
 
   anchor_check "$root" || found=1

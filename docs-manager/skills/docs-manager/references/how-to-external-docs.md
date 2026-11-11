@@ -103,10 +103,14 @@ bash <PLUGIN_ROOT>/scripts/docs.sh external related <file> [root]  # docs that d
 bash <PLUGIN_ROOT>/scripts/docs.sh external outline <file>  # headings / sheets + header row / slide titles
 bash <PLUGIN_ROOT>/scripts/docs.sh external text <file>     # paragraphs / rows as TSV / slide text
 bash <PLUGIN_ROOT>/scripts/docs.sh index --write [root]     # lists cards under "External documents"
+bash <PLUGIN_ROOT>/scripts/docs.sh external remote [root]   # every remote card, git-ignored ones too
+bash <PLUGIN_ROOT>/scripts/docs.sh external remote-stamp <card> <time>   # record the provider's modifiedTime
 ```
 
 `status` emits `state<TAB>place<TAB>file<TAB>card`, with `-` for an empty field.
-`state` is `ok | new | unstamped | changed | orphan`; `place` is `filed | unfiled | outside`.
+`state` is `ok | new | unstamped | changed | orphan | remote | incomplete`; `place` is
+`filed | unfiled | outside`. The last two are remote cards (see *Remote documents* below), whose
+`file` is always `-`.
 `docs.sh check` runs `external check` with everything else; under each `CHANGED` file it prints a
 `REVIEW:` line per dependent doc.
 
@@ -204,6 +208,8 @@ Run this when the user adds reference files, asks to catalogue or ingest them, o
    change; link them to the card (`relates-to:` on the card, a link in the doc) once the user agrees.
 
 Never gitignore, LFS-route, rename or delete a file the user placed. The plugin writes cards only.
+(The one `.gitignore` entry it ever adds is a local-only Drive folder of its own cards, on the user's
+answer; see *Remote documents*.)
 
 ## Refreshing docs from a changed source
 
@@ -221,6 +227,81 @@ A changed file can make an authored doc wrong without any link breaking: the doc
    the source's text, which would be a second copy to go stale next time.
 5. A doc that depends on the source but was not listed means a missing `relates-to:` entry — offer
    to add it to the card. Then stamp, and `docs.sh check` must be clean.
+
+## Remote documents (Google Drive)
+
+A **remote card** describes a file that stays on Google Drive, with no copy in the repo. It is a
+card like any other (same sections, same rules for `## Where to look`), so Claude can tell from the
+card whether the file matters and opens Drive only when it does. Only Claude talks to Drive, through
+a Drive MCP server; no command here makes a network call.
+
+### Layout and format
+
+```
+docs/external/vendor-api/
+├── .source.md                     ← settings of this folder's Drive attachments
+├── payments-spec-v3.pdf.gdrive.md ← remote card of an uploaded PDF (its extension kept)
+└── pricing-model.gdrive.md        ← remote card of a native Google Doc / Sheet / Slides (no extension)
+```
+
+- **The name classifies it:** `<name>.gdrive.md`. `<name>` is the Drive title in kebab-case, keeping an
+  uploaded file's extension; a native Google file has none. Same title twice in a folder: append `-2`.
+  `index` lists it under *External documents* as `☁`, and it is never an orphan.
+- **Frontmatter:** the card fields above (`title`, `description`, `read-when`, `relates-to`) plus
+  `remote-id` (Drive file id), `remote-url` (its view URL), `remote-type` (its mimeType) and
+  `remote-modified`. There is no `digest`. The id lives in the card because there is no local file whose
+  name could be the link.
+- **`remote-modified` is written only by `external remote-stamp <card> <time>`**, with the
+  `modifiedTime` Drive reported for the version the card was written from. Never edit it by hand.
+  `check` fails on a remote card without `remote-id` or `remote-modified` (`REMOTE INCOMPLETE`).
+- **The card body** opens with the link and where the file lives:
+  `[payments-spec-v3.pdf](<remote-url>) — on Google Drive, 212 pages; readable only with access to that Drive.`
+- **`.source.md`**, one per folder, holds the answers that apply to every Drive attachment in it:
+
+  ```markdown
+  ---
+  provider: gdrive
+  content: remote        # the file stays on Drive
+  processed: none
+  publish: commit        # or local: the folder is git-ignored (see step 3)
+  ---
+  ```
+
+  It is per-folder data, like a card, not a config file. Being a dot-file, it is never indexed.
+
+### Attaching — the procedure
+
+Run this when the user asks to attach, link or catalogue a Google Drive doc (a URL or an id) as
+reference material.
+
+1. **Find the Drive MCP.** Recognise it by what its tools do (search Drive, read a file's content,
+   get a file's metadata), not by a tool name: names differ between servers. If there is none, or it
+   asks for authentication, tell the user to connect or sign in with `/mcp`, and **write nothing**.
+2. **Read the file.** Get its metadata (id, title, mimeType, modifiedTime, view URL), then its content
+   as text; read only as much as the card needs, as in *Cataloguing* step 2. For a large file,
+   delegate the reading to a sub-agent that returns the drafted card.
+3. **Ask about publishing, once per folder.** If the folder has no `.source.md` yet, look at
+   `git remote -v`. With a public remote (or one you cannot tell), ask before writing anything: a
+   card's summary of a private file *is* private content, and its URL names the file. Offer two
+   answers: **commit** the cards, or keep the folder **local-only** (git-ignored, so it never reaches the
+   remote). Record the answer as `publish:` in a new `.source.md`; for `local`, add the folder to
+   `.gitignore`, which is part of what the user chose. Never ask again for that folder.
+4. **Write the card** in the folder the user chose (propose `external/<topic>/` as for any external),
+   in the format above, then `external remote-stamp <card> <modifiedTime>`.
+5. **Index and verify.** `index --write` (a local-only folder is not indexed: that is the point), then
+   `docs.sh check` must be clean.
+
+### Finding and reading remote material
+
+- **Run `external remote [root]`** when looking for reference material: it lists every remote card,
+  local-only ones included (`card<TAB>publish<TAB>remote-modified<TAB>description<TAB>read-when`), which
+  `_index.md` never shows for a git-ignored folder.
+- **Open Drive only when the card says the answer is there**, and only the part `## Where to look` names.
+- **Compare `modifiedTime`.** When you open the file and Drive's `modifiedTime` is newer than the card's
+  `remote-modified`, tell the user the card is out of date and offer to refresh it (re-read, rewrite
+  the card, `remote-stamp`), as for a `changed` local file.
+- **Drive not reachable** (no MCP, signed out, no access): say so. Never answer from the card as if
+  you had read the file; the card says where to look, not what is there now.
 
 ## Answering from an external file
 

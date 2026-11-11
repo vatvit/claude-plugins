@@ -395,6 +395,108 @@ check "D2a dot-named root indexed"              "yes" "$([ -f "$R/_index.md" ] &
 out=$(bash "$DOCS" check "$R" 2>&1); rc=$?
 check "D2b check passes on a dot-named root"    "0" "$rc"
 
+echo "== remote cards (PLUG-112) =="
+
+# rcard <path> [description] [omit-field] — a remote card (Drive doc kept on Drive), no local file.
+rcard() {
+    mkdir -p "$(dirname "$1")"
+    {
+      printf -- '---\ntitle: t\ndescription: %s\nread-when: mapping vendor codes\n' "${2:-Remote spec}"
+      [ "${3:-}" = remote-id ]       || printf 'remote-id: 1AbC-dEf_9\n'
+      printf 'remote-url: https://docs.google.com/document/d/1AbC-dEf_9/edit\n'
+      printf 'remote-type: application/pdf\n'
+      [ "${3:-}" = remote-modified ] || printf 'remote-modified: 2026-11-10T13:37:23.036Z\n'
+      printf -- '---\n\n# Spec\n'
+    } > "$1"
+}
+
+# --- RC1: listed with ☁ under External documents, not as a document ------------
+R=$(fresh rc1)
+rcard "$R/external/vendor/spec-v3.pdf.gdrive.md" "Vendor spec on Drive"
+bin "$R/external/vendor/local.pdf"; doc "$R/external/vendor/local.pdf.md" "Local copy" </dev/null
+doc "$R/external/vendor/notes.md" "Our notes" </dev/null
+bash "$DOCS" index --write "$R" >/dev/null 2>&1
+idx=$(cat "$R/external/vendor/_index.md")
+check "RC1a remote card listed with ☁" "yes" \
+  "$(has "$idx" '- ☁ [`spec-v3.pdf`](spec-v3.pdf.gdrive.md) — Vendor spec on Drive')"
+check "RC1b remote card not a document" "no" "$(has "$idx" '[`spec-v3.pdf.gdrive.md`]')"
+check "RC1c local external still listed" "yes" "$(has "$idx" '- [`local.pdf`](local.pdf.md) — Local copy')"
+check "RC1d remote after local" "yes" \
+  "$(echo "$idx" | awk '/local\.pdf\.md/ { l = NR } /spec-v3\.pdf\.gdrive\.md/ { r = NR } END { print (l && r > l) ? "yes" : "no" }')"
+before="$idx"
+bash "$DOCS" index --write "$R" >/dev/null 2>&1
+check "RC1e idempotent" "same" "$([ "$before" = "$(cat "$R/external/vendor/_index.md")" ] && echo same || echo changed)"
+bash "$DOCS" index --check "$R" >/dev/null 2>&1; check "RC1f index --check clean" "0" "$?"
+
+# --- RC2: a folder holding only a remote card still gets the section --------------
+R=$(fresh rc2)
+rcard "$R/external/drive/pricing-model.gdrive.md" "Pricing model"
+bash "$DOCS" index --write "$R" >/dev/null 2>&1
+idx=$(cat "$R/external/drive/_index.md")
+check "RC2a section opens for remote cards alone" "yes" "$(has "$idx" '### External documents')"
+check "RC2b native file, no extension" "yes" "$(has "$idx" '- ☁ [`pricing-model`](pricing-model.gdrive.md) — Pricing model')"
+
+# --- RC4/RC5: status row, never an orphan; check needs id + modified -----------
+R=$(fresh rc4)
+rcard "$R/external/drive/ok.gdrive.md"
+rcard "$R/external/drive/noid.gdrive.md" "x" remote-id
+rcard "$R/external/drive/nomod.gdrive.md" "x" remote-modified
+st=$(bash "$DOCS" external status "$R" 2>&1)
+check "RC4a remote row" "yes" "$(has "$st" "$(printf 'remote\tfiled\t-\t%s/external/drive/ok.gdrive.md' "$R")")"
+check "RC4b never an orphan" "no" "$(has "$st" 'orphan')"
+out=$(bash "$DOCS" external check "$R" 2>&1); rc=$?
+check "RC5a incomplete fails check" "1" "$rc"
+check "RC5b missing id reported" "yes" "$(has "$out" "REMOTE INCOMPLETE: $R/external/drive/noid.gdrive.md")"
+check "RC5c missing modified reported" "yes" "$(has "$out" "REMOTE INCOMPLETE: $R/external/drive/nomod.gdrive.md")"
+check "RC5d complete card not reported" "no" "$(has "$out" "ok.gdrive.md")"
+R=$(fresh rc5)
+rcard "$R/external/drive/ok.gdrive.md"
+bash "$DOCS" index --write "$R" >/dev/null 2>&1
+out=$(bash "$DOCS" check "$R" 2>&1); rc=$?
+check "RC5e complete remote card: docs.sh check clean" "0" "$rc"
+check "RC5f remote-url not checked as a link" "no" "$(has "$out" 'docs.google.com')"
+
+# --- RC6: relates-to of a remote card is checked --------------------------------
+R=$(fresh rc6)
+rcard "$R/external/drive/spec.gdrive.md"
+awk 'NR == 2 { print "relates-to: [../../arch/missing.md]" } { print }' "$R/external/drive/spec.gdrive.md" > "$R/t" \
+  && mv "$R/t" "$R/external/drive/spec.gdrive.md"
+bash "$DOCS" index --write "$R" >/dev/null 2>&1
+out=$(bash "$DOCS" check "$R" 2>&1)
+check "RC6 broken relates-to in a remote card" "yes" "$(has "$out" "BROKEN REF: $R/external/drive/spec.gdrive.md -> relates-to:../../arch/missing.md")"
+
+# --- RC7: remote-stamp is the one writer of remote-modified ------------------------
+R=$(fresh rc7)
+rcard "$R/c.gdrive.md" "x" remote-modified
+out=$(bash "$DOCS" external remote-stamp "$R/c.gdrive.md" 2026-11-11T10:15:12.524Z 2>&1); rc=$?
+check "RC7a stamped" "0:yes" "$rc:$(has "$out" "STAMPED: $R/c.gdrive.md")"
+check "RC7b field written" "yes" "$(has "$(cat "$R/c.gdrive.md")" 'remote-modified: 2026-11-11T10:15:12.524Z')"
+before=$(cat "$R/c.gdrive.md")
+out=$(bash "$DOCS" external remote-stamp "$R/c.gdrive.md" 2026-11-11T10:15:12.524Z 2>&1)
+check "RC7c repeat is UNCHANGED, bytes kept" "yes:same" \
+  "$(has "$out" UNCHANGED):$([ "$before" = "$(cat "$R/c.gdrive.md")" ] && echo same || echo changed)"
+bash "$DOCS" external remote-stamp "$R/c.gdrive.md" 2026-11-11T10:15:12Z >/dev/null 2>&1
+check "RC7d whole seconds accepted" "yes" "$(has "$(cat "$R/c.gdrive.md")" 'remote-modified: 2026-11-11T10:15:12Z')"
+before=$(cat "$R/c.gdrive.md")
+bash "$DOCS" external remote-stamp "$R/c.gdrive.md" "yesterday" >/dev/null 2>&1; rc=$?
+check "RC7e malformed time rejected, file untouched" "nz:same" \
+  "$([ "$rc" -ne 0 ] && echo nz || echo z):$([ "$before" = "$(cat "$R/c.gdrive.md")" ] && echo same || echo changed)"
+doc "$R/plain.md" </dev/null
+bash "$DOCS" external remote-stamp "$R/plain.md" 2026-11-11T10:15:12Z >/dev/null 2>&1; rc=$?
+check "RC7f not a remote card rejected" "nz:no" \
+  "$([ "$rc" -ne 0 ] && echo nz || echo z):$(has "$(cat "$R/plain.md")" 'remote-modified')"
+
+# --- RC8: external remote lists every remote card with its attachment's publish --
+R=$(fresh rc8)
+rcard "$R/external/vendor/spec.pdf.gdrive.md" "Vendor spec"
+printf -- '---\nprovider: gdrive\ncontent: remote\nprocessed: none\npublish: commit\n---\n' > "$R/external/vendor/.source.md"
+rcard "$R/external/loose/pricing.gdrive.md" "Pricing"
+out=$(bash "$DOCS" external remote "$R" 2>&1); rc=$?
+check "RC8a rc 0" "0" "$rc"
+check "RC8b record with publish" "yes" "$(has "$out" "$(printf '%s/external/vendor/spec.pdf.gdrive.md\tcommit\t2026-11-10T13:37:23.036Z\tVendor spec\tmapping vendor codes' "$R")")"
+check "RC8c no .source.md -> -" "yes" "$(has "$out" "$(printf '%s/external/loose/pricing.gdrive.md\t-\t' "$R")")"
+check "RC8d .source.md is not a doc" "no" "$(bash "$DOCS" index --write "$R" >/dev/null 2>&1; has "$(cat "$R/external/vendor/_index.md")" 'source')"
+
 echo
 echo "passed: $pass   failed: $fail"
 [ "$fail" -eq 0 ]

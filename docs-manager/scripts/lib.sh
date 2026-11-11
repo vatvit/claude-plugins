@@ -20,9 +20,13 @@
 # root itself is never pruned (`-mindepth 1`), so a root named `.site-docs` still works,
 # and is not printed: callers that want it add it. The tests are fixed strings from
 # this plugin's own scripts, never user input.
+#
+# DM_KEEP_IGNORED=1 keeps git-ignored paths. Only `external remote` sets it: a local-only
+# remote attachment is git-ignored on purpose and must still be findable (PLUG-112).
 docs_find() {
   local root="$1" depth="$2"; shift 2
-  find "$root" -mindepth 1 ${depth:+-maxdepth "$depth"} -name '.*' -prune -o \( "$@" -print \) | drop_git_ignored "$root"
+  find "$root" -mindepth 1 ${depth:+-maxdepth "$depth"} -name '.*' -prune -o \( "$@" -print \) \
+    | if [ "${DM_KEEP_IGNORED:-}" = 1 ]; then cat; else drop_git_ignored "$root"; fi
 }
 
 # drop_git_ignored <root> — stdin: paths below <root> as `find` printed them; stdout: those

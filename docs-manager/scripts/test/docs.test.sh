@@ -227,6 +227,26 @@ check "A9b fenced file links ignored" "nono" "$(has "$out" "nowhere.md")$(has "$
 check "A9c fenced anchor ignored" "no" "$(has "$out" "a.md:8 ->")"
 check "A9d real links still reported" "yes" "$(has "$out" "missing.md")"
 
+echo "== local-only remote attachment (PLUG-112) =="
+
+# --- RC9: a git-ignored attachment stays out of _index.md but `external remote` finds it ---
+if needs_git RC9; then
+  R=$(fresh rc9)
+  doc "$R/docs/a.md" "Doc A" </dev/null
+  mkdir -p "$R/docs/external/private"
+  printf -- '---\ntitle: t\ndescription: Private contract\nread-when: pricing\nremote-id: 1x\nremote-modified: 2026-11-10T13:37:23Z\n---\n' \
+    > "$R/docs/external/private/contract.gdrive.md"
+  printf -- '---\nprovider: gdrive\npublish: local\n---\n' > "$R/docs/external/private/.source.md"
+  printf 'docs/external/private/\n' > "$R/.gitignore"
+  git -C "$R" init -q
+  bash "$DOCS" index --write "$R/docs" >/dev/null 2>&1
+  check "RC9a ignored attachment not in any _index.md" "" "$(grep -rl 'contract' "$R/docs" --include=_index.md)"
+  out=$(bash "$DOCS" external remote "$R/docs" 2>&1)
+  check "RC9b external remote lists it, publish local" "yes" \
+    "$(has "$out" "$(printf '%s/docs/external/private/contract.gdrive.md\tlocal\t2026-11-10T13:37:23Z\tPrivate contract\tpricing' "$R")")"
+  bash "$DOCS" check "$R/docs" >/dev/null 2>&1; check "RC9c check clean" "0" "$?"
+fi
+
 echo
 echo "passed: $pass  failed: $fail  skipped: $skipped"
 [ "$fail" -eq 0 ]
