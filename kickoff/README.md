@@ -94,6 +94,10 @@ kickoff writes there only after you said yes (it asks once per project; the answ
 `.kickoff.json`), or when that file already exists from an earlier version. Otherwise, and whenever HOME is
 unusable (unset, missing, not writable; a sandbox), the list lives in the project folder (`.git/kickoff/` or
 `.kickoff/`) and a port is checked against that project's compose files only, not against other projects.
+Changing your answer later (`ports.sh scope home|project`) takes the project's ports along, so it keeps them.
+Into HOME, all of them go, and the project's own list is removed. Out of HOME, the entries named after the project
+(A1, `A1/…`) are copied and stay in HOME, still taken on the machine. A port the other list already gives
+someone else stops the switch, and nothing changes.
 A port counts as taken when it is in the registry *or* published in any compose file under
 `~/projects` (`KICKOFF_PROJECTS_DIR`). Allocation starts at 3030 (`KICKOFF_PORT_BASE`) and is safe to
 run from parallel sessions.

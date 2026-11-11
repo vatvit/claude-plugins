@@ -46,7 +46,7 @@ slot_scope_note() {
     slot_scope_fallback || return 0
     [ ! -e "$STATE/slot-scope-said" ] || return 0
     : > "$STATE/slot-scope-said"
-    note "slots: project scope — HOME not writable, so this crew's queue is not shared with other crews (slotScope in .crew.json)"
+    note "slots: project scope — HOME not writable, so this queue covers only this repo: crews in other repos on this machine do not wait for its slots, nor it for theirs, and an exclusive slot here does not keep their runs off the machine (slotScope in .crew.json)"
 }
 slot_ours() { [ -f "$STATE/sessions/$1" ]; }               # <name> — a member of this crew
 ours_list() { sess_names | paste -sd' ' -; }               # this crew's names, for slots_plan

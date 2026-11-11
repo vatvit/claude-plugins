@@ -16,7 +16,8 @@
 #                          project          the project folder (chosen)
 #                          ask              HOME is usable and nobody has chosen yet: ask the user
 #                          project-no-home  HOME is not usable: the project folder, nothing to ask
-#                        with an argument: record the choice in the project's .kickoff.json
+#                        with an argument: record the choice in the project's .kickoff.json, and take this
+#                        project's ports along (set_scope); a clash with the other list refuses, nothing moved
 #
 # MACHINE-WIDE ON PURPOSE, WHEN IN HOME. The registry is ~/.claude/kickoff/ports.json and ignores
 # CLAUDE_CONFIG_DIR: two Claude accounts on one Mac share one Docker, so a per-account registry
@@ -78,11 +79,59 @@ resolve_registry() {
     LOCK="$PORTS_FILE.lock"
 }
 
-# set_scope <home|project> — record the user's choice in the project's own config.
+# do_merge <entries-tsv> — add name TAB port entries to PORTS_FILE. Every entry is checked before any is
+# written (as do_viewer): a name the list gives another port, or a port it gives another name, refuses the
+# whole merge. An entry already there with the same port is skipped, so a repeated merge writes nothing.
+do_merge() {
+    local clash have tsv
+    # FILENAME, not NR == FNR: that idiom misreads the entries as the list when the list is empty.
+    have="$(mktemp)"; registry > "$have"
+    clash="$(awk -F'\t' -v have="$have" 'FILENAME == have { port[$1 ""] = $2; name[$2 ""] = $1; next }
+        ($1 "") in port && port[$1 ""] != $2 { print $1 " is " port[$1 ""] " there, " $2 " here"; next }
+        ($2 "") in name && (name[$2 ""] "") != ($1 "") { print "port " $2 " is registered to " name[$2 ""] " there, to " $1 " here" }' "$have" "$1")"
+    if [ -n "$clash" ]; then
+        rm -f "$have"
+        die "the port lists clash, so nothing was moved and the choice is unchanged:
+$clash
+Release or re-register one side (ports.sh release / set), then switch again" 3
+    fi
+    tsv="$(mktemp)"
+    { cat "$have"; awk -F'\t' -v have="$have" 'FILENAME == have { in_list[$1 ""] = 1; next } !(($1 "") in in_list)' "$have" "$1"; } > "$tsv"
+    write_registry "$tsv"; rm -f "$tsv" "$have"
+}
+
+# merge_ports <from> <into> [<A1>] — this project's entries of <from> into <into>, under <into>'s lock.
+# With <A1>, only the names <A1> and <A1>/… are this project's (HOME's list holds every project's).
+merge_ports() {
+    local from="$1" into="$2" a1="${3:-}" entries
+    [ -s "$from" ] || return 0
+    entries="$(mktemp)"
+    PORTS_FILE="$from"; registry | awk -F'\t' -v a="$a1" 'a == "" || ($1 "") == a || index($1, a "/") == 1' > "$entries"
+    PORTS_FILE="$into"; LOCK="$into.lock"
+    [ ! -s "$entries" ] || with_lock do_merge "$entries"
+    rm -f "$entries"
+}
+
+# set_scope <home|project> — record the user's choice in the project's own config, and move this project's
+# ports with it (PLUG-134), so `allocate <A1>` gives the same port after a switch as before.
+#   project → home: every entry of the project's list goes to HOME's, then the project's list is removed.
+#   home → project: HOME's entries named <A1> or <A1>/… are copied; HOME keeps them, so they stay taken
+#                   on this machine. Without a settled A1 nothing is copied, and that is said.
 set_scope() {
-    local root f t; root="$(project_root)" || exit 1; f="$(project_config_file "$root")"
+    local root f t pj hj a1; root="$(project_root)" || exit 1; f="$(project_config_file "$root")"
     if [ "$1" = home ] && ! kickoff_home_usable; then
         die "keeping the port list in HOME needs HOME, and HOME is not usable here (unset, missing or not writable): the project folder is used instead" 1
+    fi
+    pj="$(project_state_dir "$root")/ports.json"; hj="${HOME:-}/.claude/kickoff/ports.json"
+    if [ -n "${KICKOFF_PORTS_FILE:-}" ]; then
+        :                                    # one list, named by the override: nothing to move
+    elif [ "$1" = home ]; then
+        merge_ports "$pj" "$hj"
+    elif kickoff_home_usable && [ -s "$hj" ]; then
+        a1="$(kickoff_awk get.awk "$root" -v ids=A1 | head -n 1)"
+        if [ -n "$a1" ]; then merge_ports "$hj" "$pj" "$a1"
+        else echo "ports.sh: A1 (the project's name) is not answered yet, so no port was copied from HOME's list; register them with ports.sh set <name> <port>" >&2
+        fi
     fi
     t="$(mktemp)"
     if [ -f "$f" ] && grep -q '"ports"' "$f"; then
@@ -93,6 +142,7 @@ set_scope() {
         printf '{\n  "ports": "%s"\n}\n' "$1" > "$t"
     fi
     write_if_changed "$f" "$t" 1 >/dev/null
+    [ "$1" != home ] || rm -f "$pj"          # moved: the project keeps one list
 }
 
 # registry — name TAB port, from the flat JSON object (one "name": port per line).

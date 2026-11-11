@@ -101,7 +101,10 @@ real file, so a broken edit fails them.
   with a temp dir of its own in the nearest existing ancestor; it never creates or removes the shared dir, which
   raced concurrent probes (home 8a/8b). A set `$HOME` proves nothing. `ports.sh` writes HOME only when the project's `.kickoff.json` says `"ports": "home"` or the
   machine-wide file already exists (an earlier yes); otherwise and when HOME is not usable it uses `.git/kickoff/` or
-  `.kickoff/` and scans compose files under the project only. Per-account files (kickoff.json, installed_plugins.json)
+  `.kickoff/` and scans compose files under the project only. A scope switch moves the project's
+  ports with it (`set_scope` → `merge_ports`, PLUG-134): into HOME all of them, then the project's list is removed;
+  out of HOME only `<A1>` and `<A1>/…`, left in HOME too. Every entry is checked before any is written (home 9f–9h),
+  and the merge's awk tells the two inputs apart by `FILENAME`: `NR == FNR` misreads them when the first is empty. Per-account files (kickoff.json, installed_plugins.json)
   missing or unreadable mean defaults; R7 "Outside the repo" and `defaults.sh set` say "needs HOME" and exit 1. The
   task registry path is `task_registry_roots` in lib.sh, the one place (it was three that disagreed). Tests: home.test.sh
   (HOME unset, a regular file, a path below one: chmod does not stop root). Do not detect Cowork by name.

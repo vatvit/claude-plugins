@@ -12,7 +12,9 @@ failure from load.
 
 **Scope.** The queue is shared by the machine by default. `config set slotScope project` keeps it in the
 repo instead (only this repo's crew queues together); that is also where it goes, with one notice per
-crew, when HOME is not writable (a sandbox, Cowork), which needs no setup.
+crew, when HOME is not writable (a sandbox, Cowork), which needs no setup. **Either way the queue then
+covers only this repo:** crews in other repos on the machine do not wait for its slots, nor it for theirs,
+so an `exclusive` slot no longer keeps their runs off the machine. Machine scope needs a usable HOME.
 
 **One queue for the machine.** CPU, memory and Docker belong to the Mac, not to a repo, so every
 crew on it shares the queue (`~/.claude/crew/slots`). An `exclusive` run in one repo makes a run in

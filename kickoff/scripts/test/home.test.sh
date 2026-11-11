@@ -131,4 +131,42 @@ wait
 check "8a twenty concurrent probes all find HOME usable" "20" "$(cat "$TMP"/race.* | grep -c '^ok$')"
 check "8b ... and leave nothing in HOME" "" "$(ls -A "$H/.claude" 2>/dev/null)"
 
+echo "== switching scope moves this project's ports (PLUG-134) =="
+reg() { [ -f "$1" ] || return 0; tr '\n' ' ' < "$1" | tr -s ' ' | sed 's/ $//'; }
+P=$(fresh sw); H=$(homeof "$P"); mkdir -p "$H"
+run usable "$P" ports.sh scope project >/dev/null 2>&1
+for n in tmp sw sw/api; do run usable "$P" ports.sh allocate $n >/dev/null 2>&1; done; run usable "$P" ports.sh release tmp 2>/dev/null
+run usable "$P" ports.sh scope home >/dev/null 2>"$TMP/err"; rc=$?
+check "9a project → home: the switch succeeds" "0" "$rc"
+check "9b ... HOME's list has the project's ports" '{ "sw": 3031, "sw/api": 3032 }' "$(reg "$H/.claude/kickoff/ports.json")"
+check "9c ... the project's own list is gone (one list)" "no" "$(exists "$P/.kickoff/ports.json")"
+check "9d ... the project keeps its port" "3031" "$(run usable "$P" ports.sh allocate sw 2>/dev/null)"
+before="$(reg "$H/.claude/kickoff/ports.json")"
+run usable "$P" ports.sh scope home >/dev/null 2>&1; rc=$?
+check "9e the same switch again is a no-op" "0 $before" "$rc $(reg "$H/.claude/kickoff/ports.json")"
+
+P=$(fresh cl); H=$(homeof "$P"); mkdir -p "$H/.claude/kickoff"
+run usable "$P" ports.sh scope project >/dev/null 2>&1
+run usable "$P" ports.sh allocate cl >/dev/null 2>&1; run usable "$P" ports.sh allocate cl/api >/dev/null 2>&1
+printf '{\n  "other": 3031\n}\n' > "$H/.claude/kickoff/ports.json"
+out="$(run usable "$P" ports.sh scope home 2>&1)"; rc=$?
+check "9f a port HOME gives another name refuses the switch" "3" "$rc"
+check "9g ... naming the clash" "yes" "$(has "3031" "$out")"
+check "9h ... nothing written: HOME, the project's list, the choice" '{ "other": 3031 }|{ "cl": 3030, "cl/api": 3031 }|project' \
+    "$(reg "$H/.claude/kickoff/ports.json")|$(reg "$P/.kickoff/ports.json")|$(run usable "$P" ports.sh scope 2>/dev/null)"
+
+P=$(fresh hp); H=$(homeof "$P"); bash "$S/answer.sh" --root "$P" A1 hp >/dev/null
+run usable "$P" ports.sh scope home >/dev/null 2>&1
+for n in else hp hp/api; do run usable "$P" ports.sh allocate $n >/dev/null 2>&1; done
+run usable "$P" ports.sh scope project >/dev/null 2>"$TMP/err"; rc=$?
+check "9i home → project: the switch succeeds" "0" "$rc"
+check "9j ... the project's list has A1's ports, not another project's" '{ "hp": 3031, "hp/api": 3032 }' "$(reg "$P/.kickoff/ports.json")"
+check "9k ... HOME keeps them all (still taken on this machine)" '{ "else": 3030, "hp": 3031, "hp/api": 3032 }' "$(reg "$H/.claude/kickoff/ports.json")"
+check "9l ... the project keeps its port" "3031" "$(run usable "$P" ports.sh allocate hp 2>/dev/null)"
+
+P=$(fresh na); run usable "$P" ports.sh scope home >/dev/null 2>&1; run usable "$P" ports.sh allocate na >/dev/null 2>&1
+out="$(run usable "$P" ports.sh scope project 2>&1)"; rc=$?
+check "9m without a settled A1 the switch still happens" "0 project" "$rc $(run usable "$P" ports.sh scope 2>/dev/null)"
+check "9n ... and says nothing was copied" "yes" "$(has "A1" "$out")"
+
 summary

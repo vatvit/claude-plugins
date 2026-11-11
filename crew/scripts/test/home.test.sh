@@ -31,6 +31,7 @@ for mode in unset missing file; do
     out="$(cd "$R" && nohome $mode env CREW_AS=$id-boss bash "$C" slot request cpu 5 2>&1)"; rc=$?
     check "$mode: slot request works" 0 "$rc"
     check "$mode: …says the scope once" yes "$(contains "slots: project scope — HOME not writable" "$out")"
+    check "$mode: …and that other repos' crews are not covered (PLUG-135)" yes "$(contains "does not keep their runs off the machine" "$out")"
     check "$mode: …the queue is in the project" yes "$( [ -s "$R/.git/crew/slots" ] && echo yes || echo no)"
     out="$(cd "$R" && nohome $mode env CREW_AS=$id-boss bash "$C" slot list 2>&1)"
     check "$mode: …not said again" no "$(contains "project scope" "$out")"
@@ -47,6 +48,8 @@ for mode in unset missing file; do
     check "$mode: the project layer still takes settings" 0 "$rc"
     out="$(cd "$R" && nohome $mode env CREW_AS=$id-boss bash "$C" time 2>&1)"; rc=$?
     check "$mode: crew time degrades without transcripts" 0 "$rc"
+    check "$mode: …with no shell error" no "$(printf '%s' "$out" | grep -Eq 'unbound|No such file|syntax error|Not a directory|cannot' && echo yes || echo no)"
+    check "$mode: …and says what it has, as with HOME" yes "$(contains "no transcript found for this crew's sessions" "$out")"
     out="$(cd "$R" && nohome $mode bash "$C" status 2>&1)"; rc=$?
     check "$mode: status works" 0 "$rc"
     out="$(cd "$R" && nohome $mode bash "$C" whoami --leave "$id-ann-worker" 2>&1)"; rc=$?
@@ -97,5 +100,18 @@ check "the same crew keeps working when HOME later goes away" 0 "$rc"
 check "…the old member's slot is still live" no "$(contains STALE "$out")"
 out="$(cd "$R" && nohome unset bash "$C" whoami oldw --sid sid-old2 2>&1)"
 check "…and its name is still oldw (no prefix on a re-join)" yes "$(contains "you are oldw (worker)" "$out")"
+
+
+echo "-- HOME a plain file, transcripts under CLAUDE_CONFIG_DIR: still read (PLUG-136)"
+R="$TMP/repo-tx"; new_repo "$R"; A="$TMP/acct-tx"; mkdir -p "$A/projects/-repo-tx"
+txenv() { env -u CREW_HOME -u CREW_USER_CONFIG -u CREW_TRANSCRIPTS HOME="$TMP/a-file" CLAUDE_CONFIG_DIR="$A" CREW_NOW=1791028800 TZ=UTC "$@"; }
+(cd "$R" && txenv bash "$C" whoami txw --sid sid-tx >/dev/null 2>&1)
+{ printf '{"parentUuid":null,"isSidechain":false,"type":"user","message":{"role":"user","content":"go"},"uuid":"u","timestamp":"2026-10-03T09:00:00.000Z","origin":{"kind":"human"}}\n'
+  printf '{"parentUuid":"p","isSidechain":false,"message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_t","name":"Bash","input":{"command":"npm test","description":"d"}}]},"type":"assistant","uuid":"a","timestamp":"2026-10-03T09:01:00.000Z"}\n'
+  printf '{"parentUuid":"p","isSidechain":false,"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_t","type":"tool_result","content":"ok"}]},"uuid":"u","timestamp":"2026-10-03T09:21:00.000Z","toolUseResult":{"stdout":"x"}}\n'
+} > "$A/projects/-repo-tx/sid-tx.jsonl"
+out="$(cd "$R" && txenv env CREW_AS=txw bash "$C" time 2>&1)"; rc=$?
+check "crew time exits 0" 0 "$rc"
+check "…the transcript under CLAUDE_CONFIG_DIR is read (20 min of a process)" yes "$(contains "20" "$out")"
 
 finish
