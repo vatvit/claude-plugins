@@ -181,6 +181,33 @@ out="$(crew_as g2 "$G" copy remove "$G/.worktrees/foreign" 2>&1)"; rc=$?
 check "a folder that is not crew's copy is left alone" 1 "$rc"
 check "…still there" yes "$( [ -d "$G/.worktrees/foreign" ] && echo yes || echo no)"
 
+echo "-- remove: work that landed and was changed again since (PLUG-109)"
+L="$TMP/l"; new_repo "$L"; printf 'v0\n' > "$L/f.txt"; printf 'old\n' > "$L/gone.txt"
+git -C "$L" add -A && git -C "$L" commit -q -m base; join "$L" l1 coordinator
+crew_as l1 "$L" copy new lc >/dev/null 2>&1; LC="$L/.worktrees/l-lc"
+printf 'v1\n' > "$LC/f.txt"; rm "$LC/gone.txt"
+crew_as l1 "$L" apply lc >/dev/null 2>&1
+git -C "$L" add -A f.txt gone.txt && git -C "$L" commit -q -m C1; c1="$(git -C "$L" rev-parse --short HEAD)"
+printf 'v2\n' > "$L/f.txt"; printf 'back\n' > "$L/gone.txt"
+git -C "$L" add -A f.txt gone.txt && git -C "$L" commit -q -m C2
+out="$(crew_as l1 "$L" copy status lc 2>&1)"
+check "status: each file says where its version is" yes "$(contains "f.txt — landed in $c1" "$out")"
+check "…a deletion too" yes "$(contains "gone.txt — landed in $c1" "$out")"
+printf 'v3\n' > "$LC/f.txt"
+out="$(crew_as l1 "$L" copy remove lc 2>&1)"; rc=$?
+check "an edit in no commit: still refused" 1 "$rc"
+check "…naming the file" yes "$(contains "  f.txt" "$out")"
+check "…and not the landed one" no "$(contains "gone.txt" "$out")"
+printf 'v1\n' > "$LC/f.txt"; printf 'scratch\n' > "$LC/notes.tmp"
+out="$(crew_as l1 "$L" copy remove lc 2>&1)"; rc=$?
+check "an untracked file in no commit: refused" 1:yes "$rc:$(contains "notes.tmp" "$out")"
+check "…saying how to mark scratch" yes "$(contains "info/exclude" "$out")"
+rm "$LC/notes.tmp"
+out="$(crew_as l1 "$L" copy remove lc 2>&1)"; rc=$?
+check "landed in an earlier commit, changed on the tree since: removed" 0 "$rc$([ "$rc" = 0 ] || printf ': %s' "$out")"
+check "…naming the commit that holds each file" yes:yes "$(contains "f.txt — landed in $c1" "$out"):$(contains "gone.txt — landed in $c1" "$out")"
+check "…the folder is gone" no "$( [ -e "$LC" ] && echo yes || echo no)"
+
 echo "-- apply waits on a foreign .git/index.lock, never removes it (PLUG-092)"
 newk lk; printf 'locked a\n' > "$K/lk.txt"
 LOCK="$R/.git/index.lock"; printf '{"lockWaitSec":10}' > "$R/.crew.json"

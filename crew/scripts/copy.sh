@@ -9,9 +9,9 @@
 # A copy made before 2.1 is a `git clone --shared` with .git/crew-copy; status, rebase and apply
 # still take one by its folder.
 # help: copy new <name> [--at COMMIT] — make a copy at a named commit (default HEAD), in .worktrees/<repo>-<name>
-# help: copy status <name> — files the copy changed against its base
+# help: copy status <name> — files the copy changed against its base, each on the tree / landed in <sha> / not landed
 # help: copy rebase <name> [--ours <path...>] — move the copy onto the commit the tree is on now (merge or refuse); --ours: conflicts you resolved in the copy
-# help: copy remove <name> — delete the copy; refused while it has work the tree does not
+# help: copy remove <name> — delete the copy, naming the commit that holds each file; refused while a file is in no commit
 # help: apply <name> [path...] — land the copy into the shared tree: take, 3-way merge, or refuse all
 
 [ -n "${CREW_LIB_DIR:-}" ] || . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
@@ -76,25 +76,51 @@ copy_new() { # <name> [--at commit]
     crew_wt_ready "$dir"
 }
 
-# copy_unlanded <dir> — the paths where the copy holds something the shared tree does not
-copy_unlanded() {
-    local f
+# copy_verdicts <dir> — "<path>\t<where>" per changed path: where the copy's version of it is kept.
+#   tree    the tree's file equals the copy's
+#   <sha>   the oldest commit on the branch since the copy's base whose version equals the copy's (PLUG-109:
+#           landed work the tree changed again since is still landed; comparing with the tree alone kept
+#           such a copy forever, and --force does not override that)
+#   ""      in no commit: work the tree does not have. An untracked scratch file is that too, since no
+#           commit proves it is kept anywhere; scratch that is not work goes in .git/info/exclude
+copy_verdicts() {
+    local f c base
+    base="$(crew_wt_meta "$1" base)"
     while IFS= read -r f; do
         [ -n "$f" ] || continue
-        same_file "$( [ -e "$1/$f" ] && echo "$1/$f")" "$( [ -e "$ROOT/$f" ] && echo "$ROOT/$f")" || printf '%s\n' "$f"
+        [ -e "$1/$f" ] && c="$1/$f" || c=""
+        if same_file "$c" "$( [ -e "$ROOT/$f" ] && echo "$ROOT/$f")"; then printf '%s\ttree\n' "$f"
+        else printf '%s\t%s\n' "$f" "$(copy_landed_in "$base" "$f" "$c")"; fi
     done <<EOF
 $(copy_changes "$1")
 EOF
 }
+# copy_landed_in <base> <path> <copy file|""> — short sha of the oldest commit in base..HEAD whose <path>
+# is the copy's version ("" = deleted), or nothing
+copy_landed_in() {
+    local want="" sha
+    [ -z "$3" ] || want="$(git -C "$ROOT" hash-object --path="$2" -- "$3")" || return 0
+    for sha in $(git -C "$ROOT" rev-list --reverse "$1..HEAD" -- "$2"); do
+        [ "$(git -C "$ROOT" rev-parse -q --verify "$sha:$2" 2>/dev/null)" = "$want" ] \
+            && { git -C "$ROOT" rev-parse --short "$sha"; return 0; }
+    done
+    return 0
+}
+verdict_text() { awk -F'\t' 'NF { print "  " $1 " — " ($2 == "tree" ? "on the tree" : $2 == "" ? "not landed" : "landed in " $2) }'; }
+verdict_lost() { awk -F'\t' 'NF && $2 == "" { print $1 }'; }   # verdicts on stdin -> the paths not landed
+# copy_unlanded <dir> — the paths where the copy holds something neither the tree nor a commit has
+copy_unlanded() { copy_verdicts "$1" | verdict_lost; }
 copy_remove() { # <dir>
-    local lost d wts
+    local v lost d wts
     d="$(cd "$1" && pwd -P)" || die "no such copy: $1"
     wts="$(git -C "$ROOT" worktree list --porcelain)"
     printf '%s\n' "$wts" | grep -qxF "worktree $d" \
         || die "$1 is not a worktree copy (a copy made before 2.1 is a clone: delete its folder yourself)"
-    lost="$(copy_unlanded "$1")"
-    [ -z "$lost" ] || die "$1 has work the tree does not — land it (apply), or drop those files in the copy first:
+    v="$(copy_verdicts "$1")"
+    lost="$(printf '%s\n' "$v" | verdict_lost)"
+    [ -z "$lost" ] || die "$1 has work the tree does not — land it (apply), or drop those files in the copy first (scratch that is not work: list it in $(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)/info/exclude):
 $(printf '%s\n' "$lost" | sed 's/^/  /')"
+    printf '%s\n' "$v" | verdict_text
     git -C "$ROOT" worktree remove --force "$1" || die "git worktree remove $1 failed"
     echo "copy: removed $1"
 }
@@ -102,7 +128,7 @@ $(printf '%s\n' "$lost" | sed 's/^/  /')"
 copy_status() {
     local base n; base="$(crew_wt_meta "$1" base)"; n="$(copy_changes "$1" | grep -c . || true)"
     echo "copy: $1 based on $(git -C "$ROOT" rev-parse --short "$base") (tree is at $(git -C "$ROOT" rev-parse --short HEAD)) · $n changed"
-    copy_changes "$1" | sed 's/^/  /'
+    copy_verdicts "$1" | verdict_text
     [ "$base" = "$(git -C "$ROOT" rev-parse HEAD)" ] || echo "  (stale: rebase before applying — copy rebase $1)"
     return 0
 }

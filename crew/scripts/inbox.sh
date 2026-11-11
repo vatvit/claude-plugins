@@ -17,17 +17,22 @@
 [ -n "${CREW_LIB_DIR:-}" ] || . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
 
 mail_box() { echo "$STATE/mail/$1"; }
+# mail_msg <path> — a finished message: a file, and not the <id>.tmp.<pid> replace_file writes before
+# its rename (PLUG-108: a reader that listed one found it gone, and watch died on the empty header)
+mail_msg() { case "${1##*/}" in *.tmp.*) return 1 ;; esac; [ -f "$1" ]; }
 mail_ids() { # <name> [new|cur] — ids, oldest first (a glob sorts; no fork)
     local f
-    for f in "$STATE/mail/$1/${2:-new}"/*; do [ -f "$f" ] && echo "${f##*/}"; done
+    for f in "$STATE/mail/$1/${2:-new}"/*; do mail_msg "$f" && echo "${f##*/}"; done
     return 0
 }
 mail_count() { # <name> -> unread count, no fork
     local f n=0
-    for f in "$STATE/mail/$1/new"/*; do [ -f "$f" ] && n=$((n + 1)); done
+    for f in "$STATE/mail/$1/new"/*; do mail_msg "$f" && n=$((n + 1)); done
     echo "$n"
 }
-mail_field() { sed -n "s/^$2=//p;/^\$/q" "$1" | head -1; }   # <file> <key> — from the header only
+mail_field() { # <file> <key> — from the header only; empty (and status 0, for pipefail) when the file is gone
+    sed -n "s/^$2=//p;/^\$/q" "$1" 2>/dev/null | head -1 || true
+}
 
 # mail_arm <name> [sid] — leave the fast-path marker for the session behind <name> when it has mail
 mail_arm() {

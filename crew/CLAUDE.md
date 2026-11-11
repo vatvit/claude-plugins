@@ -53,8 +53,10 @@ crew/
   meta is `crew-copy` in the copy's own git dir, so a pre-2.1 clone copy still works by path. The
   first copy runs `crew_wt_ignore`: `/.worktrees/` is appended to `.gitignore` only when
   `git check-ignore` says nothing ignores it yet, and left uncommitted. The pre-edit hook skips
-  `.worktrees/*` (a copy is private), and `copy remove` refuses while the copy holds anything the
-  tree does not. Tests make worktrees only in their `mktemp -d` fixtures.
+  `.worktrees/*` (a copy is private), and `copy remove` refuses while the copy holds anything neither
+  the tree nor a commit since its base has (`copy_verdicts`, the one test for `remove`, `status` and
+  `end`; PLUG-109: comparing with the tree alone kept every landed copy the tree changed again since).
+  Tests make worktrees only in their `mktemp -d` fixtures.
 - **Task worktrees are the user's choice (PLUG-066).** `tree` (project layer only) is `shared` until
   the user says `worktrees`; `tree_policy_note` reports it undecided, beside `git_policy_note`.
   Under `shared`, `$STATE/tree-allow` holds the user's per-task exceptions. `crew_wt_add` is the
@@ -187,6 +189,9 @@ crew/
   and the mail hooks repeat the notice until it is read. They find "no mail for me" without a fork:
   sending leaves `<state>/unread/<sid>` for the recipient (fast.sh: `crew_fast_unread`), and the slow
   path removes a stale marker. `whoami` and SessionStart re-arm it for a session's new id.
+  `mail_msg` is the one test for a message: never the `<id>.tmp.<pid>` a sender writes before its rename,
+  and a reader treats a listed message that has gone (read meanwhile) as gone, never as an error (PLUG-108:
+  `watch --wait` died on one and stopped guarding the crew).
 - **Claims are advisory.** The pre-edit hook records which session touched which path. A path
   written another way (Bash, a generator) shows as *unclaimed* in `status`, which is the point:
   `status` surfaces it instead of guessing.

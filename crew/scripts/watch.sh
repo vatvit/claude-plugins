@@ -86,7 +86,9 @@ watch_findings() {
         for n in $(sess_names); do
             first="$(mail_ids "$n" | head -1)"; [ -n "$first" ] || continue
             f="$STATE/mail/$n/new/$first"
-            age=$(( t - $(mail_field "$f" at) ))
+            age="$(mail_field "$f" at)"
+            case "$age" in ''|*[!0-9]*) continue ;; esac      # read (moved to cur/) since it was listed
+            age=$(( t - age ))
             [ "$age" -gt "$lim" ] || continue
             c="$(mail_count "$n")"
             printf 'unread:%s\t%s has %s unread for %sm (oldest #%s from %s, %s) — next: %s runs inbox; if it does not answer, relay it again with SendMessage\n' \

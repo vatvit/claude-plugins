@@ -130,6 +130,20 @@ out="$(mailhook post "$(payload sid-t1 "$R2" Bash command ls)")"
 check "…and its coordinator is not told" "" "$out"
 crew_as s1 "$R" inbox >/dev/null
 
+echo "-- a message still being written is not mail yet (PLUG-108)"
+# replace_file writes <id>.tmp.<pid> in new/ and renames it into place; a reader must never list it.
+crew_as s1 "$R" inbox >/dev/null
+tmpmsg="$M/s1/new/000900.tmp.4242"
+mkdir -p "$M/s1/new" "$R/.git/crew/unread"; printf 'id=000900\nfrom=s2\n' > "$tmpmsg"
+: > "$R/.git/crew/unread/sid-s1"                     # the marker, so the hook takes the slow path
+out="$(crew_as s1 "$R" inbox 2>&1)"
+check "inbox does not list a sender's temp file" yes "$(contains "no unread" "$out")"
+check "…and leaves it for the sender to rename" yes "$( [ -f "$tmpmsg" ] && echo yes || echo no)"
+: > "$R/.git/crew/unread/sid-s1"
+check "the unread notice does not count it" "" "$(mailhook post "$(payload sid-s1 "$R" Bash command ls)")"
+check "status does not count it" no "$(contains "mail:" "$(crew_as s1 "$R" status)")"
+rm -f "$tmpmsg"
+
 echo "-- fast path: no fork without mail"
 # With an empty PATH every external command fails loudly, so silence on stderr means no fork.
 quiet() { printf '%s' "$2" | env PATH="" "$BASH" "$H/mail.sh" "$1" 2>&1; }

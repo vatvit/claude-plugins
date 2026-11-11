@@ -6,12 +6,12 @@ A failing test in the shared tree fails every other session's checks. So build e
 ```
 copy new <name> [--at COMMIT]     # a detached git worktree at .worktrees/<repo>-<name>
   … edit and test inside that folder (run the tests in a slot) …
-copy status <name>                # what the copy changed; flags a stale copy
+copy status <name>                # what the copy changed, each file on the tree / landed in <sha> / not landed; flags a stale copy
 copy rebase <name>                # move onto the tree's current HEAD (merge or refuse)
 copy rebase <name> --ours <path...> # …keeping the copy's version of conflicts you resolved there
 apply <name> [path...]            # land into the shared tree
 msg handoff                       # then hand off the landed paths
-copy remove <name>                # drop the copy; refused while it holds work the tree lacks
+copy remove <name>                # drop the copy, naming the commit that holds each file; refused while a file is in no commit
 ```
 
 A new copy holds tracked files only. The project's local files in `treeLink` are linked in, and
@@ -48,7 +48,9 @@ The summary line reads `apply: N taken, M merged, K already there`.
   index, the repo's objects shared. The first copy adds `/.worktrees/` to `.gitignore` unless
   something already ignores it; that change is left uncommitted for you to commit or keep. Edits
   inside a copy are private: no hold, snapshot or claim. crew runs `git worktree` for you, and a
-  raw `git worktree` from a member is denied. `copy remove <name>` drops a copy once everything in
-  it is in the tree; a copy made before 2.1 is a clone, whose folder you delete yourself.
+  raw `git worktree` from a member is denied. `copy remove <name>` drops a copy once every file it
+  changed is on the tree or in a commit since the copy's base (landed work the tree changed again
+  since still counts as landed), and prints which commit holds each one. A file in no commit, an
+  untracked scratch file included, keeps it: drop it, or list scratch in `.git/info/exclude`; a copy made before 2.1 is a clone, whose folder you delete yourself.
 - Never `cp` from the copy into the tree. `cp` cannot see a peer's change and silently erases
   it.

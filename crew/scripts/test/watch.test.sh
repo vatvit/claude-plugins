@@ -69,6 +69,18 @@ check "mail unread past silenceMin is reported" yes "$(has "s1 has 1 unread" "$o
 check "…with the command to read it" yes "$(has "inbox" "$out")"
 crew_as s1 "$R" inbox >/dev/null
 
+echo "-- a message being written, or read away mid-pass, does not kill watch (PLUG-108)"
+printf 'id=000900\nfrom=s2\n' > "$ST/mail/s1/new/000000.tmp.4242"   # sorts first, no at= yet
+out="$(W 17)"; rc=$?
+check "a sender's temp file: watch --once still exits 0" 0 "$rc"
+check "…and is not reported as unread" no "$(has "s1 has" "$out")"
+rm -f "$ST/mail/s1/new/000000.tmp.4242"
+# The race itself: an id listed, then renamed away (inbox moves it to cur/) before it is read.
+out="$(cd "$R" && CREW_AS=s1 CREW_NOW="$(at 17)" bash -c '. "$1/watch.sh"; set -euo pipefail; crew_init
+    mail_ids() { echo 000777; }; watch_findings; echo survived' _ "$S" 2>&1)"; rc=$?
+check "a message gone between listing and reading is skipped" 0:yes "$rc:$(has survived "$out")"
+check "…silently" no "$(has "No such file" "$out")"
+
 echo "-- stale slot"
 id="$(CREW_NOW="$(at 0)" crew_as s3 "$R" slot request cpu 1 | sed -n 's/.*#\([0-9]*\).*/\1/p' | head -1)"
 CREW_NOW="$(at 0)" crew_as s3 "$R" slot start "$id" >/dev/null
