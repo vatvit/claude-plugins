@@ -318,14 +318,19 @@ that is never split, commas included: `gaps.sh` looks for that tool in the proje
 | R6 | Task tracking? | Markdown task files (task plugin) (★ if task installed) · The remote's issues · An external tracker · ★ None | always | CLAUDE.md |
 | R7 | Where do the task files live? | ★ In the repo, `tasks/` · Outside the repo (★ if A4 ≠ Mine) | R6 = Markdown task files and task installed | `.task-config.json` |
 | R8 | Task prefix? | ★ *3–5 letters derived from A1* | R6 = Markdown task files and task installed | `.task-config.json` |
+| R12 | Who works on these tasks? | ★ Just me · A team — new tasks start unassigned · A team — new tasks go to whoever creates them | R6 = Markdown task files and task installed | `.task-config.json` |
 | R9 | Task workflow? | ★ Code and docs profiles · One minimal profile | R6 = Markdown task files and task installed | `tasks/_workflow/` |
 | R10 | Practices built into the workflow? (pick any) | INVEST — a task of more than one behaviour is split into small vertical slices · Tests first — watch each test fail before the code exists · SOLID — one responsibility per module, depend on abstractions · DRY — reuse or refactor, never clone; leftover duplication becomes a task | R9 answered | `tasks/_workflow/` |
 | R11 | Roadmap? | ★ Yes · No | task-roadmap installed and R6 = Markdown task files | `.task-roadmap.json` |
 
-- **R6–R11** — the questions that set up a sibling plugin are asked only when it is installed. Task
+- **R6–R12** — the questions that set up a sibling plugin are asked only when it is installed. Task
   tracking itself is asked always, in generic terms.
 - **R7** — tasks hold the user's deliberation and history. In a client's repo that is usually not
   meant for the client, so they live outside it.
+- **R12** — a team turns on the task plugin's assignees (`"assignees": "unassigned"` or `"self"`): each task
+  says who it is for, and the list shows the user's own and the unassigned ones first. "Just me" writes nothing,
+  and the task config stays as it was. It can be changed later with the task plugin's `assign.sh <project> mode …`.
+  (Numbered after R11 because ids are the keys of recorded answers and are never renumbered.)
 - **R10** is asked in the DROP form of §F: every practice is in the workflow unless the user drops it.
   Nothing ticked (or `n/a`) keeps them all; the answer recorded is the resulting set, `None` when all
   are dropped. The scaffold removes a dropped practice's sentence from the seeded workflow.

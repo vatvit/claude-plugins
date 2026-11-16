@@ -7,5 +7,5 @@
     "url": "https://github.com/vatvit"
   },
   "license": "MIT",
-  "keywords": ["kickoff", "new-project", "questionnaire", "charter", "decisions", "onboarding", "project-setup", "existing-project", "gaps", "quality-level", "test-strategy", "ports", "backward-compatibility", "invest", "solid", "dry", "e2e-viewer", "test-viewer", "what-next"]
+  "keywords": ["kickoff", "new-project", "questionnaire", "charter", "decisions", "onboarding", "project-setup", "existing-project", "gaps", "quality-level", "test-strategy", "ports", "backward-compatibility", "invest", "solid", "dry", "e2e-viewer", "test-viewer", "what-next", "team"]
 }

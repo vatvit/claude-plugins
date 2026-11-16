@@ -59,6 +59,8 @@ INVEST when a task is shaped, tests first, SOLID and DRY at architecture and imp
 layout of the rest of `docs/` is docs-manager's. In your own project the tasks are in the repo. In
 a client's they are kept outside it, in the
 task skill's registry, so the client's repo carries neither your tasks nor your home path.
+When a team works on the tasks, the config turns on the task plugin's assignees; for just you it stays
+as it always was.
 Seeded files are never overwritten; a hand-edited CLAUDE.md is refused rather than replaced.
 
 ## An existing project

@@ -42,20 +42,30 @@ if [ -f "$G/config" ]; then
     fi
 fi
 
-# --- tasks (R6 tracking, R7 where, R8 prefix) -------------------------------------------------
+# --- tasks (R6 tracking, R7 where, R8 prefix, R12 who) -----------------------------------------
+# hint_assignees <value> <where> — R12 from the task plugin's `assignees`: no key means "Just me".
+hint_assignees() {
+    case "$1" in
+        unassigned) hint R12 "A team — new tasks start" "$2: assignees unassigned" ;;
+        self)       hint R12 "A team — new tasks go" "$2: assignees self" ;;
+        *)          hint R12 "Just me" "$2: no assignees" ;;
+    esac
+}
 if [ -f "$root/.task-config.json" ]; then
     td="$(json_str "$root/.task-config.json" tasksDir)"
     px="$(json_str "$root/.task-config.json" prefix)"
     hint R6 "Markdown task files" ".task-config.json exists"
     case "$td" in /*|~*) hint R7 "Outside the repo" ".task-config.json: tasksDir $td" ;; ?*) hint R7 "In the repo" ".task-config.json: tasksDir $td" ;; esac
     [ -z "$px" ] || hint R8 "$px" ".task-config.json: prefix"
+    hint_assignees "$(json_str "$root/.task-config.json" assignees)" ".task-config.json"
 else
     reg="$(task_registry_entry_file "$root")"
     if [ -n "$reg" ]; then
-        px="$(awk -v r="\"$root\":" 'index($0, r) { o = 1 } o && /"prefix"/ { sub(/.*"prefix"[ \t]*:[ \t]*"/, ""); sub(/".*/, ""); print; exit }' "$reg")"
+        px="$(task_registry_field "$reg" "$root" prefix)"
         hint R6 "Markdown task files" "the task registry lists this project"
         hint R7 "Outside the repo" "the task registry lists this project"
         [ -z "$px" ] || hint R8 "$px" "the task registry: prefix"
+        hint_assignees "$(task_registry_field "$reg" "$root" assignees)" "the task registry"
     fi
 fi
 [ -f "$root/.task-roadmap.json" ] || [ -f "$root/tasks/roadmap.html" ] && hint R11 "Yes" "a task roadmap exists"

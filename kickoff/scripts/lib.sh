@@ -89,6 +89,26 @@ EOR
     return 0
 }
 
+# task_registry_field <registry-file> <root> <key> — a string field of <root>'s entry in the task registry;
+# nothing when absent. The entry is read from its "<root>": line to its closing brace.
+task_registry_field() {
+    awk -v r="\"$2\":" -v k="\"$3\"" '
+        index($0, r) { o = 1 }
+        o && (i = index($0, k)) { s = substr($0, i + length(k)); if (sub(/^[ \t]*:[ \t]*"/, "", s)) { sub(/".*/, "", s); print s }; exit }
+        o && /}/ { exit }' "$1" 2>/dev/null || true
+}
+
+# assignees_mode <R12 answer> — the task plugin's `assignees` value for it: unassigned or self for a team,
+# nothing for "Just me" (the key is then left out). The one mapping, matched by the start of the option
+# text as conditions are; scaffold.sh writes it and gaps.sh checks for it.
+assignees_mode() {
+    case "$1" in
+        "A team — new tasks start"*) printf 'unassigned\n' ;;
+        "A team"*)                   printf 'self\n' ;;
+    esac
+    return 0
+}
+
 # user_defaults_file — the user layer: the user's own defaults, overriding the questionnaire's ★.
 # PER ACCOUNT on purpose (repo CLAUDE.md, "Per account or per machine"): a work account and a
 # personal one answer "whose project?" differently, so it follows CLAUDE_CONFIG_DIR. Nothing when

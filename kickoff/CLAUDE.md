@@ -90,6 +90,10 @@ real file, so a broken edit fails them.
   *Claude proposes …* in B1, B6, C2, D2, E1, E2, I4, I5, F2–F7) says how to work the value out. `answer.sh`
   refuses it, with or without the asterisks, and with an example after it (6i–6n): a live run once wrote
   the task prefix as "3–5 letters derived from A1", because the skill listed only four of them.
+- **R12 "Just me" writes nothing.** The task plugin's `assignees` key goes into `.task-config.json` or the
+  registry entry only for a team, so a solo project's config is byte-identical to the one before R12
+  (scaffold 2e2). The answer→mode mapping is `assignees_mode` in lib.sh, the one place, used by scaffold and
+  gaps. The new question is R12, not a renumbered R9: ids are the keys of recorded answers (PLUG-142).
 - **Generators write only settled answers** (`settled()` in lib.awk): a pending, stale, undecided or
   `n/a` answer produces nothing.
 - **Installed plugins are data, not a guess.** `<plugin> installed` reads Claude Code's

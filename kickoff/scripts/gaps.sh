@@ -49,6 +49,16 @@ while IFS= read -r row; do
         R6:"Markdown task files"*)
             any .task-config.json || [ -n "$(task_registry_entry_file "$root")" ] \
                 || gap R6 "$v" "no task setup" ".task-config.json, the task registry" ;;
+        R12:"A team"*)
+            # The seeded config is the user's (never rewritten), so a team answered later shows here.
+            reg="$(task_registry_entry_file "$root")"
+            if [ -f "$root/.task-config.json" ]; then
+                grep -q '"assignees"' "$root/.task-config.json" \
+                    || gap R12 "$v" "no assignees mode (task: assign.sh <project> mode $(assignees_mode "$v"))" ".task-config.json"
+            elif [ -n "$reg" ]; then
+                [ -n "$(task_registry_field "$reg" "$root" assignees)" ] \
+                    || gap R12 "$v" "no assignees mode in the registry entry" "the task registry"
+            fi ;;
         F2:Unit*)
             found -type d \( -name test -o -name tests -o -name spec -o -name __tests__ \) -o -type f \( -name '*_test.*' -o -name '*.test.*' -o -name '*.spec.*' -o -name 'test_*' \) \
                 || gap F2 "$v" "no tests" "test/, tests/, spec/, *_test.*, *.test.*, *.spec.*, test_*" ;;

@@ -4,9 +4,9 @@
 #   quality doc        §F: docs/project/quality.md (quality.awk), when §F was answered
 #   CLAUDE.md          instructions only: git, identity, dev environment, entry point, crew, tasks,
 #                      quality, approvals, rules that differ here
-#   task config        R7–R10, when the task plugin is installed: .task-config.json in the repo, or,
-#                      for tasks outside the repo, an entry in the task skill's per-account registry,
-#                      plus the task workflow with the practices R10 kept
+#   task config        R7–R10 and R12, when the task plugin is installed: .task-config.json in the repo,
+#                      or, for tasks outside the repo, an entry in the task skill's per-account registry
+#                      (with `assignees` only for a team, R12), plus the task workflow with the practices R10 kept
 #
 # The rest of docs/ is not kickoff's: docs-manager sets it up, when installed.
 #
@@ -28,7 +28,8 @@ root="$(project_root "$root")"
 open="$(bash "$KICKOFF_SCRIPTS/plan.sh" "$root" --next --before-docs)"   # §N comes after the docs
 [ -z "$open" ] || { echo "scaffold.sh: questions are still open — see plan.sh --next" >&2; exit 1; }
 
-{ read -r A1; read -r R7; read -r R8; read -r R9; } < <(kickoff_awk get.awk "$root" -v ids="A1 R7 R8 R9")
+{ read -r A1; read -r R7; read -r R8; read -r R9; read -r R12; } < <(kickoff_awk get.awk "$root" -v ids="A1 R7 R8 R9 R12")
+assignees="$(assignees_mode "$R12")"   # empty for "Just me": the task config stays as it always was
 name="${A1:-$(basename "$root")}"
 slug="$(printf '%s' "$name" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9._-' '-')"
 rc=0
@@ -71,14 +72,17 @@ if [ -n "$R7" ]; then
             else
                 t="$(mktemp)"
                 in=/dev/null; [ -f "$reg" ] && in="$reg"
-                KO_ROOT="$root" KO_DIR="$tdir" KO_PREFIX="$R8" \
+                KO_ROOT="$root" KO_DIR="$tdir" KO_PREFIX="$R8" KO_ASSIGNEES="$assignees" \
                     awk -f "$KICKOFF_SCRIPTS/json.awk" -f "$KICKOFF_SCRIPTS/registry-insert.awk" "$in" > "$t" || {
                     rm -f "$t"; report refused "$reg"; rc=3; t=""; }
                 if [ -n "$t" ]; then [ -f "$reg" ] && r=updated || r=created; mv "$t" "$reg"; report "$r" "$reg"; fi
             fi ;;
         *)
             tdir="$root/tasks"; tasks_where='in `tasks/`'
-            t="$(mktemp)"; printf '{\n  "tasksDir": "tasks",\n  "prefix": "%s",\n  "nextId": 1\n}\n' "$R8" > "$t"
+            t="$(mktemp)"
+            { printf '{\n  "tasksDir": "tasks",\n  "prefix": "%s",\n  "nextId": 1' "$R8"
+              [ -z "$assignees" ] || printf ',\n  "assignees": "%s"' "$assignees"
+              printf '\n}\n'; } > "$t"
             once "$root/.task-config.json" "$t" ;;
     esac
     case "$R9" in

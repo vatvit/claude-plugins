@@ -28,6 +28,17 @@ out=$(sc "$P"); rc=$?
 check "2a runs clean" "0" "$rc"
 check "2b no docs skeleton: docs/ is docs-manager's" "no no" "$(exists "$P/docs/_index.md") $(exists "$P/docs/dev")"
 check "2e task config in the repo with the prefix" '"prefix": "MINE",' "$(grep prefix "$P/.task-config.json" | sed 's/^ *//')"
+check "2e2 just me (R12 default): the task config as it always was" '{|  "tasksDir": "tasks",|  "prefix": "MINE",|  "nextId": 1|}' \
+  "$(tr '\n' '|' < "$P/.task-config.json" | sed 's/|$//')"
+for team in "A team — new tasks start unassigned:unassigned" "A team — new tasks go to whoever creates them:self"; do
+    P2=$(fresh "team-${team##*:}")
+    autofill "$P2" A1=team A4=Mine A5="No remote yet" R8=TM R12="${team%:*}" D3=English K2=English I6=n/a C4=n/a \
+        C5="Never — always free to break" F1="Basic" >/dev/null
+    sc "$P2" >/dev/null
+    check "2e3 a team (${team##*:}): assignees in the task config" \
+      "{|  \"tasksDir\": \"tasks\",|  \"prefix\": \"TM\",|  \"nextId\": 1,|  \"assignees\": \"${team##*:}\"|}" \
+      "$(tr '\n' '|' < "$P2/.task-config.json" | sed 's/|$//')"
+done
 check "2f code and docs profiles by default" "yes" "$(has '`type: docs`' "$(cat "$P/tasks/_workflow/WORKFLOW.md")")"
 C=$(cat "$P/CLAUDE.md")
 check "2g CLAUDE.md points to the charter" "yes" "$(has '[the charter](docs/project/charter.md)' "$C")"
@@ -79,13 +90,15 @@ REG="$HOME/.claude/project-tasks/config.json"
 mkdir -p "$(dirname "$REG")"; printf '{\n  "projects": {\n    "/elsewhere": {\n      "tasksDir": "/x",\n      "prefix": "X",\n      "nextId": 7\n    }\n  }\n}\n' > "$REG"
 P=$(fresh client)
 autofill "$P" A1="Client PoC" A4="A client's" A5="git@example.com:acme/poc.git" E1="USES — an LLM API" E2=OpenAI \
-    R3="VPN needed" R8=CPOC R9="One minimal profile" D3=English K2=English I6=n/a C4=n/a C5="Never — always free to break" \
+    R3="VPN needed" R8=CPOC R9="One minimal profile" R12="A team — new tasks go to whoever creates them" D3=English K2=English I6=n/a C4=n/a C5="Never — always free to break" \
     F1="None — no automated checks yet, or one smoke test"
 out=$(sc "$P"); rc=$?
 check "4a runs clean" "0" "$rc"
 check "4b no task config in a client's repo" "no" "$(exists "$P/.task-config.json")"
 check "4c the registry gains the project" "yes" "$(grep -qF "\"$P\": {" "$REG" && echo yes || echo no)"
 check "4d ... and keeps the existing entry" '"nextId": 7' "$(grep -F '"nextId": 7' "$REG" | sed 's/^ *//')"
+check "4d2 the entry carries a team's assignees (R12)" "self" "$(. "$S/lib.sh"; task_registry_field "$REG" "$P" assignees)"
+check "4d3 ... and the other entry gains none" "" "$(. "$S/lib.sh"; task_registry_field "$REG" /elsewhere assignees)"
 check "4e ... in valid shape" "yes" "$(awk '/^    "\/elsewhere": \{$/{a=1} /^    },$/{b=1} END{print (a&&b)?"yes":"no"}' "$REG")"
 check "4f tasks live in the per-account dir, slugged" "yes" "$(exists "$HOME/.claude/project-tasks/client-poc/_workflow/WORKFLOW.md")"
 check "4g the minimal workflow" "yes" "$(has 'one minimal profile' "$(cat "$HOME/.claude/project-tasks/client-poc/_workflow/WORKFLOW.md")")"

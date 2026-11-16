@@ -17,7 +17,7 @@ value() { field "$1" 4; }
 echo "== plan: branching and defaults =="
 
 P=$(fresh empty)
-check "1a every question is listed" "61" "$(bash "$S/plan.sh" "$P" | wc -l | tr -d ' ')"
+check "1a every question is listed" "62" "$(bash "$S/plan.sh" "$P" | wc -l | tr -d ' ')"
 check "1b A0 is asked first" "ask" "$(state A0)"
 check "1c a question on an unanswered one waits (B6 on B5)" "pending" "$(state B6)"
 check "1d PoC-only questions wait for A3" "pending" "$(state X1)"
@@ -60,6 +60,7 @@ check "4d 'and': both parts hold (R7)" "ask" "$(state R7)"
 check "4e installed: crew is asked about (R5)" "ask" "$(state R5)"
 check "4f not installed: crew is not (R5)" "skip" "$(KICKOFF_PLUGINS="" state R5)"
 check "4g not installed: task files are not set up (R7)" "skip" "$(KICKOFF_PLUGINS="" state R7)"
+check "4g2 not installed: who works on the tasks is not asked (R12)" "skip" "$(KICKOFF_PLUGINS="" state R12)"
 P=$(fresh notask)
 check "4h without the task plugin, tracking defaults to None (R6)" "None" "$(KICKOFF_PLUGINS="" value R6)"
 check "4i with it, to markdown task files (R6)" "Markdown task files (task plugin)" "$(value R6)"
@@ -97,6 +98,7 @@ pstate() { (unset KICKOFF_PLUGINS; CLAUDE_CONFIG_DIR="$CFG" state "$1"); }
 check "4p user scope is installed everywhere (crew)" "ask" "$(pstate R5)"
 a A4 Mine; a R6 "Markdown task files (task plugin)"
 check "4q local scope in this project is installed (task)" "ask" "$(pstate R7)"
+check "4q2 ... and so is who works on the tasks (R12, PLUG-142)" "ask" "$(pstate R12)"
 check "4r another project's install is not (task-roadmap)" "skip" "$(pstate R11)"
 check "4s no record at all: nothing is installed" "skip" "$(unset KICKOFF_PLUGINS; CLAUDE_CONFIG_DIR="$TMP/nowhere" state R5)"
 
