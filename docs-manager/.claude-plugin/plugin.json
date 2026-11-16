@@ -1,7 +1,7 @@
 {
   "name": "docs-manager",
   "description": "Docs as a product: auto-generated _index.md navigation, link and anchor checks, text-source diagrams with staleness tracking, and a catalogue of external reference docs.",
-  "version": "1.12.1",
+  "version": "2.0.0",
   "author": {
     "name": "Vat",
     "url": "https://github.com/vatvit"

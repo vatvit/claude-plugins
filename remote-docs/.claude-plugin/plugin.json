@@ -1,7 +1,7 @@
 {
   "name": "remote-docs",
   "description": "Google Drive and Claude Artifacts in your docs: cards that say what each file holds and where to look, a purpose per folder that says where Claude may read, write or keep decisions, and guarded writes. Works alone or with docs-manager.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": {
     "name": "Vat",
     "url": "https://github.com/vatvit"
