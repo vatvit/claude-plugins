@@ -390,6 +390,77 @@ if needs_git LC10; then
   check "LC10 ignored copy still reported stale" "yes" "$(has "$out" "LOCAL COPY STALE: $R/docs/external/acme/spec.gdrive.local.md")"
 fi
 
+echo "== folder purpose and scope (PLUG-145) =="
+
+# src <dir> <line>... — write <dir>/.source.md holding the given `key: value` lines
+src() { local d="$1"; shift; mkdir -p "$d"; { echo ---; for l in "$@"; do echo "$l"; done; echo ---; } > "$d/.source.md"; }
+pur() { bash "$RD" purpose "$@" 2>&1 | tr '\t' '|'; }   # pur <path> <root> -> record, | for tab
+
+# --- PP1: a suggested purpose brings its settings; folders inherit, per key ---------------------
+R=$(fresh pp1); A="$R/external/team"
+src "$A" "provider: gdrive" "purpose: agreements" "scope: team"
+src "$A/drafts" "purpose: collaboration"
+mkdir -p "$A/specs/deep"
+check "PP1a suggested purpose brings writes, truth, cards" "agreements|propose|yes|team|files|$A/.source.md" "$(pur "$A" "$R")"
+check "PP1b a folder without .source.md inherits" "agreements|propose|yes|team|files|$A/.source.md" "$(pur "$A/specs/deep" "$R")"
+check "PP1c the nearer purpose wins; scope still inherited" "collaboration|free|no|team|pointer|$A/drafts/.source.md" "$(pur "$A/drafts" "$R")"
+check "PP1d a file resolves as its folder" "$(pur "$A/drafts" "$R")" "$(pur "$A/drafts/x.gdrive.md" "$R")"
+check "PP1e a purpose-only .source.md keeps the parent's provider for list" "yes" \
+    "$(rcard "$A/drafts/n.gdrive.md"; src "$A" "provider: gdrive" "purpose: agreements" "scope: team" "publish: local"; has "$(bash "$RD" list "$R")" "$(printf '%s/drafts/n.gdrive.md\tlocal\t' "$A")")"
+
+# --- PP2: an explicit key overrides the purpose's default ----------------------------------------
+src "$A/drafts" "purpose: collaboration" "writes: propose" "cards: files"
+check "PP2 explicit writes and cards win" "collaboration|propose|no|team|files|$A/drafts/.source.md" "$(pur "$A/drafts" "$R")"
+
+# --- PP3: nothing declared: the fallback, and a note that is not a failure ----------------------
+R=$(fresh pp3); X="$R/external/x"; mkdir -p "$X"
+check "PP3a fallback" "-|never|no|project|files|-" "$(pur "$X" "$R")"
+src "$X" "provider: gdrive"
+out=$(bash "$RD" check "$R" 2>&1); rc=$?
+check "PP3b undeclared attachment: PURPOSE? note, check passes" "0:yes" "$rc:$(has "$out" "PURPOSE?: $X")"
+src "$R/external" "scopes: [user, project, team, company]"
+out=$(bash "$RD" check "$R" 2>&1)
+check "PP3c a .source.md that is no attachment gets no note" "no" "$(has "$out" "PURPOSE?: $R/external ")"
+
+# --- PP4: a custom purpose implies nothing; it needs writes and truth -----------------------------
+src "$X" "provider: gdrive" "purpose: client deliverables for review"
+out=$(bash "$RD" check "$R" 2>&1); rc=$?
+check "PP4a custom purpose without writes/truth fails" "1:yes" "$rc:$(has "$out" "PURPOSE INCOMPLETE: $X")"
+check "PP4b custom purpose implies nothing" "client deliverables for review|never|no|project|files|$X/.source.md" "$(pur "$X" "$R")"
+src "$X" "provider: gdrive" "purpose: client deliverables for review" "writes: propose" "truth: no"
+bash "$RD" check "$R" >/dev/null 2>&1; check "PP4c complete custom purpose passes" "0" "$?"
+
+# --- PP5: a value outside the lists fails --------------------------------------------------------
+src "$X" "provider: gdrive" "purpose: output" "writes: sometimes"
+out=$(bash "$RD" check "$R" 2>&1); rc=$?
+check "PP5 BAD SETTING" "1:yes" "$rc:$(has "$out" "BAD SETTING: $X/.source.md writes=sometimes")"
+
+# --- PP6: a custom scope must be placed in the order ----------------------------------------------
+src "$X" "provider: gdrive" "purpose: output" "scope: client"
+out=$(bash "$RD" check "$R" 2>&1); rc=$?
+check "PP6a scope outside scopes fails" "1:yes" "$rc:$(has "$out" "SCOPE UNKNOWN: $X/.source.md client")"
+src "$R/external" "scopes: [user, project, client, team, company]"
+bash "$RD" check "$R" >/dev/null 2>&1; check "PP6b placed in scopes: passes" "0" "$?"
+check "PP6c resolved scope" "output|free|no|client|files|$X/.source.md" "$(pur "$X" "$R")"
+
+# --- PP7: purposes — the map of every declared folder ---------------------------------------------
+out=$(bash "$RD" purposes "$R" | tr '\t' '|')
+check "PP7a one row per .source.md folder" "2" "$(echo "$out" | grep -c .)"
+check "PP7b row" "yes" "$(has "$out" "$X|output|free|no|client|files|$X/.source.md")"
+
+# --- PP8: a collaboration folder has one pointer card; diff compares the newest time ------------
+R=$(fresh pp8); A="$R/external/collab"
+src "$A" "provider: gdrive" "purpose: collaboration" "remote-id: FOLD"
+printf 'f1\tnotes\tapplication/vnd.google-apps.document\t2026-11-10T09:00:00.000Z\nf2\tsub/plan\tapplication/vnd.google-apps.spreadsheet\t2026-11-10T10:00:00.000Z\n' > "$R/l.tsv"
+out=$(bash "$RD" diff "$A" "$R/l.tsv" 2>&1)
+check "PP8a no pointer card yet: the folder is new" "$(printf 'new\tFOLD\t.\tapplication/vnd.google-apps.folder\t2026-11-10T10:00:00.000Z')" "$out"
+rcard "$A/collab.gdrive.md" "Team working folder" - FOLD "2026-11-10T10:00:00.000Z"
+check "PP8b in step: nothing, and no file is new" "" "$(bash "$RD" diff "$A" "$R/l.tsv" 2>&1)"
+printf 'f2\tsub/plan\tapplication/vnd.google-apps.spreadsheet\t2026-11-10T11:00:00.000Z\n' >> "$R/l.tsv"
+check "PP8c a file changed: the pointer is changed" "$(printf 'changed\tFOLD\t%s/collab.gdrive.md\t2026-11-10T11:00:00.000Z' "$A")" "$(bash "$RD" diff "$A" "$R/l.tsv" 2>&1)"
+src "$A" "provider: gdrive" "purpose: collaboration"
+bash "$RD" diff "$A" "$R/l.tsv" >/dev/null 2>&1; check "PP8d pointer without remote-id: refused" "1" "$?"
+
 echo "== how-to examples (PLUG-140) =="
 # The how-to examples parse as their prose says (moved from docs-manager, PLUG-140/PLUG-144): the folder attachment's .source.md, the only
 # unindented `provider: gdrive` block in the how-to, copied out as a user would

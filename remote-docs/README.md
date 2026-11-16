@@ -23,6 +23,11 @@ the card says the answer is there, and tells you when Drive has a newer version 
 - **Claude Artifacts too.** A `claude.ai/…/artifact/…` page given as a link gets a card,
   `dashboard.artifact.md`, the same way. Its refresh reports only the artifacts already carded, and an
   `sk=` access key never reaches a committed card (`check` fails with `REMOTE KEY`).
+- **Each folder says what it is for.** `.source.md` gives a purpose (`reference`, `agreements`,
+  `collaboration`, `output`, or your own words), whether Claude may write there (`never`, `propose`,
+  `free`), whether decisions live there, and whose material it is (`user`, `project`, `team`, `company`,
+  or a scope of your own). A sub-folder inherits from its parent; nothing declared means read-only.
+  A collaboration folder gets one card for the whole folder instead of one per file.
 - The procedure and the card format: [`how-to-remote-docs.md`](skills/remote-docs/references/how-to-remote-docs.md).
 
 ## Commands
@@ -35,6 +40,8 @@ bash scripts/remote.sh stamp docs/external/vendor/pricing-model.gdrive.md 2026-1
 bash scripts/remote.sh gone docs/external/vendor/old.gdrive.md
 bash scripts/remote.sh copy-stamp docs/external/vendor/pricing-model.gdrive.md 2026-11-10T13:37:23Z
 bash scripts/remote.sh diff docs/external/vendor /tmp/listing.tsv
+bash scripts/remote.sh purposes docs                                 # what each attached folder is for
+bash scripts/remote.sh purpose docs/external/team/drafts             # one folder, inheritance resolved
 ```
 
 Pure bash and awk, bash 3.2 and BSD or GNU userland, no network calls. Tests: see [`CLAUDE.md`](CLAUDE.md#testing).

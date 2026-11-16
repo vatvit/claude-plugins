@@ -218,7 +218,7 @@ competing for the same words is a coin flip at activation time. Today the vocabu
 disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.md / AGENTS.md /
 external docs / catalogue / ingest / reference material / onboard / survey / legacy project / scattered docs*,
 remote-docs owns *Google Drive doc as reference / Drive folder / refresh the Drive docs / local copy of a Drive doc /
-remote card / Claude artifact as reference / artifact card* (moved from docs-manager in PLUG-144), task-roadmap owns *roadmap / gantt /
+remote card / Claude artifact as reference / artifact card / folder purpose / what is this Drive folder for / team folder / company folder / scope of the folder* (moved from docs-manager in PLUG-144; purpose PLUG-145), task-roadmap owns *roadmap / gantt /
 timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
 tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
 hand off / hold / hot spot / slot / stuck slot / land / copy / snapshot / inbox / mailbox / watchdog / progress report / adopt / import holds / end the crew / disband / working solo / crew active / crew task* and says *slot*, never *job* or *queue* alone,

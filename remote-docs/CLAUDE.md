@@ -84,6 +84,22 @@ the scripts stay offline.
 - **No bytes through the MCP.** Copies are Drive's text rendering, written as text; a binary download is
   base64 that would be retyped with no checksum, so `content: sync` was rejected (PLUG-114).
 
+## Folder purpose (PLUG-145)
+
+- **Settings live in `.source.md`, resolved per key** (`src_key`): the nearest `.source.md` from the folder
+  up to the root that sets a key wins. A suggested purpose sets `writes`, `truth`, `cards` at its own
+  level (`purpose_default`, the one table); an explicit key at that level overrides it. A custom purpose
+  implies nothing. Do not go back to "nearest file wins as a whole" (`source_of`): a purpose-only
+  sub-folder file would then hide its parent's `publish:` (PP1e).
+- **The fallback is read-only**: `writes: never`, `truth: no`, `scope: project`, `cards: files`. Never make
+  an undeclared folder writable by default.
+- **`PURPOSE?` never fails `check`**; it is a note for attachments made before purposes existed.
+  `PURPOSE INCOMPLETE`, `BAD SETTING` and `SCOPE UNKNOWN` do fail.
+- **`.source.md` is a dot-file, so `docs_find` prunes it**: `source_dirs` walks folders and tests for it.
+- **Pointer mode** (`cards: pointer`): `diff_pointer` compares the newest in-scope time with the pointer
+  card's `remote-modified`. "Newest" is a string maximum, used only for equality, never to order cards.
+  A deleted file does not change it; accepted, since a collaboration folder's files are temporary.
+
 ## Testing
 
 ```bash

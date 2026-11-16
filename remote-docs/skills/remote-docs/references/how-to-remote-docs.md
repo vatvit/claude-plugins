@@ -37,12 +37,68 @@ bash <PLUGIN_ROOT>/scripts/remote.sh stamp <card> <time>         # record the pr
 bash <PLUGIN_ROOT>/scripts/remote.sh gone <card>                 # mark a card whose file left the provider (never deletes)
 bash <PLUGIN_ROOT>/scripts/remote.sh copy-stamp <card> <time>    # record the version a local copy was written from
 bash <PLUGIN_ROOT>/scripts/remote.sh diff <dir> <listing.tsv>    # provider listing vs the attachment's cards
+bash <PLUGIN_ROOT>/scripts/remote.sh purpose <path> [root]       # what a folder is for, and what that allows
+bash <PLUGIN_ROOT>/scripts/remote.sh purposes [root]             # the same for every folder with a .source.md
 ```
 
 `status` emits `state<TAB>place<TAB>file<TAB>card`, `-` for an empty field. `state` is `remote |
 incomplete | gone | keyed | copy | copy-stale | copy-unstamped | copy-unasked | copy-orphan`; `place` is
 `filed | unfiled | outside` (under `<root>/external/<topic>/`, at the top of `external/`, elsewhere).
 The default root is `docs`.
+
+## Folder purpose
+
+Every attached folder says what it is for, so Claude knows whether to read it only, write to it, and
+whether a decision may live there. **Run `remote.sh purposes` before working in an attached folder**,
+and `remote.sh purpose <path>` for the one you are about to touch. Never guess a folder's purpose from
+its name or its files.
+
+The answers live in the folder's `.source.md`. A folder without one takes them from the nearest folder
+above, **key by key**: a sub-folder's `.source.md` may say only `purpose:` and keep the parent's
+`publish:` and `provider:`. Describe the attached folder and, where they differ, a few folders one
+level down; never every folder.
+
+```markdown
+purpose: agreements        # reference | agreements | collaboration | output | your own words
+writes: propose            # never | propose | free         (a suggested purpose sets these three,
+truth: yes                 # yes: decisions live here       an explicit key overrides it)
+cards: files               # files: one card per file | pointer: one card for the whole folder
+scope: team                # user | project | team | company | a scope listed in scopes:
+scopes: [user, project, client, team, company]   # optional: the order, narrowest first
+```
+
+| Suggested purpose | It is | writes | truth | cards |
+|---|---|---|---|---|
+| `reference` | material read as it is: specs, contracts, vendor docs | never | no | files |
+| `agreements` | agreements and context; where decisions live | propose | yes | files |
+| `collaboration` | working files, temporary, changed often | free | no | pointer |
+| `output` | what the work produces; lasting, read back too | free | no | files |
+
+**Acting on the settings:**
+- `writes: never` — read only. Never change, rename, move or trash a file there.
+- `writes: propose` — show the exact change first and apply it only when the user approves.
+- `writes: free` — write as the task needs, and say what you changed.
+- `truth: yes` — decisions live here; when a decision changes, it changes here.
+- `truth: no` — never treat what is here as decided. A decision made here is extracted into a
+  `truth: yes` doc.
+- `cards: pointer` — the folder has **one card**, for the folder itself (its `remote-id` is the folder's),
+  saying what the folder is for and how it is organised. `diff` then reports the folder as `changed`
+  when any file in it changed, never single files as `new` or `gone`. Use per-file cards
+  (`cards: files`) only where the files are lasting material.
+
+**Custom purpose.** Anything other than the four suggestions is the user's own words: follow them as an
+instruction. It implies no settings, so ask once for `writes` and `truth` and record both; `check`
+fails with `PURPOSE INCOMPLETE` until they are there.
+
+**Scope** says whose material it is, narrowest first: `user > project > team > company`. The user may add
+their own scope by listing the full order in `scopes:` (`check` fails with `SCOPE UNKNOWN` on a scope it
+does not list). The narrower scope wins a conflict. The wider the scope, the more careful a write: in a
+team or company folder, propose even where `writes: free`, unless the user said otherwise, and **never put
+project-specific content in a wider scope**: it belongs in the project's folder.
+
+**Nothing declared** (no `.source.md` up the chain sets a purpose): the folder is read-only and not where
+decisions live (`writes: never`, `truth: no`, `scope: project`). `check` prints a `PURPOSE?` note for such
+an attachment, without failing: ask the user once what the folder is for, and record the answer.
 
 ## Remote documents
 
@@ -88,7 +144,8 @@ docs/external/vendor-api/
   `check` fails on a remote card without `remote-id` or `remote-modified` (`REMOTE INCOMPLETE`).
 - **The card body** opens with the link and where the file lives:
   `[payments-spec-v3.pdf](<remote-url>) — on Google Drive, 212 pages; readable only with access to that Drive.`
-- **`.source.md`**, one per folder, holds the answers that apply to every Drive attachment in it:
+- **`.source.md`**, one per folder, holds the answers that apply to every Drive attachment in it and
+  every folder below it (each key from the nearest `.source.md` that sets it; *Folder purpose* above):
 
   ```markdown
   ---
@@ -96,6 +153,7 @@ docs/external/vendor-api/
   content: remote        # the file stays on Drive
   processed: none
   publish: commit        # or local: the folder is git-ignored (see step 3)
+  purpose: reference     # see Folder purpose
   ---
   ```
 

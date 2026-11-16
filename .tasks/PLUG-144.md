@@ -1,6 +1,6 @@
 ---
 title: "remote-docs: new plugin, remote cards moved out of docs-manager unchanged"
-status: in-progress
+status: completed
 type: refactor
 priority: medium
 epic: remote-docs
@@ -88,4 +88,4 @@ without one.
 
 Implementation complete and verified (2026-11-16): docs-manager 4 suites and remote-docs suite green on
 host, `bash:5`, `bash:5` + git, no HOME (remote-docs also read-only HOME), and each plugin copied out
-alone; `check-descriptions.sh` ok. Not committed: waiting for the user's approval. Next: PLUG-145.
+alone; `check-descriptions.sh` ok. Committed and pushed as e4f7c7b (no version bump). Completed 2026-11-16. Next in the epic: PLUG-145.

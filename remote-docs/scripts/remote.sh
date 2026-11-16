@@ -10,6 +10,8 @@
 #   gone <card>                 mark a card whose file left the provider (never deletes)
 #   copy-stamp <card> <time>    record the provider version a local copy was written from
 #   diff <dir> <listing.tsv>    a provider listing vs the attachment's cards: new / changed / gone
+#   purpose <path> [root]       what a folder is for: purpose, writes, truth, scope, cards (PLUG-145)
+#   purposes [root]             the same for every folder holding a `.source.md`
 #
 # A remote card is `<name>.<provider>.md` (PLUG-112): Google Drive (`gdrive`) or a Claude Artifact
 # (`artifact`, PLUG-141). The name alone classifies it. Default root is "docs". Moved out of
@@ -132,12 +134,10 @@ remote_place() {
 # and shift the ones after it.
 remote_status() {
   local root="$1" card
-  local ksrc
   while IFS= read -r card; do
     [ -n "$card" ] || continue
     if has_access_key "$card"; then
-      ksrc="$(source_of "$card" "$root")"
-      if [ -z "$ksrc" ] || [ "$(fm_field "$ksrc" publish)" != local ]; then
+      if [ "$(src_val "$card" publish "$root")" != local ]; then
         printf 'keyed\t%s\t-\t%s\n' "$(remote_place "$root" "$card")" "$card"; continue
       fi
     fi
@@ -152,15 +152,14 @@ remote_status() {
 $(list_remote_cards "$root")
 EOF
   # Local copies (PLUG-115): compared with their card, never with Drive (scripts stay offline).
-  local copy src cm place state
+  local copy cm place state
   while IFS= read -r copy; do
     [ -n "$copy" ] || continue
     card="${copy%.local.md}.md"; place="$(remote_place "$root" "$copy")"
     if [ ! -f "$card" ]; then
       printf 'copy-orphan\t%s\t%s\t-\n' "$place" "$copy"; continue
     fi
-    src="$(source_of "$card" "$root")"
-    if [ -z "$src" ] || [ "$(fm_field "$src" processed)" != local ]; then
+    if [ "$(src_val "$card" processed "$root")" != local ]; then
       printf 'copy-unasked\t%s\t%s\t%s\n' "$place" "$copy" "$card"; continue
     fi
     cm="$(fm_field "$card" copy-modified)"
@@ -196,6 +195,7 @@ cmd_check() {
   done <<EOF
 $(remote_status "$root")
 EOF
+  source_check "$root" || rc=1
   [ "$rc" -eq 0 ] && echo "remote check: OK"
   return $rc
 }
@@ -226,15 +226,14 @@ cmd_stamp() {
 # when the copy is missing or the card's `.source.md` does not say `processed: local`: a local copy
 # goes against the plugin's default, so it exists only when the user agreed to it.
 cmd_copy_stamp() {
-  local card="${1:-}" t="${2:-}" copy src
+  local card="${1:-}" t="${2:-}" copy
   [ -n "$card" ] && [ -n "$t" ] || { echo "Usage: remote.sh copy-stamp <remote-card> <rfc3339-time>" >&2; return 2; }
   is_remote_card "$card" || { echo "Not a remote card: $card" >&2; return 1; }
   [ -f "$card" ] || { echo "No such card: $card" >&2; return 1; }
   valid_rfc3339 "$t" || { echo "Not an RFC 3339 UTC time: $t" >&2; return 1; }
   copy="${card%.md}.local.md"
   [ -f "$copy" ] || { echo "No local copy: $copy" >&2; return 1; }
-  src="$(source_of "$card" "/")"
-  [ -n "$src" ] && [ "$(fm_field "$src" processed)" = local ] \
+  [ "$(src_val "$card" processed /)" = local ] \
     || { echo "Not agreed: no .source.md above $card says processed: local" >&2; return 1; }
   if [ "$(fm_field "$card" copy-modified)" = "$t" ]; then echo "UNCHANGED: $card"; return 0; fi
   fm_set "$card" copy-modified "$t"
@@ -279,6 +278,26 @@ EOF
   return 0
 }
 
+# diff_pointer <folder-id> <container-type> <rows> <cards> — `diff` for a `cards: pointer` attachment
+# (PLUG-145): one card describes the whole folder, so files are never new or gone. The folder counts as
+# changed when the newest in-scope time differs from the pointer card's `remote-modified`. "Newest" is
+# the greatest time as a string, which only has to be the same on every run: it is compared for
+# equality, never used to order two cards.
+diff_pointer() {
+  local latest pc pm pg
+  latest="$(cut -f4 "$3" | LC_ALL=C sort | tail -n 1)"
+  IFS=$'\t' read -r pc pm pg <<EOF
+$(awk -F'\t' -v id="$1" '($1 "") == id { print $2 "\t" $3 "\t" $4; exit }' "$4")
+EOF
+  [ -n "$latest" ] || return 0
+  if [ -z "$pc" ]; then
+    printf 'new\t%s\t.\t%s\t%s\n' "$1" "${2:-folder}" "$latest"
+  elif [ "$latest" != "$pm" ] || [ "$pg" = yes ]; then
+    printf 'changed\t%s\t%s\t%s\n' "$1" "$pc" "$latest"
+  fi
+  return 0
+}
+
 # diff <attachment-dir> <listing.tsv> — compare a provider's listing, written by Claude
 # through the provider's tool, with the attachment's remote cards (PLUG-113, PLUG-141). The listing
 # is `id<TAB>path<TAB>type<TAB>modified` per item; container rows (Drive folders) are skipped. The
@@ -298,7 +317,7 @@ EOF
 # sort, so a time is only ever equal or not. A card already marked gone is not reported again,
 # and is `changed` once its file is back, so stamping it clears the mark.
 cmd_diff() {
-  local dir="${1:-}" listing="${2:-}" src rec inc exc rows cards card id path mime mod prov box skip
+  local dir="${1:-}" listing="${2:-}" src rec inc exc rows cards card id path mime mod prov box skip pointer
   [ -n "$dir" ] && [ -n "$listing" ] || { echo "Usage: remote.sh diff <attachment-dir> <listing.tsv>" >&2; return 2; }
   dir="${dir%/}"; src="$dir/.source.md"
   [ -f "$src" ] || { echo "No .source.md in $dir: not a remote attachment" >&2; return 1; }
@@ -310,6 +329,10 @@ cmd_diff() {
     NF != 4 || $1 == "" { printf "Bad listing, line %d: want id<TAB>path<TAB>mimeType<TAB>modifiedTime\n", NR; bad = 1 }
     END { exit bad }' "$listing" >&2 || return 1
   rec="$(fm_field "$src" recursive)"; inc="$(fm_list "$src" include)"; exc="$(fm_list "$src" exclude)"
+  pointer=no; [ "$(src_val "$dir" cards /)" = pointer ] && pointer=yes
+  if [ "$pointer" = yes ] && [ -z "$box" ]; then
+    echo "cards: pointer needs remote-id in $src: the folder its one card describes" >&2; return 1
+  fi
   rows="$(mktemp)"; cards="$(mktemp)"
   while IFS=$'\t' read -r id path mime mod; do
     [ -n "$id" ] || continue
@@ -326,6 +349,9 @@ cmd_diff() {
   done > "$cards" <<EOF
 $(RD_KEEP_IGNORED=1 list_remote_cards "$dir")
 EOF
+  if [ "$pointer" = yes ]; then
+    diff_pointer "$box" "$skip" "$rows" "$cards"; rm -f "$rows" "$cards"; return 0
+  fi
   # FILENAME, not FNR==NR: either input may be empty.
   awk -F'\t' -v OFS='\t' -v C="$cards" -v carded="$([ -n "$box" ] || echo 1)" '
     FILENAME == C { k = $1 ""; card[k] = $2; mod[k] = $3 ""; gone[k] = $4 ""; next }
@@ -338,33 +364,165 @@ EOF
   return 0
 }
 
-# source_of <card> <root> — the `.source.md` governing a remote card: the nearest one from the card's
-# folder up to <root>, since a folder attachment mirrors Drive sub-folders under one `.source.md`
-# (PLUG-113, F10). Prints nothing when there is none.
-source_of() {
-  local d root="${2%/}"
-  d="$(dirname "$1")"
+# --- .source.md: per-folder settings, resolved per key (PLUG-145) ---------------------------------
+#
+# A `.source.md` holds the answers for its folder and every folder below it. Each key is resolved on
+# its own: the nearest `.source.md` from the folder up to <root> that sets it wins, so a sub-folder's
+# file may set only `purpose:` and still take `publish:` or `provider:` from its parent (RF12, PP1e).
+# A suggested purpose also sets the keys it implies (`purpose_default`), at its own level.
+
+PURPOSES="reference agreements collaboration output"
+SCOPES_DEFAULT="user project team company"
+
+# purpose_default <purpose> <key> — what a suggested purpose implies; nothing for a custom one
+purpose_default() {
+  case "$1:$2" in
+    reference:writes) echo never ;;       reference:truth) echo no ;;      reference:cards) echo files ;;
+    agreements:writes) echo propose ;;    agreements:truth) echo yes ;;    agreements:cards) echo files ;;
+    collaboration:writes) echo free ;;    collaboration:truth) echo no ;;  collaboration:cards) echo pointer ;;
+    output:writes) echo free ;;           output:truth) echo no ;;         output:cards) echo files ;;
+  esac
+  return 0
+}
+
+is_suggested() { case " $PURPOSES " in *" $1 "*) return 0 ;; esac; return 1; }
+
+# allowed <key> <value> -> 0 if <value> is valid for <key>; any value for a key not listed here
+allowed() {
+  case "$1" in
+    writes) case "$2" in never|propose|free) return 0 ;; esac; return 1 ;;
+    truth)  case "$2" in yes|no) return 0 ;; esac; return 1 ;;
+    cards)  case "$2" in files|pointer) return 0 ;; esac; return 1 ;;
+  esac
+  return 0
+}
+
+# src_key <path> <key> <root> -> value<TAB>file: the nearest `.source.md` from <path> (a folder, or a
+# file whose folder is used) up to <root> that sets <key>, directly or through its suggested purpose.
+# Prints nothing when none does.
+src_key() {
+  local d root="${3%/}" v f
+  if [ -d "$1" ]; then d="${1%/}"; else d="$(dirname "$1")"; fi
   while :; do
-    [ -f "$d/.source.md" ] && { echo "$d/.source.md"; return 0; }
+    f="$d/.source.md"
+    if [ -f "$f" ]; then
+      v="$(fm_field "$f" "$2")"
+      if [ -z "$v" ]; then
+        case "$2" in writes|truth|cards) v="$(purpose_default "$(fm_field "$f" purpose)" "$2")" ;; esac
+      fi
+      if [ -n "$v" ]; then printf '%s\t%s\n' "$v" "$f"; return 0; fi
+    fi
     [ "$d" = "$root" ] || [ "$d" = . ] || [ "$d" = / ] && return 0
     d="$(dirname "$d")"
   done
+}
+
+# src_val <path> <key> <root> -> the value alone
+src_val() { src_key "$@" | cut -f1; }
+
+# src_scopes <path> <root> -> the scope order in force, narrowest first, one per line
+src_scopes() {
+  local d root="${2%/}" l
+  if [ -d "$1" ]; then d="${1%/}"; else d="$(dirname "$1")"; fi
+  while :; do
+    if [ -f "$d/.source.md" ]; then
+      l="$(fm_list "$d/.source.md" scopes)"
+      if [ -n "$l" ]; then printf '%s\n' "$l"; return 0; fi
+    fi
+    if [ "$d" = "$root" ] || [ "$d" = . ] || [ "$d" = / ]; then break; fi
+    d="$(dirname "$d")"
+  done
+  printf '%s\n' $SCOPES_DEFAULT
+}
+
+# purpose_record <path> <root> -> purpose<TAB>writes<TAB>truth<TAB>scope<TAB>cards<TAB>declared-in
+# With nothing declared: `-`, never, no, project, files, `-` (the fallback: read-only, not where
+# decisions live, until the user says otherwise).
+purpose_record() {
+  local p decl w t sc c
+  IFS=$'\t' read -r p decl <<EOF
+$(src_key "$1" purpose "$2")
+EOF
+  w="$(src_val "$1" writes "$2")"; t="$(src_val "$1" truth "$2")"
+  sc="$(src_val "$1" scope "$2")"; c="$(src_val "$1" cards "$2")"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "${p:--}" "${w:-never}" "${t:-no}" "${sc:-project}" "${c:-files}" "${decl:--}"
+}
+
+# source_dirs <root> -> every folder under <root> (itself included) holding a `.source.md`, git-ignored
+# ones too, sorted. `.source.md` is a dot-file, which `docs_find` prunes, so folders are walked instead.
+source_dirs() {
+  local d
+  { printf '%s\n' "${1%/}"; RD_KEEP_IGNORED=1 docs_find "$1" "" -type d; } | LC_ALL=C sort | while IFS= read -r d; do
+    if [ -n "$d" ] && [ -f "$d/.source.md" ]; then printf '%s\n' "$d"; fi
+  done
+  return 0
+}
+
+# is_attachment <.source.md> -> 0 if it describes an attachment (not only defaults for folders below)
+is_attachment() {
+  [ -n "$(fm_field "$1" provider)$(fm_field "$1" remote-id)$(fm_field "$1" publish)" ]
+}
+
+# source_check <root> — the settings problems, one line each; returns 1 on any failure.
+# PURPOSE? is a note, never a failure: an attachment made before purposes existed must not fail.
+source_check() {
+  local root="$1" d f k v p sc rc=0
+  while IFS= read -r d; do
+    [ -n "$d" ] || continue
+    f="$d/.source.md"
+    for k in writes truth cards; do
+      v="$(fm_field "$f" "$k")"
+      if [ -n "$v" ] && ! allowed "$k" "$v"; then echo "BAD SETTING: $f $k=$v"; rc=1; fi
+    done
+    p="$(fm_field "$f" purpose)"
+    if [ -n "$p" ] && ! is_suggested "$p" && { [ -z "$(fm_field "$f" writes)" ] || [ -z "$(fm_field "$f" truth)" ]; }; then
+      echo "PURPOSE INCOMPLETE: $d (a custom purpose needs writes: and truth: — ask the user once)"; rc=1
+    fi
+    sc="$(fm_field "$f" scope)"
+    if [ -n "$sc" ] && ! src_scopes "$d" "$root" | grep -qxF -- "$sc"; then
+      echo "SCOPE UNKNOWN: $f $sc (place it in a scopes: list, narrowest first)"; rc=1
+    fi
+    if is_attachment "$f" && [ -z "$(src_val "$d" purpose "$root")" ]; then
+      echo "PURPOSE?: $d (undeclared: writes never, truth no until the user says)"
+    fi
+  done <<EOF
+$(source_dirs "$root")
+EOF
+  return $rc
+}
+
+cmd_purpose() {
+  local path="${1:-}" root="${2:-$ROOT_DEFAULT}"
+  [ -n "$path" ] || { echo "Usage: remote.sh purpose <dir|file> [root]" >&2; return 2; }
+  purpose_record "$path" "$root"
+}
+
+cmd_purposes() {
+  local root="${1:-$ROOT_DEFAULT}" d
+  [ -d "$root" ] || { echo "No such root: $root" >&2; return 1; }
+  while IFS= read -r d; do
+    [ -n "$d" ] || continue
+    printf '%s\t%s\n' "$d" "$(purpose_record "$d" "$root")"
+  done <<EOF
+$(source_dirs "$root")
+EOF
+  return 0
 }
 
 # list [root] — every remote card, git-ignored ones included, one record each:
 #
 #   card<TAB>publish<TAB>remote-modified<TAB>description<TAB>read-when<TAB>local-copy
 #
-# `publish` comes from the card's `.source.md` (`source_of`) (commit | local; "-" when there is none).
+# `publish` comes from the nearest `.source.md` above the card that sets it (`src_val`): commit | local,
+# "-" when none does.
 # A local-only attachment is git-ignored, so `index` never lists it and no committed file
 # names it; this listing is how Claude still finds it (PLUG-112, R12).
 cmd_list() {
-  local root="${1:-$ROOT_DEFAULT}" card src pub mod desc when copy
+  local root="${1:-$ROOT_DEFAULT}" card pub mod desc when copy
   [ -d "$root" ] || { echo "No such root: $root" >&2; return 1; }
   while IFS= read -r card; do
     [ -n "$card" ] || continue
-    src="$(source_of "$card" "$root")"; pub=""
-    [ -n "$src" ] && pub="$(fm_field "$src" publish)"
+    pub="$(src_val "$card" publish "$root")"
     mod="$(fm_field "$card" remote-modified)"; desc="$(fm_field "$card" description)"
     when="$(fm_field "$card" read-when)"
     copy="${card%.md}.local.md"; [ -f "$copy" ] || copy=-
@@ -384,5 +542,7 @@ case "$sub" in
   gone)       cmd_gone "$@" ;;
   copy-stamp) cmd_copy_stamp "$@" ;;
   diff)       cmd_diff "$@" ;;
-  *) echo "Usage: remote.sh {status|check|list} [root] | stamp <card> <time> | gone <card> | copy-stamp <card> <time> | diff <dir> <listing.tsv>" >&2; exit 2 ;;
+  purpose)    cmd_purpose "$@" ;;
+  purposes)   cmd_purposes "$@" ;;
+  *) echo "Usage: remote.sh {status|check|list|purposes} [root] | stamp <card> <time> | gone <card> | copy-stamp <card> <time> | diff <dir> <listing.tsv> | purpose <path> [root]" >&2; exit 2 ;;
 esac
