@@ -34,17 +34,46 @@ is_card() {
   case "$1" in *.md) is_external_name "${1%.md}" ;; *) return 1 ;; esac
 }
 
-# A remote card describes a file that stays with a provider (Google Drive) and has no local
-# copy: `<name>.<provider>.md` (PLUG-112). The name alone classifies it, like `is_card`, and
-# since `<name>.gdrive` is no external name, a remote card is never read as an orphan.
-REMOTE_PROVIDERS="gdrive"
+# A remote card describes a file that stays with a provider and has no local copy:
+# `<name>.<provider>.md` (PLUG-112): Google Drive (`gdrive`) or a Claude Artifact (`artifact`,
+# PLUG-141). The name alone classifies it, like `is_card`, and since `<name>.gdrive` is no
+# external name, a remote card is never read as an orphan.
+REMOTE_PROVIDERS="gdrive artifact"
+
+# provider_data <provider> <field> — what differs between providers, and the only place it does
+# (PLUG-141). Every other line of the remote-card code is the same for all of them.
+#   container  the listing type of a container row (a Drive folder), which remote-diff skips
+#   keys       URL query parameters that are access secrets, never committed (an artifact's `sk=`)
+# Prints nothing for a field a provider does not have.
+provider_data() {
+  case "$1:$2" in
+    gdrive:container) echo application/vnd.google-apps.folder ;;
+    artifact:keys)    echo sk ;;
+  esac
+  return 0
+}
+
+# remote_provider <path> -> the provider a remote card's name says, nothing for any other file
+remote_provider() {
+  local p
+  for p in $REMOTE_PROVIDERS; do
+    case "$1" in ?*."$p".md) echo "$p"; return 0 ;; esac
+  done
+  return 0
+}
 
 # is_remote_card <path> -> 0 if <path> is `<name>.<provider>.md` for a known provider
 is_remote_card() {
-  local p
   case "$1" in *.md) ;; *) return 1 ;; esac
-  for p in $REMOTE_PROVIDERS; do
-    case "$1" in ?*."$p".md) return 0 ;; esac
+  [ -n "$(remote_provider "$1")" ]
+}
+
+# has_access_key <card> -> 0 if the card holds a URL with one of its provider's key parameters,
+# anywhere: the frontmatter or a link in the body
+has_access_key() {
+  local k
+  for k in $(provider_data "$(remote_provider "$1")" keys); do
+    grep -qE "[?&]$k=" "$1" && return 0
   done
   return 1
 }
@@ -71,9 +100,10 @@ EOF
   return 0
 }
 
-# valid_rfc3339 <time> -> 0 if <time> is an RFC 3339 UTC time as Drive reports it
+# valid_rfc3339 <time> -> 0 if <time> is an RFC 3339 time: UTC (`Z`, as Drive reports it) or with
+# an offset (`+01:00`). Only the shape is checked; times are compared as strings, never ordered.
 valid_rfc3339() {
-  printf '%s\n' "$1" | awk '!/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9](\.[0-9]+)?Z$/ { bad = 1 } END { exit bad }'
+  printf '%s\n' "$1" | awk '!/^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9](\.[0-9]+)?(Z|[+-][0-9][0-9]:[0-9][0-9])$/ { bad = 1 } END { exit bad }'
 }
 
 # list_remote_cards <dir> [maxdepth] -> remote cards under <dir>, sorted, one per line
@@ -184,8 +214,15 @@ EOF
   done <<EOF
 $(list_cards "$root")
 EOF
+  local ksrc
   while IFS= read -r card; do
     [ -n "$card" ] || continue
+    if has_access_key "$card"; then
+      ksrc="$(source_of "$card" "$root")"
+      if [ -z "$ksrc" ] || [ "$(fm_field "$ksrc" publish)" != local ]; then
+        printf 'keyed\t%s\t-\t%s\n' "$(external_place "$root" "$card")" "$card"; continue
+      fi
+    fi
     if [ "$(fm_field "$card" remote-gone)" = yes ]; then
       printf 'gone\t%s\t-\t%s\n' "$(external_place "$root" "$card")" "$card"
     elif [ -n "$(fm_field "$card" remote-id)" ] && [ -n "$(fm_field "$card" remote-modified)" ]; then
@@ -274,8 +311,9 @@ EOF2
                  ;;
       orphan)    echo "ORPHAN CARD: $card (its file is gone)"; rc=1 ;;
       incomplete) echo "REMOTE INCOMPLETE: $card (needs remote-id and remote-modified)"; rc=1 ;;
-      gone)      echo "REMOTE GONE: $card (removed from Drive: delete the card, or restore the file)"; rc=1 ;;
-      copy-stale)     echo "LOCAL COPY STALE: $f (the card is newer: rewrite it from Drive, then: docs.sh external copy-stamp $card <time>)"; rc=1 ;;
+      gone)      echo "REMOTE GONE: $card (removed from its provider: delete the card, or restore the file)"; rc=1 ;;
+      keyed)     echo "REMOTE KEY: $card (an access key in a committed card: strip it from every URL; only a publish: local folder may keep a keyed link, as remote-key-url)"; rc=1 ;;
+      copy-stale)     echo "LOCAL COPY STALE: $f (the card is newer: rewrite it from the provider, then: docs.sh external copy-stamp $card <time>)"; rc=1 ;;
       copy-unstamped) echo "LOCAL COPY UNSTAMPED: $f (run: docs.sh external copy-stamp $card <time>)"; rc=1 ;;
       copy-unasked)   echo "LOCAL COPY NOT AGREED: $f (its .source.md does not say processed: local: ask the user, or delete it)"; rc=1 ;;
       copy-orphan)    echo "LOCAL COPY ORPHAN: $f (no card beside it)"; rc=1 ;;
@@ -400,25 +438,32 @@ EOF
   return 0
 }
 
-# remote-diff <attachment-dir> <listing.tsv> — compare a Drive folder listing, written by
-# Claude through the MCP, with the attachment's remote cards (PLUG-113). The listing is
-# `id<TAB>path<TAB>mimeType<TAB>modifiedTime` per Drive item; folder rows are skipped. Prints one
-# record per difference, sorted; nothing means in sync:
+# remote-diff <attachment-dir> <listing.tsv> — compare a provider's listing, written by Claude
+# through the provider's tool, with the attachment's remote cards (PLUG-113, PLUG-141). The listing
+# is `id<TAB>path<TAB>type<TAB>modified` per item; container rows (Drive folders) are skipped. The
+# attachment's `.source.md` says the provider (`provider:`, default gdrive) and, with `remote-id:`,
+# the container it mirrors. Prints one record per difference, sorted; nothing means in sync:
 #
-#   new<TAB>id<TAB>path<TAB>mimeType<TAB>modifiedTime    in scope on Drive, no card
-#   changed<TAB>id<TAB>card<TAB>modifiedTime             Drive's time differs from the card's
-#   gone<TAB>id<TAB>card                                 card whose file is gone or out of scope
+#   new<TAB>id<TAB>path<TAB>type<TAB>modified    in scope in the container, no card
+#   changed<TAB>id<TAB>card<TAB>modified         the provider's time differs from the card's
+#   gone<TAB>id<TAB>card                         card whose file is gone or out of scope
+#
+# Without a container the cards were attached one by one (every artifact, a single Drive file):
+# the listing may hold far more than the project uses, so only carded ids count and nothing is
+# `new`. Only cards of the attachment's provider are compared.
 #
 # Files match cards by Drive id, so a rename or a move is not gone + new. Ids and times are
 # compared as strings: an id can look like a number to awk, and `…11Z` / `…11.986Z` do not
 # sort, so a time is only ever equal or not. A card already marked gone is not reported again,
 # and is `changed` once its file is back, so stamping it clears the mark.
 cmd_external_remote_diff() {
-  local dir="${1:-}" listing="${2:-}" src rec inc exc rows cards card id path mime mod
+  local dir="${1:-}" listing="${2:-}" src rec inc exc rows cards card id path mime mod prov box skip
   [ -n "$dir" ] && [ -n "$listing" ] || { echo "Usage: docs.sh external remote-diff <attachment-dir> <listing.tsv>" >&2; return 2; }
   dir="${dir%/}"; src="$dir/.source.md"
-  [ -f "$src" ] || { echo "No .source.md in $dir: not an attached Drive folder" >&2; return 1; }
-  [ -n "$(fm_field "$src" remote-id)" ] || { echo "No remote-id in $src: not an attached Drive folder" >&2; return 1; }
+  [ -f "$src" ] || { echo "No .source.md in $dir: not a remote attachment" >&2; return 1; }
+  prov="$(fm_field "$src" provider)"; prov="${prov:-gdrive}"
+  case " $REMOTE_PROVIDERS " in *" $prov "*) ;; *) echo "Unknown provider in $src: $prov" >&2; return 1 ;; esac
+  box="$(fm_field "$src" remote-id)"; skip="$(provider_data "$prov" container)"
   [ -f "$listing" ] || { echo "No such listing: $listing" >&2; return 1; }
   awk -F'\t' 'NF == 0 { next }
     NF != 4 || $1 == "" { printf "Bad listing, line %d: want id<TAB>path<TAB>mimeType<TAB>modifiedTime\n", NR; bad = 1 }
@@ -427,12 +472,13 @@ cmd_external_remote_diff() {
   rows="$(mktemp)"; cards="$(mktemp)"
   while IFS=$'\t' read -r id path mime mod; do
     [ -n "$id" ] || continue
-    [ "$mime" = "application/vnd.google-apps.folder" ] && continue
-    remote_in_scope "$path" "$rec" "$inc" "$exc" || continue
+    [ -n "$skip" ] && [ "$mime" = "$skip" ] && continue
+    [ -z "$box" ] || remote_in_scope "$path" "$rec" "$inc" "$exc" || continue
     printf '%s\t%s\t%s\t%s\n' "$id" "$path" "$mime" "$mod"
   done < "$listing" > "$rows"
   while IFS= read -r card; do
     [ -n "$card" ] || continue
+    [ "$(remote_provider "$card")" = "$prov" ] || continue
     id="$(fm_field "$card" remote-id)"
     [ -n "$id" ] || continue          # incomplete: `check` reports it
     printf '%s\t%s\t%s\t%s\n' "$id" "$card" "$(fm_field "$card" remote-modified)" "$(fm_field "$card" remote-gone)"
@@ -440,10 +486,10 @@ cmd_external_remote_diff() {
 $(DM_KEEP_IGNORED=1 list_remote_cards "$dir")
 EOF
   # FILENAME, not FNR==NR: either input may be empty.
-  awk -F'\t' -v OFS='\t' -v C="$cards" '
+  awk -F'\t' -v OFS='\t' -v C="$cards" -v carded="$([ -n "$box" ] || echo 1)" '
     FILENAME == C { k = $1 ""; card[k] = $2; mod[k] = $3 ""; gone[k] = $4 ""; next }
     { k = $1 ""; seen[k] = 1
-      if (!(k in card)) print "new", k, $2, $3, $4
+      if (!(k in card)) { if (!carded) print "new", k, $2, $3, $4 }
       else if (($4 "") != mod[k] || gone[k] == "yes") print "changed", k, card[k], $4 }
     END { for (k in card) if (!(k in seen) && gone[k] != "yes") print "gone", k, card[k] }
   ' "$cards" "$rows" | LC_ALL=C sort

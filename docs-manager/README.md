@@ -301,7 +301,7 @@ docs/external/
   from a diagram source beside it is output, not reference material, and is ignored.
 - Files you place in the project are committed as they are; the plugin only ever writes cards.
 
-### Google Drive files (remote cards)
+### Google Drive files and Claude Artifacts (remote cards)
 
 With a Google Drive MCP connected (`/mcp`), Claude can attach a Drive doc as reference material without
 copying it: it writes a **remote card**, `pricing-model.gdrive.md`, with the same sections plus the Drive
@@ -313,7 +313,10 @@ when the card says the answer is there, and tells you when Drive has a newer ver
 - **Private material stays private on request.** Before the first card in a repo with a public remote,
   Claude asks whether to commit the cards or keep the folder local-only (git-ignored). A local-only folder
   is never named in a committed `_index.md`; `external remote` still lists it for Claude.
-- The procedure and the card format: [`how-to-external-docs.md`](skills/docs-manager/references/how-to-external-docs.md#remote-documents-google-drive).
+- **Claude Artifacts too.** A `claude.ai/…/artifact/…` page given as a link gets a card,
+  `dashboard.artifact.md`, the same way. Its refresh reports only the artifacts already carded, and an
+  `sk=` access key never reaches a committed card (`check` fails with `REMOTE KEY`).
+- The procedure and the card format: [`how-to-external-docs.md`](skills/docs-manager/references/how-to-external-docs.md#remote-documents-google-drive-claude-artifacts).
 
 Card format and the cataloguing procedure: [`how-to-external-docs.md`](skills/docs-manager/references/how-to-external-docs.md).
 

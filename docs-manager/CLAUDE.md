@@ -48,7 +48,11 @@ Sourced, never executed. Holds what more than one script in *this* plugin needs:
 
 - `fm_parse <file>` — one awk pass over frontmatter, emitting tab-separated typed records
   (`scalar|list|map<TAB>key<TAB>…`) in author order. `fm_field`, `fm_list` and `fm_map` are thin
-  wrappers over it — **do not add a second frontmatter reader.**
+  wrappers over it — **do not add a second frontmatter reader.** YAML comments are honoured: a
+  ` # …` outside quotes is cut from every value and a comment line never ends a block list, through
+  `AWK_FM_COMMENT`, which `fm_set` shares so a rewritten value keeps its comment (PLUG-140). Before it,
+  `exclude: [a, b]   # note` parsed as a scalar and excluded nothing. Both run under `LC_ALL=C`: the
+  walk is byte-wise, and macOS awk aborts on a regex against half a multibyte character.
 - `docs_find <root> <maxdepth|""> <tests…>` — **every walk of the docs tree goes through it**, so
   all commands skip the same things: any dot-entry at any depth (`.git/` when `docs/` is its own
   repository, `.obsidian/`, a hidden file), pruned with what is under it; the root itself is never
@@ -213,10 +217,22 @@ Key behaviors (don't regress these):
   once however many files changed. A missing `relates-to:` target is reported by `links` as
   `BROKEN REF`, not by `related` — one place per breakage.
 
-### Remote cards (PLUG-112, epic `docs-gdrive`)
+### Remote cards (PLUG-112, epic `docs-gdrive`; artifacts PLUG-141)
 
-A remote card (`<name>.gdrive.md`) describes a file kept on Google Drive, with no local copy. Only
-the skill (Claude) talks to Drive through an MCP; the scripts stay offline.
+A remote card (`<name>.<provider>.md`) describes a file kept with a provider — Google Drive (`gdrive`)
+or a Claude Artifact (`artifact`) — with no local copy. Only the skill (Claude) talks to the provider;
+the scripts stay offline.
+
+- **One implementation, the provider as data.** `REMOTE_PROVIDERS` lists the names and `provider_data`
+  holds everything that differs (the listing's container type, the URL key parameters). No other line
+  may branch on a provider; a new provider is a name and, at most, a `provider_data` row.
+- **`remote-diff` has two modes, chosen by the attachment.** `.source.md` with `remote-id` mirrors a
+  container: `new`/`changed`/`gone` in scope. Without it the cards were attached one by one (every
+  artifact): only carded ids count, never `new`, because the listing holds everything the user can see.
+  Only cards of `.source.md`'s `provider:` (default `gdrive`) are compared.
+- **An access key never reaches a committed card.** `has_access_key` greps the whole card (a body link
+  counts) for the provider's key parameters; outside a `publish: local` folder that is `keyed` /
+  `REMOTE KEY`, and the key is never printed.
 
 - **The name is the classifier.** `is_remote_card` matches `*.<provider>.md` for `REMOTE_PROVIDERS`;
   no script reads frontmatter to decide what a file is. Because `<name>.gdrive` is no external name, a
@@ -224,7 +240,7 @@ the skill (Claude) talks to Drive through an MCP; the scripts stay offline.
 - **The Drive id lives in the card** (`remote-id:`): a documented exception to "the file name is the
   link", since there is no local file. Do not add a `source:` key to local cards on its strength.
 - **`remote-stamp` is the only writer of `remote-modified:`**, as `stamp` is of `digest:`, diff-guarded,
-  shape-checked (RFC 3339 UTC). The value comes from Drive through Claude.
+  shape-checked (RFC 3339, `Z` or a `±hh:mm` offset). The value comes from the provider through Claude.
 - **`### External documents` opens for remote cards too**, local files first; a folder with neither
   still regenerates byte-identical (E2, RC3).
 - **`.source.md` is per-folder data, not config** (the `.docs-manager.json` rule stands). It is a

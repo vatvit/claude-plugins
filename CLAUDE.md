@@ -86,6 +86,8 @@ constraints, not preferences — a plugin that breaks them breaks on someone's m
   *replacement* is read differently by busybox than by gawk and BSD awk, so escape with a character loop.
   And macOS awk cuts `substr` by bytes while its `tolower` rejects broken UTF-8: `tolower(substr(s, 1, n))`
   aborts when the cut lands inside a multibyte character. Lowercase whole strings and compare with `index`.
+  A regex match (`~`) against such a cut aborts too (`towc: multibyte conversion failure`): a byte-wise walk
+  compares characters with `==` and runs under `LC_ALL=C` (docs-manager `AWK_FM_COMMENT`, PLUG-140).
   And `$1 == id` compares *numerically* when both sides look like numbers, which a hex ID can: busybox
   reads `75e763` and `7e1794` as infinity, so they are equal, and every awk reads `010` as `10`. Compare
   an id, name or path as `($1 "") == id`; leave a bare `==` only for integers meant as numbers (ports,
@@ -212,7 +214,7 @@ on any plugin whose `plugin.json` and `marketplace.json` disagree on description
 **Check trigger phrases against the other plugins' skill descriptions.** Two plugins
 competing for the same words is a coin flip at activation time. Today the vocabularies are
 disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.md / AGENTS.md /
-external docs / catalogue / ingest / reference material / Google Drive doc as reference / Drive folder / refresh the Drive docs / local copy of a Drive doc / remote card / onboard / survey / legacy project / scattered docs*, task-roadmap owns *roadmap / gantt /
+external docs / catalogue / ingest / reference material / Google Drive doc as reference / Drive folder / refresh the Drive docs / local copy of a Drive doc / remote card / Claude artifact as reference / artifact card / onboard / survey / legacy project / scattered docs*, task-roadmap owns *roadmap / gantt /
 timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
 tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
 hand off / hold / hot spot / slot / stuck slot / land / copy / snapshot / inbox / mailbox / watchdog / progress report / adopt / import holds / end the crew / disband / working solo / crew active / crew task* and says *slot*, never *job* or *queue* alone,

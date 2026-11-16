@@ -96,6 +96,8 @@ A hook regenerates it whenever a task file changes. [More →](task-roadmap/READ
   card or a stale one.
 - **Google Drive docs:** with a Drive MCP connected, a Drive doc or folder becomes a remote card without
   being copied. It is listed as ☁ in the index, and Claude says when Drive has a newer version.
+- **Claude Artifacts:** an artifact link (a prototype, dashboard or write-up on claude.ai) gets the same
+  kind of card, and its share key never reaches a committed file.
 - **Legacy projects:** surveys the docs a project already has and, once you approve the plan,
   builds `docs/` from them, keeping git history and links.
 

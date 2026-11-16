@@ -232,12 +232,27 @@ A changed file can make an authored doc wrong without any link breaking: the doc
 5. A doc that depends on the source but was not listed means a missing `relates-to:` entry — offer
    to add it to the card. Then stamp, and `docs.sh check` must be clean.
 
-## Remote documents (Google Drive)
+## Remote documents (Google Drive, Claude Artifacts)
 
-A **remote card** describes a file that stays on Google Drive, with no copy in the repo. It is a
+A **remote card** describes a file that stays with its provider, with no copy in the repo. It is a
 card like any other (same sections, same rules for `## Where to look`), so Claude can tell from the
-card whether the file matters and opens Drive only when it does. Only Claude talks to Drive, through
-a Drive MCP server; no command here makes a network call.
+card whether the file matters and opens the provider only when it does. Only Claude talks to the
+provider, through the tool the session has for it; no command here makes a network call.
+
+Everything below is written for Google Drive and holds for every provider. What differs:
+
+| | Google Drive (`gdrive`) | Claude Artifact (`artifact`) |
+|---|---|---|
+| The thing | a Drive file, or a folder of them | a page published at `claude.ai/…/artifact/…`: a prototype, dashboard, write-up, doc |
+| Claude reads it with | a Drive MCP (search, metadata, content as text) | the Artifact tool (read by link, list); a Doc artifact also through the Claude Docs MCP (`read`) |
+| `remote-id` | the Drive file id | the artifact id: the last path segment of its URL |
+| `remote-modified` | `modifiedTime` | the listing's last-updated time, as given |
+| Attached as | a file, or a folder (`.source.md` `remote-id`) | one by one, by link: never a container |
+| Refresh reports | `new`, `changed`, `gone` for a folder | `changed`, `gone` only (*Claude Artifacts* below) |
+| Access keys | none | `sk=` in a share link (*Claude Artifacts* below) |
+
+`.source.md` says which provider a folder's cards come from (`provider:`; absent means `gdrive`). A
+folder may hold cards of both; `remote-diff` compares only those of its `.source.md`'s provider.
 
 ### Layout and format
 
@@ -379,6 +394,41 @@ Writing a copy:
 to be retyped, with no checksum to catch a wrong byte (PLUG-114). If the user wants the original file,
 they download it into `docs/external/` themselves; it is then an ordinary external file with its own
 card and digest.
+
+### Claude Artifacts
+
+Run this when the user gives a `claude.ai/…/artifact/…` link to keep as reference material, or asks to
+catalogue or refresh the project's artifacts. It is *Attaching — the procedure* with these changes.
+
+1. **Find the tool.** The Artifact tool (read an artifact by link, list the user's artifacts), or for a
+   Doc artifact the Claude Docs MCP. Neither available: say so and **write nothing**. In Claude Code the
+   Artifact tool is off when a settings file has `"enableArtifact": false` (`/config` → Artifacts) or the
+   session is not signed in to claude.ai.
+2. **Read it.** An artifact someone else owns may come back as a summary plus the raw HTML saved to a
+   file; read the HTML. A **bundled page** shows only a loader in the summary ("Unpacking…"): the card
+   is written from the unpacked HTML, never from the loader. A large page: delegate the reading.
+3. **Ask about publishing** once per folder, as in step 3 there, and write `.source.md` with
+   `provider: artifact` and no `remote-id`: artifacts are attached one by one.
+4. **Write the card** `<name>.artifact.md` (`<name>` = the artifact's title in kebab-case), with
+   `remote-id` (the id from the URL), `remote-url` and `remote-type` (`html`, `doc`, … as the tool says),
+   then `external remote-stamp <card> <last-updated>`. If the artifact has comment threads, add a
+   `## Comments` line saying what they discuss; read them before answering from the artifact.
+5. **Index and verify**, as in step 5 there.
+
+**The access key.** A share link may carry `sk=…`, which lets anyone holding the link open the
+artifact. **Strip it**: `remote-url` and every link in the card are written without it. In a
+`publish: local` folder (git-ignored) the card may keep the full link as `remote-key-url:`, so the
+user's own sessions can open it. `check` fails with `REMOTE KEY` on a card holding a key anywhere
+(frontmatter or body) outside such a folder, and never prints the key.
+
+**Refreshing.** List the user's artifacts through the tool into a temp file outside the repo, one row
+each: `id<TAB>title<TAB>type<TAB>last-updated`. Then `external remote-diff <dir> <listing>`. Without a
+container it compares only carded ids, so the hundreds of artifacts the project never used are not
+`new`:
+- `changed`: re-read the artifact, update the card, `remote-stamp` it with that time.
+- `gone`: the listing may simply not show it (artifacts shared from another organisation can be
+  missing). **Read it by its link first.** Readable: it is not gone; leave the card, or restamp it if
+  its time differs. Not readable: `remote-gone <card>` and ask the user, as for a Drive file.
 
 ### Finding and reading remote material
 

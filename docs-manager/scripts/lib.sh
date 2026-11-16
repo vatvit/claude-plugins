@@ -62,6 +62,46 @@ drop_git_ignored() {
 # Frontmatter
 # ---------------------------------------------------------------------------
 
+# AWK_FM_COMMENT — awk functions for YAML inline comments (PLUG-140), shared by `fm_parse` and
+# `fm_set` so the two never disagree about where a value ends.
+#   fm_cpos(s) -> where the comment starts in <s> (the text after `key:` or `-`), counting the blanks
+#                 before its `#`; 0 when there is none
+#   fm_cut(s)  -> <s> without its comment
+# A comment is a `#` with a blank before it, outside quotes: `p#frag` and `"a # b"` keep theirs. A
+# quote opens a quoted value only where a value starts (first character, or after `[` / `,` in a flow
+# list), so the apostrophe in `it's` is a letter, as in YAML. Quotes as octal escapes (\042, \047):
+# this string is single-quoted shell. Callers run it under LC_ALL=C: the walk is byte by byte, and
+# macOS awk aborts on a regex match against half of a multibyte character (`1AbC…`).
+AWK_FM_COMMENT='
+function fm_blank(c) { return c == " " || c == "\t" }
+function fm_cpos(s,   n, i, c, q, first, start, flow, w) {
+  n = length(s); q = ""; first = 1; start = 1; flow = 0
+  for (i = 1; i <= n; i++) {
+    c = substr(s, i, 1)
+    if (q != "") {
+      if (q == "\042" && c == "\\") { i++; continue }
+      if (c == q) {
+        if (q == "\047" && substr(s, i + 1, 1) == "\047") { i++; continue }
+        q = ""
+      }
+      continue
+    }
+    if (fm_blank(c)) continue
+    if (c == "#" && i > 1 && fm_blank(substr(s, i - 1, 1))) {
+      w = i; while (w > 1 && fm_blank(substr(s, w - 1, 1))) w--
+      return w
+    }
+    if (start && (c == "\042" || c == "\047")) { q = c; start = 0; first = 0; continue }
+    if (first && c == "[") { flow = 1; first = 0; continue }
+    first = 0
+    if (flow && c == ",") { start = 1; continue }
+    start = 0
+  }
+  return 0
+}
+function fm_cut(s,   p) { p = fm_cpos(s); return p ? substr(s, 1, p - 1) : s }
+'
+
 # fm_parse <file>
 #
 # One awk pass over the YAML frontmatter, emitting tab-separated typed records in
@@ -80,8 +120,11 @@ drop_git_ignored() {
 #   key: [a, b]           -> list (inline)
 #   key:                  -> list  (following `  - item` lines)
 #   key:                  -> map   (following `  sub: value` lines)
+#
+# An inline ` # comment` is dropped from every value, and a comment line is skipped without
+# ending the block it sits in (AWK_FM_COMMENT).
 fm_parse() {
-  awk '
+  LC_ALL=C awk "$AWK_FM_COMMENT"'
     function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
     function unquote(s) {
       if (s ~ /^".*"$/ || s ~ /^'"'"'.*'"'"'$/) s = substr(s, 2, length(s) - 2)
@@ -90,11 +133,12 @@ fm_parse() {
     NR == 1 && $0 != "---" { exit }        # no frontmatter at all
     NR == 1 { next }
     $0 == "---" { exit }                   # end of frontmatter
+    /^[ \t]*#/ { next }                     # a comment line: the pending block goes on
 
     # nested entry under a pending key: "  - item"  or  "  sub: value"
     /^[ \t]+-[ \t]*/ {
       if (pending == "") next
-      item = unquote(trim(substr($0, index($0, "-") + 1)))
+      item = unquote(trim(fm_cut(substr($0, index($0, "-") + 1))))
       if (item != "") printf "list\t%s\t%s\n", pending, item
       next
     }
@@ -103,7 +147,7 @@ fm_parse() {
       line = trim($0)
       c = index(line, ":")
       sub_key = trim(substr(line, 1, c - 1))
-      val = unquote(trim(substr(line, c + 1)))
+      val = unquote(trim(fm_cut(substr(line, c + 1))))
       printf "map\t%s\t%s\t%s\n", pending, sub_key, val
       next
     }
@@ -112,7 +156,7 @@ fm_parse() {
     /^[A-Za-z0-9_.-]+[ \t]*:/ {
       c = index($0, ":")
       key = trim(substr($0, 1, c - 1))
-      val = trim(substr($0, c + 1))
+      val = trim(fm_cut(substr($0, c + 1)))
       pending = ""
 
       if (val == "") { pending = key; next }              # block list or map follows
@@ -159,14 +203,15 @@ fm_map() {
 # Set one scalar frontmatter key in place, replacing it if present and appending it
 # to the end of the frontmatter if not. **Every other byte of the file is preserved**
 # — this writes a review record into someone's document, so it must not reformat,
-# reorder or reflow anything it does not own.
+# reorder or reflow anything it does not own — a trailing ` # comment` on the line it
+# rewrites included (PLUG-140).
 #
 # Writes via temp file + mv: `sed -i` is not portable (BSD needs `-i ''`, GNU rejects
 # it) and the temp-file route is atomic besides.
 fm_set() {
   local file="$1" key="$2" val="$3" tmp
   tmp="$(mktemp)"
-  awk -v key="$key" -v val="$val" '
+  LC_ALL=C awk -v key="$key" -v val="$val" "$AWK_FM_COMMENT"'
     NR == 1 && $0 != "---" { print; nofm = 1; next }   # no frontmatter: leave alone
     nofm { print; next }
     NR == 1 { print; infm = 1; next }
@@ -176,7 +221,10 @@ fm_set() {
     }
     infm {
       k = $0; sub(/[ \t]*:.*$/, "", k)
-      if (k == key) { print key ": " val; seen = 1; next }
+      if (k == key) {
+        rest = substr($0, index($0, ":") + 1); p = fm_cpos(rest)
+        print key ": " val (p ? substr(rest, p) : ""); seen = 1; next
+      }
       print; next
     }
     { print }

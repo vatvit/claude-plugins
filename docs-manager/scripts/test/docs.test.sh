@@ -240,7 +240,7 @@ if needs_git RC9; then
   printf 'docs/external/private/\n' > "$R/.gitignore"
   git -C "$R" init -q
   bash "$DOCS" index --write "$R/docs" >/dev/null 2>&1
-  check "RC9a ignored attachment not in any _index.md" "" "$(grep -rl 'contract' "$R/docs" --include=_index.md)"
+  check "RC9a ignored attachment not in any _index.md" "" "$(find "$R/docs" -name _index.md -exec grep -l 'contract' {} +)"
   out=$(bash "$DOCS" external remote "$R/docs" 2>&1)
   check "RC9b external remote lists it, publish local" "yes" \
     "$(has "$out" "$(printf '%s/docs/external/private/contract.gdrive.md\tlocal\t2026-11-10T13:37:23Z\tPrivate contract\tpricing' "$R")")"
@@ -261,6 +261,70 @@ if needs_git LC10; then
   out=$(bash "$DOCS" check "$R/docs" 2>&1)
   check "LC10 ignored copy still reported stale" "yes" "$(has "$out" "LOCAL COPY STALE: $R/docs/external/acme/spec.gdrive.local.md")"
 fi
+
+echo "== frontmatter comments (PLUG-140) =="
+
+LIB="$(dirname "$DOCS")/lib.sh"
+fmp() { ( . "$LIB"; fm_parse "$1" ) | tr '\t' '|'; }   # fmp <file> -> records, | for tab
+R=$(fresh fc)
+cat > "$R/a.md" <<'EOF'
+---
+exclude: [a.zip, */b]   # note
+foo: bar   # note
+url: https://x.test/p#frag
+quoted: "a # b"   # real comment
+single: 'c # d'
+plain: it's # cut
+tab: v	# tab before hash
+# a full-line comment
+watch:
+  - src/a/   # first
+  # between items
+  - src/b/
+refs:
+  api: file:x.ts   # map value
+list2: ["p # q", r]  # after list
+mb: 1AbC…   # multibyte before the comment
+mb2: é#ü — kept
+---
+body
+EOF
+p=$(fmp "$R/a.md")
+check "FC1 flow list with comment is a list" "list|exclude|a.zip
+list|exclude|*/b" "$(echo "$p" | grep '^list|exclude|')"
+check "FC2 scalar loses the comment" "scalar|foo|bar" "$(echo "$p" | grep '|foo|')"
+check "FC3 # without a space before it is kept" "scalar|url|https://x.test/p#frag" "$(echo "$p" | grep '|url|')"
+check "FC4 # inside double quotes is kept" "scalar|quoted|a # b" "$(echo "$p" | grep '|quoted|')"
+check "FC5 # inside single quotes is kept" "scalar|single|c # d" "$(echo "$p" | grep '|single|')"
+check "FC6 apostrophe mid-word opens no quote" "scalar|plain|it's" "$(echo "$p" | grep '|plain|')"
+check "FC7 tab before # starts a comment" "scalar|tab|v" "$(echo "$p" | grep '|tab|')"
+check "FC8 block list: comment stripped, full-line comment keeps the list open" "list|watch|src/a/
+list|watch|src/b/" "$(echo "$p" | grep '^list|watch|')"
+check "FC9 map value loses the comment" "map|refs|api|file:x.ts" "$(echo "$p" | grep '^map|refs|')"
+check "FC10 quoted item in a flow list keeps its #" "list|list2|p # q
+list|list2|r" "$(echo "$p" | grep '^list|list2|')"
+check "FC16 multibyte value: comment cut, bytes kept" "scalar|mb|1AbC…" "$(echo "$p" | grep '|mb|')"
+check "FC17 multibyte around a # with no blank" "scalar|mb2|é#ü — kept" "$(echo "$p" | grep '|mb2|')"
+check "FC11 a full-line comment emits nothing" "no" "$(has "$p" 'full-line')"
+
+# fm_set keeps the trailing comment of the line it rewrites, and every other byte
+printf -- '---\ndigest: sha256:old    # written by stamp\nx: y # keep\n---\nbody\n' > "$R/s.md"
+( . "$LIB"; fm_set "$R/s.md" digest sha256:new )
+check "FC12 fm_set keeps the comment" "---
+digest: sha256:new    # written by stamp
+x: y # keep
+---
+body" "$(cat "$R/s.md")"
+check "FC13 fm_field reads the value without it" "sha256:new" "$( . "$LIB"; fm_field "$R/s.md" digest )"
+
+# The how-to examples parse as their prose says: the folder attachment's .source.md, the only
+# unindented `provider: gdrive` block in the how-to, copied out as a user would
+HOWTO="$(dirname "$DOCS")/../skills/docs-manager/references/how-to-external-docs.md"
+awk '/^provider: gdrive$/ { on = 1 } on && /^---$/ { exit } on { print }' "$HOWTO" \
+  | { echo ---; cat; echo ---; } > "$R/src.md"
+check "FC14 how-to folder example: include is a list" "specs/*,*.pdf" \
+  "$( . "$LIB"; fm_list "$R/src.md" include | paste -sd, - )"
+check "FC15 how-to folder example: recursive is true" "true" "$( . "$LIB"; fm_field "$R/src.md" recursive )"
 
 echo
 echo "passed: $pass  failed: $fail  skipped: $skipped"

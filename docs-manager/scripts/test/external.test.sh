@@ -569,8 +569,8 @@ bash "$DOCS" external remote-diff "$A" "$R/l.tsv" >/dev/null 2>&1; check "RF8c e
 mkdir -p "$R/plain"; listing "1a|a|$DOCMIME|$T1" > "$R/l.tsv"
 bash "$DOCS" external remote-diff "$R/plain" "$R/l.tsv" >/dev/null 2>&1; check "RF11a no .source.md" "1" "$?"
 printf -- '---\nprovider: gdrive\n---\n' > "$R/plain/.source.md"
-err=$(bash "$DOCS" external remote-diff "$R/plain" "$R/l.tsv" 2>&1); rc=$?
-check "RF11b .source.md without remote-id" "1:yes" "$rc:$(has "$err" 'remote-id')"
+out=$(bash "$DOCS" external remote-diff "$R/plain" "$R/l.tsv" 2>&1); rc=$?
+check "RF11b .source.md without remote-id: carded only, no new (PLUG-141)" "0:" "$rc:$out"
 
 # --- RF9/RF10: remote-gone marks, check reports, remote-stamp clears --------------------------
 R=$(fresh rf9); A=$(attach "$R")
@@ -681,6 +681,92 @@ out=$(bash "$DOCS" external remote "$R")
 check "LC11a copy named" "$A/spec.gdrive.local.md" "$(echo "$out" | awk -F'\t' -v c="$A/spec.gdrive.md" '($1 "") == c { print $6 }')"
 check "LC11b no copy: -" "-" "$(echo "$out" | awk -F'\t' -v c="$A/other.gdrive.md" '($1 "") == c { print $6 }')"
 check "LC11c the copy is not listed as a card" "no" "$(has "$out" "$(printf '%s/spec.gdrive.local.md\t' "$A")")"
+
+echo "== artifact remote cards (PLUG-141) =="
+
+TA1=2026-11-16T10:00:00Z; TA2=2026-11-16T12:30:00+01:00
+# acard <path> <description> <id> [modified] [url-suffix] — a Claude Artifact remote card
+acard() {
+    mkdir -p "$(dirname "$1")"
+    printf -- '---\ntitle: t\ndescription: %s\nread-when: x\nremote-id: %s\nremote-url: https://claude.ai/artifact/%s%s\nremote-type: html\nremote-modified: %s\n---\n\n# A\n' \
+      "$2" "$3" "$3" "${5:-}" "${4:-$TA1}" > "$1"
+}
+# aattach <root> [publish] — external/proto: .source.md for artifacts (no container) and two cards
+aattach() {
+    local A="$1/external/proto"
+    mkdir -p "$A"
+    printf -- '---\nprovider: artifact\ncontent: remote\nprocessed: none\npublish: %s\n---\n' "${2:-commit}" > "$A/.source.md"
+    acard "$A/dashboard.artifact.md" "Dashboard" a1
+    acard "$A/prototype.artifact.md" "Prototype" b2
+    echo "$A"
+}
+
+# --- AR1: an artifact card is a remote card like any other ---------------------------------
+R=$(fresh ar1); A=$(aattach "$R")
+bash "$DOCS" index --write "$R" >/dev/null 2>&1
+idx=$(cat "$A/_index.md")
+check "AR1a listed with ☁" "yes" "$(has "$idx" '- ☁ [`dashboard`](dashboard.artifact.md) — Dashboard')"
+st=$(bash "$DOCS" external status "$R" 2>&1)
+check "AR1b status: remote row" "yes" "$(has "$st" "$(printf 'remote\tfiled\t-\t%s/dashboard.artifact.md' "$A")")"
+bash "$DOCS" check "$R" >/dev/null 2>&1; check "AR1c check clean" "0" "$?"
+out=$(bash "$DOCS" external remote "$R")
+check "AR1d external remote lists it" "yes" "$(has "$out" "$(printf '%s/prototype.artifact.md\tcommit\t%s\tPrototype' "$A" "$TA1")")"
+
+# --- AR2: remote-stamp takes a time with an offset, still rejects junk --------------------
+out=$(bash "$DOCS" external remote-stamp "$A/dashboard.artifact.md" "$TA2" 2>&1); rc=$?
+check "AR2a offset time stamped" "0:yes" "$rc:$(has "$(cat "$A/dashboard.artifact.md")" "remote-modified: $TA2")"
+bash "$DOCS" external remote-stamp "$A/dashboard.artifact.md" "2026-11-16 12:30" >/dev/null 2>&1
+check "AR2b a time without T and zone rejected" "1" "$?"
+bash "$DOCS" external remote-stamp "$A/dashboard.artifact.md" "2026-11-16T12:30:00+0100" >/dev/null 2>&1
+check "AR2c an offset without a colon rejected" "1" "$?"
+
+# --- AR3: no container in .source.md -> carded only: changed and gone, never new ------------
+R=$(fresh ar3); A=$(aattach "$R")
+listing "a1|Dashboard|html|$TA2" "c3|Somebody's other artifact|html|$TA1" > "$R/l.tsv"
+out=$(diff_of "$A" "$R/l.tsv")
+check "AR3a changed" "yes" "$(has "$out" "$(printf 'changed\ta1\t%s/dashboard.artifact.md\t%s' "$A" "$TA2")")"
+check "AR3b missing from the listing: gone" "yes" "$(has "$out" "$(printf 'gone\tb2\t%s/prototype.artifact.md' "$A")")"
+check "AR3c an uncarded artifact is never new" "no" "$(has "$out" 'c3')"
+check "AR3d exactly two records" "2" "$(echo "$out" | grep -c .)"
+
+# --- AR4: the diff compares only the cards of the attachment's provider ---------------------
+R=$(fresh ar4); A=$(aattach "$R")
+rcard "$A/sheet.gdrive.md" "Sheet" - 1g "$T1"
+listing "a1|Dashboard|html|$TA1" "b2|Prototype|html|$TA1" > "$R/l.tsv"
+out=$(diff_of "$A" "$R/l.tsv")
+check "AR4a a Drive card beside artifact cards is not gone" "0" "$(echo "$out" | grep -c .)"
+printf -- '---\nremote-id: F0\n---\n' > "$R/s.md"
+mkdir -p "$R/external/old"; cp "$R/s.md" "$R/external/old/.source.md"
+rcard "$R/external/old/a.gdrive.md" "A" - 1a "$T1"
+listing "1a|a|$DOCMIME|$T1" > "$R/l2.tsv"
+out=$(diff_of "$R/external/old" "$R/l2.tsv")
+check "AR4b no provider: field means gdrive (older .source.md)" "0" "$(echo "$out" | grep -c .)"
+
+# --- AR5: an access key never sits in a committed card ---------------------------------------
+R=$(fresh ar5); A=$(aattach "$R")
+acard "$A/keyed.artifact.md" "Keyed" k9 "$TA1" "?sk=s3cr3t"
+acard "$A/task.artifact.md" "Task" t1 "$TA1" "?task=1&ask=2"
+out=$(bash "$DOCS" check "$R" 2>&1); rc=$?
+check "AR5a key in remote-url fails check" "1:yes" "$rc:$(has "$out" "REMOTE KEY: $A/keyed.artifact.md")"
+check "AR5b a parameter merely ending in sk is no key" "no" "$(has "$out" 'task.artifact.md')"
+check "AR5c the key itself is not printed" "no" "$(has "$out" 's3cr3t')"
+st=$(bash "$DOCS" external status "$R" 2>&1)
+check "AR5d status: keyed row" "yes" "$(has "$st" "$(printf 'keyed\tfiled\t-\t%s/keyed.artifact.md' "$A")")"
+acard "$A/keyed.artifact.md" "Keyed" k9
+printf '\n[open](https://claude.ai/artifact/k9?x=1&sk=s3cr3t)\n' >> "$A/keyed.artifact.md"
+out=$(bash "$DOCS" check "$R" 2>&1)
+check "AR5e key in a body link fails too" "yes" "$(has "$out" "REMOTE KEY: $A/keyed.artifact.md")"
+R=$(fresh ar5b); A=$(aattach "$R" local)
+acard "$A/keyed.artifact.md" "Keyed" k9
+printf 'remote-key-url: https://claude.ai/artifact/k9?sk=s3cr3t\n' > "$R/kl"
+awk -v f="$R/kl" 'NR > 1 && /^---$/ && !d { while ((getline l < f) > 0) print l; d = 1 } { print }' \
+  "$A/keyed.artifact.md" > "$R/t" && mv "$R/t" "$A/keyed.artifact.md"
+out=$(bash "$DOCS" check "$R" 2>&1)
+check "AR5f a publish: local folder may keep the key" "no" "$(has "$out" 'REMOTE KEY')"
+rcard "$R/external/drive/doc.gdrive.md" "D" - 1d "$T1"
+printf '\n[x](https://docs.google.com/document/d/1d/edit?usp=sharing&sk=1)\n' >> "$R/external/drive/doc.gdrive.md"
+out=$(bash "$DOCS" check "$R" 2>&1)
+check "AR5g key parameters are per provider (Drive has none)" "no" "$(has "$out" 'REMOTE KEY: '"$R/external/drive/doc.gdrive.md")"
 
 echo
 echo "passed: $pass   failed: $fail"
