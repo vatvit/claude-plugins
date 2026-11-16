@@ -79,9 +79,6 @@ bash scripts/docs.sh external move docs/external/spec.pdf docs/external/vendor
 bash scripts/docs.sh external related docs/external/vendor/spec.pdf
 bash scripts/docs.sh external outline docs/external/finance/budget.xlsx
 bash scripts/docs.sh external text docs/external/law/contract.docx
-# …Google Drive files kept as remote cards: list them (local-only too), record the Drive version read
-bash scripts/docs.sh external remote
-bash scripts/docs.sh external remote-stamp docs/external/vendor/pricing-model.gdrive.md 2026-11-10T13:37:23Z
 
 # All checks
 bash scripts/docs.sh check
@@ -301,22 +298,12 @@ docs/external/
   from a diagram source beside it is output, not reference material, and is ignored.
 - Files you place in the project are committed as they are; the plugin only ever writes cards.
 
-### Google Drive files and Claude Artifacts (remote cards)
+### Remote cards
 
-With a Google Drive MCP connected (`/mcp`), Claude can attach a Drive doc as reference material without
-copying it: it writes a **remote card**, `pricing-model.gdrive.md`, with the same sections plus the Drive
-file id, URL and the `modifiedTime` it was written from. `index` lists it as `☁`, Claude opens Drive only
-when the card says the answer is there, and tells you when Drive has a newer version than the card.
-
-- **Scripts never touch Drive.** Only Claude does, through the MCP; `external remote-stamp` is the one
-  writer of the recorded Drive version.
-- **Private material stays private on request.** Before the first card in a repo with a public remote,
-  Claude asks whether to commit the cards or keep the folder local-only (git-ignored). A local-only folder
-  is never named in a committed `_index.md`; `external remote` still lists it for Claude.
-- **Claude Artifacts too.** A `claude.ai/…/artifact/…` page given as a link gets a card,
-  `dashboard.artifact.md`, the same way. Its refresh reports only the artifacts already carded, and an
-  `sk=` access key never reaches a committed card (`check` fails with `REMOTE KEY`).
-- The procedure and the card format: [`how-to-external-docs.md`](skills/docs-manager/references/how-to-external-docs.md#remote-documents-google-drive-claude-artifacts).
+A Google Drive file or a Claude Artifact kept as reference has a **remote card** (`pricing-model.gdrive.md`,
+`dashboard.artifact.md`). docs-manager lists it with `☁` in `_index.md` and checks its links; attaching,
+refreshing and validating remote documents is the job of the separate **remote-docs** plugin, which works
+alone or together with this one.
 
 Card format and the cataloguing procedure: [`how-to-external-docs.md`](skills/docs-manager/references/how-to-external-docs.md).
 

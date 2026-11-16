@@ -23,6 +23,12 @@
       "version": "1.12.1"
     },
     {
+      "name": "remote-docs",
+      "source": "./remote-docs",
+      "description": "Remote documents in your docs: Google Drive files and folders and Claude Artifacts kept as cards that say what each holds and where to look, refreshed against the provider. Works alone or with docs-manager.",
+      "version": "1.0.0"
+    },
+    {
       "name": "task-roadmap",
       "source": "./task-roadmap",
       "description": "Abstract-Gantt roadmap for a markdown task set: scheduled by dependencies and estimates, critical path highlighted, regenerated as tasks change.",

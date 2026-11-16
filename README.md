@@ -26,7 +26,7 @@ any of them with two commands.
 - **Config is optional.** Every setting has a working default. Where a plugin reads config, it's
   one flat JSON file at the project root, named after the plugin.
 - **The project folder is enough.** In a sandbox with no usable home directory (Claude Desktop's
-  Cowork, a container), task, task-roadmap, docs-manager, kickoff and crew keep everything in the
+  Cowork, a container), task, task-roadmap, docs-manager, remote-docs, kickoff and crew keep everything in the
   project and say so where they fall back: crew names get a project prefix and its slot queue moves
   into the repo, and kickoff's dev-port list does too. `delay` is the exception: it runs jobs on the
   Mac it's installed on, so it can't queue from a sandbox, and it says so.
@@ -38,6 +38,7 @@ any of them with two commands.
 | [task](task/) | Markdown task files with a built-in workflow, epics and parallel-safe IDs |
 | [task-roadmap](task-roadmap/) | An abstract Gantt chart of your task set, regenerated when tasks change |
 | [docs-manager](docs-manager/) | Docs as a product: index pages, link checks, diagrams, catalogued reference files |
+| [remote-docs](remote-docs/) | Google Drive files and Claude Artifacts kept in your docs as cards, never copied |
 | [kickoff](kickoff/) | One questionnaire to start every project, turned into a charter and a scaffold |
 | [crew](crew/) | Several Claude sessions on one working tree and branch without lost edits |
 | [delay](delay/) | Queue slow test suites to run overnight in docker while the Mac sleeps |
@@ -94,15 +95,29 @@ A hook regenerates it whenever a task file changes. [More →](task-roadmap/READ
 - **External reference files:** a PDF, Word, Excel, PowerPoint or OpenDocument file dropped into `docs/external/` gets a
   **card** saying what it holds and where inside it to look, and `check` reports files with no
   card or a stale one.
-- **Google Drive docs:** with a Drive MCP connected, a Drive doc or folder becomes a remote card without
-  being copied. It is listed as ☁ in the index, and Claude says when Drive has a newer version.
-- **Claude Artifacts:** an artifact link (a prototype, dashboard or write-up on claude.ai) gets the same
-  kind of card, and its share key never reaches a committed file.
+- **Remote cards** for Google Drive files and Claude Artifacts are listed as ☁ in the index; the
+  remote-docs plugin manages them.
 - **Legacy projects:** surveys the docs a project already has and, once you approve the plan,
   builds `docs/` from them, keeping git history and links.
 
 Nothing is rendered by default, because GitHub, IDEs and Obsidian already draw fenced diagrams.
 [More →](docs-manager/README.md)
+
+### remote-docs
+
+**For:** reference material that lives on Google Drive or as a Claude Artifact, used from the docs
+without being copied into the repo.
+
+- **Google Drive docs:** with a Drive MCP connected, a Drive doc or folder becomes a remote card saying
+  what the file holds and where inside it to look. Claude opens Drive only when the card says the answer
+  is there, and says when Drive has a newer version.
+- **Claude Artifacts:** an artifact link (a prototype, dashboard or write-up on claude.ai) gets the same
+  kind of card, and its share key never reaches a committed file.
+- **Local-only on request:** private cards can stay git-ignored, and a text copy can be kept for offline
+  reading, with a check that says when it falls behind.
+
+Works alone; with docs-manager the cards also appear in its `_index.md` navigation.
+[More →](remote-docs/README.md)
 
 ### kickoff
 
@@ -209,6 +224,7 @@ From within Claude Code:
 /plugin install task@vatvit-plugins
 /plugin install task-roadmap@vatvit-plugins
 /plugin install docs-manager@vatvit-plugins
+/plugin install remote-docs@vatvit-plugins
 /plugin install kickoff@vatvit-plugins
 /plugin install crew@vatvit-plugins
 /plugin install delay@vatvit-plugins          # then follow delay/README.md: a one-time sudo setup

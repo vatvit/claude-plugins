@@ -217,54 +217,22 @@ Key behaviors (don't regress these):
   once however many files changed. A missing `relates-to:` target is reported by `links` as
   `BROKEN REF`, not by `related` — one place per breakage.
 
-### Remote cards (PLUG-112, epic `docs-gdrive`; artifacts PLUG-141)
+### Remote cards: listed here, managed by remote-docs (PLUG-144)
 
-A remote card (`<name>.<provider>.md`) describes a file kept with a provider — Google Drive (`gdrive`)
-or a Claude Artifact (`artifact`) — with no local copy. Only the skill (Claude) talks to the provider;
-the scripts stay offline.
+A remote card (`<name>.<provider>.md`: Drive `gdrive`, Claude Artifact `artifact`) and its local copy
+(`<name>.<provider>.local.md`) belong to the **remote-docs** plugin, which attaches, stamps, diffs and
+validates them. docs-manager keeps only the **name classifier** (`REMOTE_PROVIDERS`, `remote_provider`,
+`is_remote_card`, `is_remote_copy`, `list_remote_cards`), so that:
 
-- **One implementation, the provider as data.** `REMOTE_PROVIDERS` lists the names and `provider_data`
-  holds everything that differs (the listing's container type, the URL key parameters). No other line
-  may branch on a provider; a new provider is a name and, at most, a `provider_data` row.
-- **`remote-diff` has two modes, chosen by the attachment.** `.source.md` with `remote-id` mirrors a
-  container: `new`/`changed`/`gone` in scope. Without it the cards were attached one by one (every
-  artifact): only carded ids count, never `new`, because the listing holds everything the user can see.
-  Only cards of `.source.md`'s `provider:` (default `gdrive`) are compared.
-- **An access key never reaches a committed card.** `has_access_key` greps the whole card (a body link
-  counts) for the provider's key parameters; outside a `publish: local` folder that is `keyed` /
-  `REMOTE KEY`, and the key is never printed.
+- `index` lists a card with ☁ under *External documents*, after local files; a folder with neither still
+  regenerates byte-identical (E2);
+- `list_docs` skips cards and copies, and a card never reaches the orphan loop;
+- `links` checks a card's `relates-to:`;
+- `check` prints `REMOTE CARDS: N (validated by the remote-docs plugin)` and never fails on one.
 
-- **The name is the classifier.** `is_remote_card` matches `*.<provider>.md` for `REMOTE_PROVIDERS`;
-  no script reads frontmatter to decide what a file is. Because `<name>.gdrive` is no external name, a
-  remote card never reaches the orphan loop. Do not make orphan detection smarter instead.
-- **The Drive id lives in the card** (`remote-id:`): a documented exception to "the file name is the
-  link", since there is no local file. Do not add a `source:` key to local cards on its strength.
-- **`remote-stamp` is the only writer of `remote-modified:`**, as `stamp` is of `digest:`, diff-guarded,
-  shape-checked (RFC 3339, `Z` or a `±hh:mm` offset). The value comes from the provider through Claude.
-- **`### External documents` opens for remote cards too**, local files first; a folder with neither
-  still regenerates byte-identical (E2, RC3).
-- **`.source.md` is per-folder data, not config** (the `.docs-manager.json` rule stands). It is a
-  dot-file, so `docs_find` never lists it; scripts find it by path: `source_of` takes
-  the nearest one from the card's folder up, since a folder attachment's sub-folders share one.
-- **`DM_KEEP_IGNORED=1` is the one opt-out of `drop_git_ignored`**, used by `external remote`,
-  `remote-diff` and the local-copy listing, so a local-only (git-ignored) attachment stays findable
-  while no committed `_index.md` names it.
-- **`remote-diff` matches by Drive id, never by name or path** (PLUG-113). A rename or move is
-  `changed` at most, never gone + new. Ids are compared as strings (`$1 ""`, RF7), and so are times:
-  `…11Z` and `…11.986Z` do not order, so a time is only equal or not. Never compare them with `<`.
-- **A script never deletes a gone card.** `remote-gone` marks it (`remote-gone: yes`), `check` fails
-  with `REMOTE GONE` until the user decides, and `remote-stamp` clears the mark when the file is back.
-  A marked card is not reported `gone` again; a marked card whose id is listed again is `changed`.
-- **The listing is Claude's, written to a temp file from the MCP.** `remote-diff` validates it (4
-  fields, non-empty id) before anything else and prints nothing on a bad line. Scope (`recursive`,
-  `include`, `exclude` in `.source.md`) is applied with `case` globs in `remote_in_scope`, the one place.
-- **A local copy is `<name>.<provider>.local.md`, classified by name** (`is_remote_copy`), never a card and
-  never a document (`list_docs` skips it). Its stamp is the card's `copy-modified`, written only by
-  `copy-stamp`, which refuses unless `source_of` the card says `processed: local`: the agreement is
-  checked by the script, not only by the skill (PLUG-115). Stale = `copy-modified` ≠ `remote-modified`,
-  string inequality. Copies are listed with `DM_KEEP_IGNORED=1`, so a git-ignored copy is still checked.
-- **No bytes through the MCP.** Copies are Drive's text rendering, written as text; a binary download is
-  base64 that would be retyped with no checksum, so `content: sync` was rejected (PLUG-114).
+**The names are a contract shared with remote-docs** (data, never code): `REMOTE_PROVIDERS` exists in both
+plugins and each suite's CT1 pins it. A new provider changes both. The old `external remote…` subcommands
+exit 2 naming their `remote.sh` replacement (MV1).
 
 ## scripts/extract.sh
 

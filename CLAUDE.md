@@ -22,6 +22,7 @@ claude-plugins/
 │   ├── CLAUDE.md              ← plugin-specific guidance
 │   └── README.md              ← plugin-specific docs
 ├── docs-manager/              ← plugin
+├── remote-docs/               ← plugin
 ├── task-roadmap/              ← plugin
 ├── delay/                     ← plugin
 ├── crew/                      ← plugin
@@ -46,6 +47,7 @@ marketplace, and treat `tasks` / `.tasks` as reserved directory names.
 | task | `task/` | Markdown task files with an embedded workflow table, epics, and parallel-safe ID allocation |
 | session-storage | `session-storage/` | Session-scoped key-value storage with auto-cleanup |
 | docs-manager | `docs-manager/` | Docs-as-product: auto `_index.md` navigation, link checks, conventions |
+| remote-docs | `remote-docs/` | Google Drive files and Claude Artifacts kept in `docs/` as remote cards: attach, refresh, local copies |
 | task-roadmap | `task-roadmap/` | Abstract-Gantt roadmap from a markdown task set, auto-regenerated on task changes |
 | delay | `delay/` | Queue approved per-project jobs (autotests) for the user's run window; user-started runner wakes the Mac, runs them in docker, unloads itself |
 | crew | `crew/` | Several Claude sessions on one working tree and branch: coordinator/worker playbook, identity, status by owner, hand-offs, guard hooks |
@@ -214,7 +216,9 @@ on any plugin whose `plugin.json` and `marketplace.json` disagree on description
 **Check trigger phrases against the other plugins' skill descriptions.** Two plugins
 competing for the same words is a coin flip at activation time. Today the vocabularies are
 disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.md / AGENTS.md /
-external docs / catalogue / ingest / reference material / Google Drive doc as reference / Drive folder / refresh the Drive docs / local copy of a Drive doc / remote card / Claude artifact as reference / artifact card / onboard / survey / legacy project / scattered docs*, task-roadmap owns *roadmap / gantt /
+external docs / catalogue / ingest / reference material / onboard / survey / legacy project / scattered docs*,
+remote-docs owns *Google Drive doc as reference / Drive folder / refresh the Drive docs / local copy of a Drive doc /
+remote card / Claude artifact as reference / artifact card* (moved from docs-manager in PLUG-144), task-roadmap owns *roadmap / gantt /
 timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
 tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
 hand off / hold / hot spot / slot / stuck slot / land / copy / snapshot / inbox / mailbox / watchdog / progress report / adopt / import holds / end the crew / disband / working solo / crew active / crew task* and says *slot*, never *job* or *queue* alone,

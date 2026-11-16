@@ -1,0 +1,44 @@
+# remote-docs
+
+Remote documents in your project's docs: Google Drive files and folders, and Claude Artifacts, kept as
+**remote cards** that say what each file holds, when to read it and where inside it to look. The file
+stays with its provider; Claude reads it through the session's tool only when a card says the answer is
+there.
+
+Split out of docs-manager. It works alone, or together with docs-manager, which then lists the cards in
+its `_index.md` navigation and checks their links.
+
+## What it does
+
+With a Google Drive MCP connected (`/mcp`), Claude can attach a Drive doc as reference material without
+copying it: it writes a **remote card**, `pricing-model.gdrive.md`, with a summary, a *where to look*
+table, and the Drive file id, URL and the `modifiedTime` it was written from. Claude opens Drive only when
+the card says the answer is there, and tells you when Drive has a newer version than the card.
+
+- **Scripts never touch Drive.** Only Claude does, through the MCP; `remote.sh stamp` is the one
+  writer of the recorded Drive version.
+- **Private material stays private on request.** Before the first card in a repo with a public remote,
+  Claude asks whether to commit the cards or keep the folder local-only (git-ignored). A local-only folder
+  is never named in a committed `_index.md`; `remote.sh list` still lists it for Claude.
+- **Claude Artifacts too.** A `claude.ai/…/artifact/…` page given as a link gets a card,
+  `dashboard.artifact.md`, the same way. Its refresh reports only the artifacts already carded, and an
+  `sk=` access key never reaches a committed card (`check` fails with `REMOTE KEY`).
+- The procedure and the card format: [`how-to-remote-docs.md`](skills/remote-docs/references/how-to-remote-docs.md).
+
+## Commands
+
+```bash
+bash scripts/remote.sh check docs                 # incomplete, gone, keyed cards; stale or orphan local copies
+bash scripts/remote.sh list docs                  # every card, local-only ones too
+bash scripts/remote.sh status docs                # one record per card or copy
+bash scripts/remote.sh stamp docs/external/vendor/pricing-model.gdrive.md 2026-11-10T13:37:23Z
+bash scripts/remote.sh gone docs/external/vendor/old.gdrive.md
+bash scripts/remote.sh copy-stamp docs/external/vendor/pricing-model.gdrive.md 2026-11-10T13:37:23Z
+bash scripts/remote.sh diff docs/external/vendor /tmp/listing.tsv
+```
+
+Pure bash and awk, bash 3.2 and BSD or GNU userland, no network calls. Tests: see [`CLAUDE.md`](CLAUDE.md#testing).
+
+## License
+
+MIT

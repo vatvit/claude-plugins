@@ -1,0 +1,264 @@
+# How to manage remote documents
+
+A **remote document** stays with its provider (Google Drive, Claude Artifacts) and is never copied into
+the repo as bytes. Its **remote card** is a markdown file under the docs root that says what the file
+holds, when to open it and where inside it to look, so a later session opens the provider only when the
+card says the answer is there, and only the part it names.
+
+With the docs-manager plugin installed, cards are listed in `_index.md` with ☁ and their links are
+checked there; without it, everything below still works.
+
+## The card
+
+Named `<name>.<provider>.md`. Frontmatter: `title`, `description` (what the file is *for*), `read-when`
+(the situations that should send someone to it, written as tasks), `relates-to` (docs that depend on
+it, relative to the card; optional), plus the `remote-*` fields below. Body: a `## Summary` of three to
+six sentences, a `## Where to look` table (topic → location) and, where useful, `## Key terms`.
+
+**`## Where to look` is the point of the card.** Locate by what the format has: page numbers for a PDF
+(plus table or figure numbers), the heading path for a document (`§4.2 Termination`), sheet + range for
+a spreadsheet (`Q3!A1:F40`), slide numbers for a deck. Every row must be something you actually found in
+the file: a plausible location that is wrong is worse than none.
+
+### Reading a file
+
+Read only as much as the card needs: the first pages and any table of contents, then the sections they
+point at, recording locations as you read them. A large file (more than ~50 pages, or several files at
+once): delegate the reading to a sub-agent that returns the drafted card. Scratch output goes to a temp
+directory, never into the repo.
+
+## Commands
+
+```bash
+bash <PLUGIN_ROOT>/scripts/remote.sh status [root]               # one record per card or copy: state, place, file, card
+bash <PLUGIN_ROOT>/scripts/remote.sh check  [root]               # REMOTE INCOMPLETE / REMOTE GONE / REMOTE KEY / LOCAL COPY …
+bash <PLUGIN_ROOT>/scripts/remote.sh list   [root]               # every remote card, git-ignored ones too
+bash <PLUGIN_ROOT>/scripts/remote.sh stamp <card> <time>         # record the provider's modified time
+bash <PLUGIN_ROOT>/scripts/remote.sh gone <card>                 # mark a card whose file left the provider (never deletes)
+bash <PLUGIN_ROOT>/scripts/remote.sh copy-stamp <card> <time>    # record the version a local copy was written from
+bash <PLUGIN_ROOT>/scripts/remote.sh diff <dir> <listing.tsv>    # provider listing vs the attachment's cards
+```
+
+`status` emits `state<TAB>place<TAB>file<TAB>card`, `-` for an empty field. `state` is `remote |
+incomplete | gone | keyed | copy | copy-stale | copy-unstamped | copy-unasked | copy-orphan`; `place` is
+`filed | unfiled | outside` (under `<root>/external/<topic>/`, at the top of `external/`, elsewhere).
+The default root is `docs`.
+
+## Remote documents
+
+
+A **remote card** describes a file that stays with its provider, with no copy in the repo. It is a
+card like any other (same sections, same rules for `## Where to look`), so Claude can tell from the
+card whether the file matters and opens the provider only when it does. Only Claude talks to the
+provider, through the tool the session has for it; no command here makes a network call.
+
+Everything below is written for Google Drive and holds for every provider. What differs:
+
+| | Google Drive (`gdrive`) | Claude Artifact (`artifact`) |
+|---|---|---|
+| The thing | a Drive file, or a folder of them | a page published at `claude.ai/…/artifact/…`: a prototype, dashboard, write-up, doc |
+| Claude reads it with | a Drive MCP (search, metadata, content as text) | the Artifact tool (read by link, list); a Doc artifact also through the Claude Docs MCP (`read`) |
+| `remote-id` | the Drive file id | the artifact id: the last path segment of its URL |
+| `remote-modified` | `modifiedTime` | the listing's last-updated time, as given |
+| Attached as | a file, or a folder (`.source.md` `remote-id`) | one by one, by link: never a container |
+| Refresh reports | `new`, `changed`, `gone` for a folder | `changed`, `gone` only (*Claude Artifacts* below) |
+| Access keys | none | `sk=` in a share link (*Claude Artifacts* below) |
+
+`.source.md` says which provider a folder's cards come from (`provider:`; absent means `gdrive`). A
+folder may hold cards of both; `diff` compares only those of its `.source.md`'s provider.
+
+### Layout and format
+
+```
+docs/external/vendor-api/
+├── .source.md                     ← settings of this folder's Drive attachments
+├── payments-spec-v3.pdf.gdrive.md ← remote card of an uploaded PDF (its extension kept)
+└── pricing-model.gdrive.md        ← remote card of a native Google Doc / Sheet / Slides (no extension)
+```
+
+- **The name classifies it:** `<name>.gdrive.md`. `<name>` is the Drive title in kebab-case, keeping an
+  uploaded file's extension; a native Google file has none. Same title twice in a folder: append `-2`.
+  `index` lists it under *External documents* as `☁`, and it is never an orphan.
+- **Frontmatter:** the card fields above (`title`, `description`, `read-when`, `relates-to`) plus
+  `remote-id` (Drive file id), `remote-url` (its view URL), `remote-type` (its mimeType) and
+  `remote-modified`. There is no `digest`. The id lives in the card because there is no local file whose
+  name could be the link.
+- **`remote-modified` is written only by `remote.sh stamp <card> <time>`**, with the
+  `modifiedTime` Drive reported for the version the card was written from. Never edit it by hand.
+  `check` fails on a remote card without `remote-id` or `remote-modified` (`REMOTE INCOMPLETE`).
+- **The card body** opens with the link and where the file lives:
+  `[payments-spec-v3.pdf](<remote-url>) — on Google Drive, 212 pages; readable only with access to that Drive.`
+- **`.source.md`**, one per folder, holds the answers that apply to every Drive attachment in it:
+
+  ```markdown
+  ---
+  provider: gdrive
+  content: remote        # the file stays on Drive
+  processed: none
+  publish: commit        # or local: the folder is git-ignored (see step 3)
+  ---
+  ```
+
+  It is per-folder data, like a card, not a config file. Being a dot-file, it is never indexed.
+
+### Attaching — the procedure
+
+Run this when the user asks to attach, link or catalogue a Google Drive doc (a URL or an id) as
+reference material.
+
+1. **Find the Drive MCP.** Recognise it by what its tools do (search Drive, read a file's content,
+   get a file's metadata), not by a tool name: names differ between servers. If there is none, or it
+   asks for authentication, tell the user to connect or sign in with `/mcp`, and **write nothing**.
+2. **Read the file.** Get its metadata (id, title, mimeType, modifiedTime, view URL), then its content
+   as text; read only as much as the card needs, as in *Reading a file* below. For a large file,
+   delegate the reading to a sub-agent that returns the drafted card.
+3. **Ask about publishing, once per folder.** If the folder has no `.source.md` yet, look at
+   `git remote -v`. With a public remote (or one you cannot tell), ask before writing anything: a
+   card's summary of a private file *is* private content, and its URL names the file. Offer two
+   answers: **commit** the cards, or keep the folder **local-only** (git-ignored, so it never reaches the
+   remote). Record the answer as `publish:` in a new `.source.md`; for `local`, add the folder to
+   `.gitignore`, which is part of what the user chose. Never ask again for that folder.
+4. **Write the card** in the folder the user chose (propose `external/<topic>/` as for any external),
+   in the format above, then `remote.sh stamp <card> <modifiedTime>`.
+5. **Verify.** `remote.sh check` must be clean. With docs-manager installed, also its `index --write`
+   (a local-only folder is not indexed: that is the point) and its `check`.
+
+### Attaching a Drive folder
+
+When the user attaches a Drive **folder** rather than one file, the local folder mirrors it: one card
+per Drive file, and each Drive sub-folder becomes a sub-folder of the attachment, its name in kebab-case,
+so `index` and the topic layout work unchanged. Its `.source.md` also records the Drive folder and the scope:
+
+```markdown
+---
+provider: gdrive
+content: remote
+processed: none
+publish: commit
+remote-id: 1AbC…               # the Drive folder's id
+remote-url: https://drive.google.com/drive/folders/1AbC…
+recursive: true                # false: only the files directly in the folder
+include: [specs/*, *.pdf]      # optional; globs on the listing path, `*` also matches `/`
+exclude: [*draft*]             # optional; an exclude always wins
+---
+```
+
+Ask the publish question as in step 3 above, write `.source.md`, then run **Refreshing** below: on a
+new attachment every file is `new`.
+
+### Refreshing a Drive folder
+
+Run this when the user asks to refresh the Drive docs, or the first time in a session that an attached
+folder's material is used.
+
+1. **List the folder through the MCP** into a temp file outside the repo, never into it: every page of
+   results, and every sub-folder when `recursive` is not `false`. One row per Drive item, tab-separated:
+   `id<TAB>path<TAB>mimeType<TAB>modifiedTime`, where `path` is relative to the attached folder
+   (`specs/payments-spec.pdf`). Take `modifiedTime` as Drive reports it; never reformat it.
+2. **`remote.sh diff <dir> <listing>`** compares it with the attachment's cards, matching by Drive
+   id, so a renamed or moved file is not gone + new. It skips folders and out-of-scope rows, and rejects
+   a malformed listing by line number. Nothing printed means in sync.
+3. **Act on each record:**
+   - `new<TAB>id<TAB>path<TAB>mime<TAB>time`: read the file, write its card at the mirrored path, then
+     `remote.sh stamp <card> <time>`. **More than 20 new files: ask first**, saying how many; above a few,
+     delegate the reading to sub-agents that return drafted cards.
+   - `changed<TAB>id<TAB>card<TAB>time`: re-read the file, update the card (rename or move it when the
+     Drive title or folder changed), then `remote.sh stamp <card> <time>` with **that** time. If the card has
+     a local copy, rewrite it too (*Keeping a local copy*) and `remote.sh copy-stamp <card> <time>`.
+   - `gone<TAB>id<TAB>card`: the file was deleted, moved out of the folder or out of scope.
+     `remote.sh gone <card>`, then ask the user whether to delete the card. Never delete it on
+     your own: `check` fails with `REMOTE GONE` until the user decides, and if the file comes back, it
+     shows up as `changed` and stamping it clears the mark.
+4. **Verify:** `remote.sh check` must be clean (with docs-manager, its `index --write` and `check` too), apart from `REMOTE GONE`
+   cards the user chose to keep for now.
+
+### Keeping a local copy
+
+A remote card is the default: the file stays on Drive. A **local copy** (`<name>.gdrive.local.md` beside
+the card) lets the user read the material offline, at their own risk: it can fall behind Drive, and a
+committed copy puts the file's content in the repo. It goes against the default, so **ask once per
+folder** before writing any, and record the answer in `.source.md`:
+
+```markdown
+processed: local         # local copies allowed in this folder (absent or `none`: no copies)
+copy-publish: local      # local: git-ignore the copies; commit: commit them with the cards
+```
+
+For `copy-publish: local`, add `<folder>/*.gdrive.local.md` to `.gitignore`, as for `publish: local`. With a
+public remote, say plainly that `commit` publishes the files' contents.
+
+Writing a copy:
+
+1. **Read the file's text rendering** through the MCP (the call that returns a file's content as text,
+   not the base64 download). Above about 200 KB of text, ask first.
+2. **Write it verbatim** to `<name>.gdrive.local.md`: never summarise, reorder or fix it; it is a copy,
+   and the card is where judgement goes. No frontmatter: the stamp lives in the card.
+3. **`remote.sh copy-stamp <card> <modifiedTime>`**, the same time the card was stamped with. It refuses
+   when `.source.md` does not say `processed: local`, or the copy is missing. With `copy-publish:
+   commit`, link the copy from the card body: `Local copy: [<name>.gdrive.local.md](<name>.gdrive.local.md)
+   (may be behind Drive).` With `local`, **do not link it**: the copy is git-ignored, so the link would
+   be broken in every other clone. `remote.sh list` names it either way.
+
+`check` reports `LOCAL COPY STALE` when the card was restamped and the copy was not,
+`UNSTAMPED`, `NOT AGREED` for a copy in a folder that never allowed one (ask, or delete it), and
+`ORPHAN` for a copy without its card. A git-ignored copy is checked all the same.
+
+**Binary files are never copied through the MCP.** A Drive download arrives as base64 that would have
+to be retyped, with no checksum to catch a wrong byte (PLUG-114). If the user wants the original file,
+they download it into `docs/external/` themselves; it is then an ordinary external file with its own
+card and digest.
+
+### Claude Artifacts
+
+Run this when the user gives a `claude.ai/…/artifact/…` link to keep as reference material, or asks to
+catalogue or refresh the project's artifacts. It is *Attaching — the procedure* with these changes.
+
+1. **Find the tool.** The Artifact tool (read an artifact by link, list the user's artifacts), or for a
+   Doc artifact the Claude Docs MCP. Neither available: say so and **write nothing**. In Claude Code the
+   Artifact tool is off when a settings file has `"enableArtifact": false` (`/config` → Artifacts) or the
+   session is not signed in to claude.ai.
+2. **Read it.** An artifact someone else owns may come back as a summary plus the raw HTML saved to a
+   file; read the HTML. A **bundled page** shows only a loader in the summary ("Unpacking…"): the card
+   is written from the unpacked HTML, never from the loader. A large page: delegate the reading.
+3. **Ask about publishing** once per folder, as in step 3 there, and write `.source.md` with
+   `provider: artifact` and no `remote-id`: artifacts are attached one by one.
+4. **Write the card** `<name>.artifact.md` (`<name>` = the artifact's title in kebab-case), with
+   `remote-id` (the id from the URL), `remote-url` and `remote-type` (`html`, `doc`, … as the tool says),
+   then `remote.sh stamp <card> <last-updated>`. If the artifact has comment threads, add a
+   `## Comments` line saying what they discuss; read them before answering from the artifact.
+5. **Verify**, as in step 5 there.
+
+**An artifact is never where a decision lives.** It is an intermediate document, a collaboration item or
+an output, not documentation. When cataloguing or refreshing one, look for decisions or facts the
+project relies on and propose writing each into the doc it belongs to under the docs root; apply each
+only once the user approves it. The card then cites the artifact as illustration or evidence, never
+stands in for the doc.
+
+**The access key.** A share link may carry `sk=…`, which lets anyone holding the link open the
+artifact. **Strip it**: `remote-url` and every link in the card are written without it. In a
+`publish: local` folder (git-ignored) the card may keep the full link as `remote-key-url:`, so the
+user's own sessions can open it. `check` fails with `REMOTE KEY` on a card holding a key anywhere
+(frontmatter or body) outside such a folder, and never prints the key.
+
+**Refreshing.** List the user's artifacts through the tool into a temp file outside the repo, one row
+each: `id<TAB>title<TAB>type<TAB>last-updated`. Then `remote.sh diff <dir> <listing>`. Without a
+container it compares only carded ids, so the hundreds of artifacts the project never used are not
+`new`:
+- `changed`: re-read the artifact, update the card, `remote.sh stamp` it with that time.
+- `gone`: the listing may simply not show it (artifacts shared from another organisation can be
+  missing). **Read it by its link first.** Readable: it is not gone; leave the card, or restamp it if
+  its time differs. Not readable: `remote.sh gone <card>` and ask the user, as for a Drive file.
+
+### Finding and reading remote material
+
+- **Run `remote.sh list [root]`** when looking for reference material: it lists every remote card,
+  local-only ones included (`card<TAB>publish<TAB>remote-modified<TAB>description<TAB>read-when<TAB>local-copy`), which
+  `_index.md` never shows for a git-ignored folder.
+- **Open Drive only when the card says the answer is there**, and only the part `## Where to look` names.
+- **Compare `modifiedTime`.** When you open the file and Drive's `modifiedTime` is newer than the card's
+  `remote-modified`, tell the user the card is out of date and offer to refresh it (re-read, rewrite
+  the card, `remote.sh stamp`), as for a `changed` local file.
+- **A local copy** (sixth field of `remote.sh list`) can be read without Drive. When you answer from it,
+  say so and give its date: "from the local copy of 2026-11-11; Drive may be newer".
+- **Drive not reachable** (no MCP, signed out, no access): say so. Never answer from the card as if
+  you had read the file; the card says where to look, not what is there now.

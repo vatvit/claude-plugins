@@ -7,5 +7,5 @@
     "url": "https://github.com/vatvit"
   },
   "license": "MIT",
-  "keywords": ["documentation", "docs", "index", "markdown", "links", "anchors", "gitignore", "diagrams", "mermaid", "erd", "schema", "data-model", "claude-md", "agents-md", "external-docs", "google-drive", "claude-artifacts", "remote-card", "reference-material", "catalogue", "docx", "xlsx", "pptx", "opendocument", "extraction", "legacy", "survey", "conventions", "solid", "dry"]
+  "keywords": ["documentation", "docs", "index", "markdown", "links", "anchors", "gitignore", "diagrams", "mermaid", "erd", "schema", "data-model", "claude-md", "agents-md", "external-docs", "reference-material", "catalogue", "docx", "xlsx", "pptx", "opendocument", "extraction", "legacy", "survey", "conventions", "solid", "dry"]
 }

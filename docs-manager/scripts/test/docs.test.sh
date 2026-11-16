@@ -229,7 +229,7 @@ check "A9d real links still reported" "yes" "$(has "$out" "missing.md")"
 
 echo "== local-only remote attachment (PLUG-112) =="
 
-# --- RC9: a git-ignored attachment stays out of _index.md but `external remote` finds it ---
+# --- RC9: a git-ignored attachment stays out of _index.md (remote-docs' `list` still finds it) ---
 if needs_git RC9; then
   R=$(fresh rc9)
   doc "$R/docs/a.md" "Doc A" </dev/null
@@ -241,25 +241,7 @@ if needs_git RC9; then
   git -C "$R" init -q
   bash "$DOCS" index --write "$R/docs" >/dev/null 2>&1
   check "RC9a ignored attachment not in any _index.md" "" "$(find "$R/docs" -name _index.md -exec grep -l 'contract' {} +)"
-  out=$(bash "$DOCS" external remote "$R/docs" 2>&1)
-  check "RC9b external remote lists it, publish local" "yes" \
-    "$(has "$out" "$(printf '%s/docs/external/private/contract.gdrive.md\tlocal\t2026-11-10T13:37:23Z\tPrivate contract\tpricing' "$R")")"
   bash "$DOCS" check "$R/docs" >/dev/null 2>&1; check "RC9c check clean" "0" "$?"
-fi
-
-# --- LC10: a git-ignored local copy is still checked (PLUG-115) ------------------------------------
-if needs_git LC10; then
-  R=$(fresh lc10)
-  doc "$R/docs/a.md" "Doc A" </dev/null
-  mkdir -p "$R/docs/external/acme"
-  printf -- '---\ntitle: t\ndescription: Spec\nread-when: x\nremote-id: 1s\nremote-modified: 2026-11-12T09:00:00Z\ncopy-modified: 2026-11-11T17:27:11Z\n---\n' \
-    > "$R/docs/external/acme/spec.gdrive.md"
-  printf -- '---\nprovider: gdrive\nprocessed: local\ncopy-publish: local\n---\n' > "$R/docs/external/acme/.source.md"
-  printf 'text\n' > "$R/docs/external/acme/spec.gdrive.local.md"
-  printf 'docs/external/acme/*.gdrive.local.md\n' > "$R/.gitignore"
-  git -C "$R" init -q
-  out=$(bash "$DOCS" check "$R/docs" 2>&1)
-  check "LC10 ignored copy still reported stale" "yes" "$(has "$out" "LOCAL COPY STALE: $R/docs/external/acme/spec.gdrive.local.md")"
 fi
 
 echo "== frontmatter comments (PLUG-140) =="
@@ -316,15 +298,6 @@ x: y # keep
 ---
 body" "$(cat "$R/s.md")"
 check "FC13 fm_field reads the value without it" "sha256:new" "$( . "$LIB"; fm_field "$R/s.md" digest )"
-
-# The how-to examples parse as their prose says: the folder attachment's .source.md, the only
-# unindented `provider: gdrive` block in the how-to, copied out as a user would
-HOWTO="$(dirname "$DOCS")/../skills/docs-manager/references/how-to-external-docs.md"
-awk '/^provider: gdrive$/ { on = 1 } on && /^---$/ { exit } on { print }' "$HOWTO" \
-  | { echo ---; cat; echo ---; } > "$R/src.md"
-check "FC14 how-to folder example: include is a list" "specs/*,*.pdf" \
-  "$( . "$LIB"; fm_list "$R/src.md" include | paste -sd, - )"
-check "FC15 how-to folder example: recursive is true" "true" "$( . "$LIB"; fm_field "$R/src.md" recursive )"
 
 echo
 echo "passed: $pass  failed: $fail  skipped: $skipped"

@@ -1,0 +1,11 @@
+{
+  "name": "remote-docs",
+  "description": "Remote documents in your docs: Google Drive files and folders and Claude Artifacts kept as cards that say what each holds and where to look, refreshed against the provider. Works alone or with docs-manager.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Vat",
+    "url": "https://github.com/vatvit"
+  },
+  "license": "MIT",
+  "keywords": ["documentation", "docs", "google-drive", "claude-artifacts", "remote-card", "reference-material", "catalogue", "local-copy"]
+}
