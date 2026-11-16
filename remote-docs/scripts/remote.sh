@@ -15,6 +15,8 @@
 #   questions <dir> [root]      what is still to be asked once for an attachment folder (PLUG-146)
 #   guard <card> <time>         before a write: READ-ONLY / STALE / PROPOSE / OK (PLUG-147)
 #   repoint <card> <id> <url> <type> <time>   the card follows a converted file (PLUG-147)
+#   pack <dir>                  an attachment's .source.md files and cards as one text, for Drive (PLUG-148)
+#   unpack <text> <dir>         that text back into files, in an empty folder
 #
 # A remote card is `<name>.<provider>.md` (PLUG-112): Google Drive (`gdrive`) or a Claude Artifact
 # (`artifact`, PLUG-141). The name alone classifies it. Default root is "docs". Moved out of
@@ -611,6 +613,97 @@ cmd_repoint() {
   fi
 }
 
+# --- cards kept on Drive (PLUG-148) ------------------------------------------------------------
+#
+# With `cards-at: drive` an attachment's card set lives on Drive as one document, so every teammate's
+# Claude reads the same cards. Scripts stay offline: Claude reads the document into a temp file,
+# `unpack`s it into a temp folder, runs check / diff / stamp there, `pack`s it and writes it back with
+# the Docs revision guard. Each file is opened by a marker line holding its path relative to the
+# attachment; anything before the first marker (a title) is ignored.
+
+MARK_OPEN='<!-- remote-docs: '
+MARK_CLOSE=' -->'
+
+# pack_files <dir> -> the files a card set holds, relative to <dir>: every `.source.md` (the folder's
+# settings travel with its cards), then every card; each list in byte order, so the text is the same on
+# every machine. Local copies never: they are one user's offline text, not the team's map.
+pack_files() {
+  local d c
+  while IFS= read -r d; do
+    [ -n "$d" ] || continue
+    if [ "$d" = "$1" ]; then echo .source.md; else echo "${d#"$1"/}/.source.md"; fi
+  done <<EOF
+$(source_dirs "$1")
+EOF
+  while IFS= read -r c; do
+    [ -n "$c" ] && echo "${c#"$1"/}"
+  done <<EOF
+$(RD_KEEP_IGNORED=1 list_remote_cards "$1" | LC_ALL=C sort)
+EOF
+  return 0
+}
+
+# pack <dir> — print <dir>'s card set as one text. Refuses (printing nothing) when a file holds a
+# marker line, which would split it on the way back.
+cmd_pack() {
+  local dir="${1:-}" f bad=0
+  [ -n "$dir" ] || { echo "Usage: remote.sh pack <attachment-dir>" >&2; return 2; }
+  dir="${dir%/}"; [ -d "$dir" ] || { echo "No such folder: $dir" >&2; return 1; }
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    if grep -q "^$MARK_OPEN" "$dir/$f"; then echo "Holds a marker line: $dir/$f" >&2; bad=1; fi
+  done <<EOF
+$(pack_files "$dir")
+EOF
+  [ "$bad" -eq 0 ] || return 1
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    printf '%s%s%s\n' "$MARK_OPEN" "$f" "$MARK_CLOSE"
+    cat "$dir/$f"
+    [ -z "$(tail -c 1 "$dir/$f")" ] || echo
+  done <<EOF
+$(pack_files "$dir")
+EOF
+  return 0
+}
+
+# pack_path_ok <relative-path> -> 0 if a marker names a file a card set may hold: relative, no `..`,
+# and a `.source.md` or a remote card (never a local copy, never anything else)
+pack_path_ok() {
+  case "$1" in ""|/*|..|../*|*/..|*/../*) return 1 ;; esac
+  case "$1" in .source.md|*/.source.md) return 0 ;; esac
+  is_remote_card "$1" && ! is_remote_copy "$1"
+}
+
+# unpack <text> <dir> — write a packed card set into <dir>, which must be empty or absent. Every path
+# is checked before anything is written: one bad marker and nothing is.
+cmd_unpack() {
+  local doc="${1:-}" dir="${2:-}" work n p bad=0
+  [ -n "$doc" ] && [ -n "$dir" ] || { echo "Usage: remote.sh unpack <packed.md> <empty-dir>" >&2; return 2; }
+  [ -f "$doc" ] || { echo "No such file: $doc" >&2; return 1; }
+  dir="${dir%/}"
+  if [ -e "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then echo "Not empty: $dir" >&2; return 1; fi
+  work="$(mktemp -d)"
+  awk -v W="$work" -v O="$MARK_OPEN" -v C="$MARK_CLOSE" '
+    index($0, O) == 1 && substr($0, length($0) - length(C) + 1) == C {
+      if (f != "") close(f)
+      n++; f = W "/" n
+      printf "%d\t%s\n", n, substr($0, length(O) + 1, length($0) - length(O) - length(C)) > (W "/index")
+      printf "" > f; next }
+    n { print > f }
+  ' "$doc"
+  if [ ! -s "$work/index" ]; then echo "No card set in $doc (no marker line)" >&2; rm -rf "$work"; return 1; fi
+  while IFS=$'\t' read -r n p; do
+    pack_path_ok "$p" || { echo "Refused: $p (not a .source.md or a remote card under the attachment)" >&2; bad=1; }
+  done < "$work/index"
+  if [ "$bad" -ne 0 ]; then rm -rf "$work"; return 1; fi
+  while IFS=$'\t' read -r n p; do
+    mkdir -p "$(dirname "$dir/$p")"; mv "$work/$n" "$dir/$p"
+  done < "$work/index"
+  rm -rf "$work"
+  echo "UNPACKED: $dir"
+}
+
 cmd_purpose() {
   local path="${1:-}" root="${2:-$ROOT_DEFAULT}"
   [ -n "$path" ] || { echo "Usage: remote.sh purpose <dir|file> [root]" >&2; return 2; }
@@ -667,5 +760,7 @@ case "$sub" in
   questions)  cmd_questions "$@" ;;
   guard)      cmd_guard "$@" ;;
   repoint)    cmd_repoint "$@" ;;
-  *) echo "Usage: remote.sh {status|check|list|purposes} [root] | stamp <card> <time> | gone <card> | copy-stamp <card> <time> | diff <dir> <listing.tsv> | purpose <path> [root] | questions <dir> [root] | guard <card> <time> | repoint <card> <id> <url> <type> <time>" >&2; exit 2 ;;
+  pack)       cmd_pack "$@" ;;
+  unpack)     cmd_unpack "$@" ;;
+  *) echo "Usage: remote.sh {status|check|list|purposes} [root] | stamp <card> <time> | gone <card> | copy-stamp <card> <time> | diff <dir> <listing.tsv> | purpose <path> [root] | questions <dir> [root] | guard <card> <time> | repoint <card> <id> <url> <type> <time> | pack <dir> | unpack <packed.md> <dir>" >&2; exit 2 ;;
 esac

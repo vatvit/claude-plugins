@@ -34,6 +34,10 @@ the card says the answer is there, and tells you when Drive has a newer version 
   are rejected by Google itself when someone wrote in between; Sheets have no such guard, so Claude appends
   where it can. An Office file is converted to Google format first, on your say-so, and the card follows
   the new file (`remote.sh repoint`).
+- **Cards shared with the team, on request.** An attachment's cards can live on Drive in one Google Doc,
+  so every teammate's Claude reads the same map (and a project without git can keep its docs there).
+  Claude pulls it into a temp folder (`remote.sh unpack`), works there, and writes it back (`remote.sh
+  pack`) guarded by Google's revision check, so two sessions never overwrite each other silently.
 - The procedure and the card format: [`how-to-remote-docs.md`](skills/remote-docs/references/how-to-remote-docs.md).
 
 ## Commands

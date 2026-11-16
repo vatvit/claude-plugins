@@ -120,6 +120,18 @@ the scripts stay offline.
 - Slides are unguarded until tested; the how-to says so. Docs' real guard is `requiredRevisionId`, which
   only Claude can send.
 
+## Cards on Drive (PLUG-148)
+
+- **One Google Doc per attachment**, holding every `.source.md` and card under marker lines; scripts
+  stay offline and work on an `unpack`ed temp folder. The Docs revision guard on the whole-body write is
+  what keeps two sessions from overwriting each other; only Claude can send it.
+- **`pack` is deterministic** (`.source.md` files, then cards, each in byte order; a missing final
+  newline added), so `unpack` then `pack` is byte-identical (CD1f) and "nothing changed" is a string
+  comparison. Local copies are never packed.
+- **`unpack` validates every marker before writing anything** (`pack_path_ok`: relative, no `..`, a
+  `.source.md` or a card) and only into an empty folder: the text comes from a shared document anyone
+  with access can edit.
+
 ## Testing
 
 ```bash

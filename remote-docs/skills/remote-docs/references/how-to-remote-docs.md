@@ -42,6 +42,8 @@ bash <PLUGIN_ROOT>/scripts/remote.sh purposes [root]             # the same for 
 bash <PLUGIN_ROOT>/scripts/remote.sh questions <dir> [root]      # what is still to be asked for an attachment folder
 bash <PLUGIN_ROOT>/scripts/remote.sh guard <card> <time>         # right before a write: READ-ONLY / STALE / PROPOSE / OK
 bash <PLUGIN_ROOT>/scripts/remote.sh repoint <card> <id> <url> <type> <time>   # the card follows a converted file
+bash <PLUGIN_ROOT>/scripts/remote.sh pack <dir>                  # an attachment's card set as one text, for Drive
+bash <PLUGIN_ROOT>/scripts/remote.sh unpack <text> <empty-dir>   # that text back into files
 ```
 
 `status` emits `state<TAB>place<TAB>file<TAB>card`, `-` for an empty field. `state` is `remote |
@@ -377,3 +379,39 @@ complex formatting, macros and tracked changes may not survive. Then:
   (`plan.docx.gdrive.md` becomes `plan.gdrive.md`); its local copy follows.
 - **Ask what to do with the original.** Keep it unless the user says otherwise; trash cannot be undone
   through the connector. Tell teammates the link changed if the file was shared.
+
+### Cards on Drive
+
+With `cards-at: drive` (step 3 of attaching), an attachment's cards live **on Drive, in one Google Doc**
+shared with the team, so every teammate's Claude reads the same map, and a project without git can keep
+its whole docs set there. The doc holds the folder's `.source.md` files (so the purposes travel too) and
+every card, each opened by a marker line `<!-- remote-docs: <path> -->`. Text before the first marker,
+such as a title, is ignored. **Never edit or remove a marker line**, and never add a local copy to it:
+copies are one user's offline text.
+
+The local folder keeps only its `.source.md`, recording where the doc is:
+
+```markdown
+cards-at: drive
+cards-id: 1XyZ…            # the Google Doc holding the cards
+cards-url: https://docs.google.com/document/d/1XyZ…/edit
+```
+
+The scripts never talk to Drive, so the cards are worked on in a temp folder:
+
+1. **Pull.** `read_doc` the cards doc (or read it as text) and **keep its `revisionId`**. Write the text
+   to a temp file outside the repo, and `remote.sh unpack <file> <empty-temp-dir>`. It refuses a marker
+   naming anything other than a `.source.md` or a card, or a path outside the folder, and then writes
+   nothing.
+2. **Work** in the temp folder exactly as on local cards: `check`, `diff`, `stamp`, `gone`, `guard`,
+   `purpose`, editing a card's text.
+3. **Push.** `remote.sh pack <temp-dir>` prints the doc's new text, in a fixed order. Replace the doc's
+   whole body with it in one `update_doc`, guarded by `writeControl.requiredRevisionId` from step 1.
+4. **Rejected** (someone wrote the cards in between): pull again, re-apply your change to the fresh
+   cards, push again. Never push a set pulled before the rejection: that would silently overwrite a
+   teammate's change. Unchanged after step 2 (`pack` output equals the pulled text): push nothing.
+
+Creating the doc for a new attachment: write the cards in a temp folder, `pack` them, and create a Google
+Doc in the attached Drive folder (or where the user says) with that text; record its id and URL as
+above. With docs-manager installed, these cards are not in `_index.md` (they are not in the repo);
+`remote.sh purposes` still names the attachment.

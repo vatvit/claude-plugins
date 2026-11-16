@@ -117,6 +117,8 @@ the docs without being copied into the repo, and written back where each folder 
   whether Claude reads only, proposes changes, or writes freely, and whether decisions live there.
 - **Guarded writes:** Claude re-reads a file before changing it and stops when a teammate changed it
   first; an Office file is converted to Google format on your say-so before any edit.
+- **Cards shared on Drive:** the map of a folder can live on Drive itself, so every teammate's Claude
+  reads the same one, and a project without git can keep its docs there.
 - **Local-only on request:** private cards can stay git-ignored, and a text copy can be kept for offline
   reading, with a check that says when it falls behind.
 

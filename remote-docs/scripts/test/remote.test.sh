@@ -536,6 +536,52 @@ bash "$RD" repoint "$A/b.xlsx.gdrive.md" B2 "u" application/vnd.google-apps.spre
 check "RP3 refused when the new name is taken" "1:B1" "$?:$( . "$(dirname "$RD")/lib.sh"; fm_field "$A/b.xlsx.gdrive.md" remote-id)"
 bash "$RD" repoint "$A/a.gdrive.md" A3 u t "soon" >/dev/null 2>&1; check "RP4 a bad time is refused" "1" "$?"
 
+echo "== cards kept on Drive: pack and unpack (PLUG-148) =="
+
+same() { cmp -s "$1" "$2" && echo yes || echo no; }
+
+# --- CD1: pack -> unpack -> pack is byte-identical; local copies stay out -------------------------
+R=$(fresh cd); A="$R/external/team"
+src "$A" "provider: gdrive" "purpose: agreements" "remote-id: FOLD" "cards-at: drive"
+src "$A/drafts" "purpose: collaboration"
+rcard "$A/a.gdrive.md" "A" - A1 "$W1"; rcard "$A/drafts/b.gdrive.md" "B" - B1 "$W1"
+printf 'copy\n' > "$A/a.gdrive.local.md"
+bash "$RD" pack "$A" > "$R/doc.md" 2>"$R/err"; rc=$?
+check "CD1a pack succeeds" "0" "$rc"
+check "CD1b .source.md files first, then cards, sorted" ".source.md|drafts/.source.md|a.gdrive.md|drafts/b.gdrive.md" \
+    "$(sed -n 's/^<!-- remote-docs: \(.*\) -->$/\1/p' "$R/doc.md" | paste -sd'|' -)"
+check "CD1c a local copy is never packed" "no" "$(has "$(cat "$R/doc.md")" 'a.gdrive.local.md')"
+U="$R/unpacked"
+bash "$RD" unpack "$R/doc.md" "$U" >/dev/null 2>&1; check "CD1d unpack succeeds" "0" "$?"
+check "CD1e every file comes back as it was" "yes|yes|yes|yes" \
+    "$(same "$A/.source.md" "$U/.source.md")|$(same "$A/drafts/.source.md" "$U/drafts/.source.md")|$(same "$A/a.gdrive.md" "$U/a.gdrive.md")|$(same "$A/drafts/b.gdrive.md" "$U/drafts/b.gdrive.md")"
+bash "$RD" pack "$U" > "$R/doc2.md"; check "CD1f pack of the unpacked set is byte-identical" "yes" "$(same "$R/doc.md" "$R/doc2.md")"
+printf '# Team cards\n\nKept by remote-docs.\n\n' | cat - "$R/doc.md" > "$R/doc3.md"
+bash "$RD" unpack "$R/doc3.md" "$R/u3" >/dev/null 2>&1
+check "CD1g text before the first marker (a title) is ignored" "0:yes" "$?:$(same "$A/a.gdrive.md" "$R/u3/a.gdrive.md")"
+
+# --- CD2: the scripts work on an unpacked set as on a local one -----------------------------------
+rm -f "$A/a.gdrive.local.md"   # local copies never travel (CD1c), so compare without one
+o1=$(bash "$RD" check "$A" 2>&1 | sed "s#$A#X#g"); o2=$(bash "$RD" check "$U" 2>&1 | sed "s#$U#X#g")
+check "CD2a check gives the same result" "$o1" "$o2"
+printf 'A1\ta\tapplication/pdf\t%s\nB1\tdrafts/b\tapplication/pdf\t%s\n' "$W2" "$W1" > "$R/l.tsv"
+o1=$(bash "$RD" diff "$A" "$R/l.tsv" | sed "s#$A#X#g"); o2=$(bash "$RD" diff "$U" "$R/l.tsv" | sed "s#$U#X#g")
+check "CD2b diff gives the same result" "$o1" "$o2"
+check "CD2c and it is not empty" "yes" "$(has "$o2" 'changed')"
+
+# --- CD3: unpack refuses anything that is not a card set, and writes nothing then -----------------
+bad() { printf '<!-- remote-docs: %s -->\nx\n' "$1" > "$R/bad.md"; rm -rf "$R/ub"; bash "$RD" unpack "$R/bad.md" "$R/ub" >/dev/null 2>&1; echo "$?:$(ls -A "$R/ub" 2>/dev/null | wc -l | tr -d ' ')"; }
+check "CD3a ../ refused" "1:0" "$(bad '../escape.gdrive.md')"
+check "CD3b an absolute path refused" "1:0" "$(bad '/tmp/abs.gdrive.md')"
+check "CD3c a file that is no card refused" "1:0" "$(bad 'notes.txt')"
+check "CD3d a local copy refused" "1:0" "$(bad 'a.gdrive.local.md')"
+{ cat "$R/doc.md"; printf '<!-- remote-docs: ../x.gdrive.md -->\nx\n'; } > "$R/bad2.md"; rm -rf "$R/ub"
+bash "$RD" unpack "$R/bad2.md" "$R/ub" >/dev/null 2>&1
+check "CD3e one bad path: nothing at all is written" "1:0" "$?:$(ls -A "$R/ub" 2>/dev/null | wc -l | tr -d ' ')"
+bash "$RD" unpack "$R/doc.md" "$U" >/dev/null 2>&1; check "CD3f a folder that is not empty is refused" "1" "$?"
+printf '<!-- remote-docs: x.gdrive.md -->\n' >> "$A/a.gdrive.md"
+bash "$RD" pack "$A" >/dev/null 2>&1; check "CD3g pack refuses a card holding a marker line" "1" "$?"
+
 echo "== how-to examples (PLUG-140) =="
 # The how-to examples parse as their prose says (moved from docs-manager, PLUG-140/PLUG-144): the folder attachment's .source.md, the only
 # unindented `provider: gdrive` block in the how-to, copied out as a user would
