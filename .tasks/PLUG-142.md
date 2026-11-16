@@ -126,3 +126,12 @@ All steps done, and the code works. Completed 2026-11-16 by `/task finish`. Noth
 Version bump held back on the user's instruction: several features ship together later. `kickoff` stays at 0.11.1 in
 `plugin.json` and `marketplace.json`. The version named under Implementation is the one this change will get
 when it is released. Keywords and docs stay as written.
+
+## Review follow-up (2026-11-16)
+
+A code review of the committed change found these; each was first pinned by a test that failed, and a mutant was seen to fail too.
+- The R12 gap closed whenever the key was present, even `"off"` or the other mode: gaps.sh now compares the value
+  with `assignees_mode` and names what it found (`assignees_gap`; existing 3d2, 3d3). `json_str` moved from inspect.sh
+  into lib.sh, since gaps.sh reads it too. The fix command is the task plugin's new `assign.sh <project> --mode <m>`.
+- Stale R7–R10 in the questionnaire's generated-files table and a scaffold.sh comment now include R12.
+- all.sh green on the host and `bash:5`. No version bump (release held back).

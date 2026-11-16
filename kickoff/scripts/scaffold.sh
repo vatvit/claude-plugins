@@ -52,7 +52,7 @@ guarded() {
     r="$(write_if_changed "$1" "$2" "$force")" || rc=3; report "$r" "$1"
 }
 
-# --- task config and workflow (R7–R10), only with the task plugin: R7 is asked only then ---------
+# --- task config and workflow (R7–R10, R12), only with the task plugin: R7 is asked only then ----
 tasks_where=""
 if [ -n "$R7" ]; then
     [ -n "$R8" ] || { echo "scaffold.sh: R7 is answered but the task prefix R8 is not" >&2; exit 1; }

@@ -28,7 +28,7 @@ When the user asks ("turn on assignees", "this is a team project"), ask which mo
 or `self`, then:
 
 ```
-<PLUGIN_ROOT>/scripts/assign.sh <projectDir> mode off|unassigned|self
+<PLUGIN_ROOT>/scripts/assign.sh <projectDir> --mode off|unassigned|self
 ```
 
 It edits `.task-config.json`, which is committed, so it is the team's choice. Say so.
@@ -43,7 +43,7 @@ A plain `/task list` never asks.
 
 When it is needed:
 1. Ask the user how they want to be identified in this project (an email or a name).
-2. `assign.sh <projectDir> me <id>` saves it outside version control (the git common dir, or
+2. `assign.sh <projectDir> --me <id>` saves it outside version control (the git common dir, or
    `<project>/.task/me` without git). `scope=session — … not writable` means it could not be saved there.
 3. With the session-storage helper in context, also `set <session> task-me <id>`. In later commands, pass
    `TASK_ME=<stored id>` when the account email is absent.

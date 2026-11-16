@@ -51,13 +51,14 @@ while IFS= read -r row; do
                 || gap R6 "$v" "no task setup" ".task-config.json, the task registry" ;;
         R12:"A team"*)
             # The seeded config is the user's (never rewritten), so a team answered later shows here.
-            reg="$(task_registry_entry_file "$root")"
+            # The value must be the mode the answer means, not just present: "off" or the other mode is a gap.
+            want="$(assignees_mode "$v")"; reg="$(task_registry_entry_file "$root")"
             if [ -f "$root/.task-config.json" ]; then
-                grep -q '"assignees"' "$root/.task-config.json" \
-                    || gap R12 "$v" "no assignees mode (task: assign.sh <project> mode $(assignees_mode "$v"))" ".task-config.json"
+                have="$(json_str "$root/.task-config.json" assignees)"
+                [ "$have" = "$want" ] || gap R12 "$v" "$(assignees_gap "$have" "$want") (task: assign.sh <project> --mode $want)" ".task-config.json"
             elif [ -n "$reg" ]; then
-                [ -n "$(task_registry_field "$reg" "$root" assignees)" ] \
-                    || gap R12 "$v" "no assignees mode in the registry entry" "the task registry"
+                have="$(task_registry_field "$reg" "$root" assignees)"
+                [ "$have" = "$want" ] || gap R12 "$v" "$(assignees_gap "$have" "$want") in the registry entry" "the task registry"
             fi ;;
         F2:Unit*)
             found -type d \( -name test -o -name tests -o -name spec -o -name __tests__ \) -o -type f \( -name '*_test.*' -o -name '*.test.*' -o -name '*.spec.*' -o -name 'test_*' \) \

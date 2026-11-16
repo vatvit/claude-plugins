@@ -91,6 +91,8 @@ EOR
 
 # task_registry_field <registry-file> <root> <key> — a string field of <root>'s entry in the task registry;
 # nothing when absent. The entry is read from its "<root>": line to its closing brace.
+# json_str <file> <key> -> a string value from a flat JSON file (the first one); nothing when absent.
+json_str() { grep -o "\"$2\"[ \t]*:[ \t]*\"[^\"]*\"" "$1" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/' || true; }
 task_registry_field() {
     awk -v r="\"$2\":" -v k="\"$3\"" '
         index($0, r) { o = 1 }
@@ -101,6 +103,10 @@ task_registry_field() {
 # assignees_mode <R12 answer> — the task plugin's `assignees` value for it: unassigned or self for a team,
 # nothing for "Just me" (the key is then left out). The one mapping, matched by the start of the option
 # text as conditions are; scaffold.sh writes it and gaps.sh checks for it.
+# assignees_gap <have> <want> -> what is wrong with the task config's `assignees`, for gaps.sh.
+assignees_gap() {
+    if [ -z "$1" ]; then printf 'no assignees mode\n'; else printf 'assignees is %s, not %s\n' "$1" "$2"; fi
+}
 assignees_mode() {
     case "$1" in
         "A team — new tasks start"*) printf 'unassigned\n' ;;

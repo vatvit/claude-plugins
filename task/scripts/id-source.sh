@@ -44,7 +44,7 @@ PROJECT_DIR="$(task_project_dir "$1")"
 case "$2" in git|local|sync|status) CMD="$2" ;; *) echo "ERROR: unknown subcommand: $2" >&2; usage ;; esac
 
 CONFIG=$("$SCRIPT_DIR/resolve-config.sh" "$PROJECT_DIR")
-cfg() { printf '%s\n' "$CONFIG" | sed -n "s/^$1=//p" | head -n 1; }
+cfg() { task_kv "$CONFIG" "$1"; }
 tasksDir=$(cfg tasksDir); prefix=$(cfg prefix)
 configFile=$(cfg configFile); configScope=$(cfg configScope)
 idSource=$(cfg idSource); idSource="${idSource:-local}"
@@ -86,7 +86,7 @@ if [ "$CMD" = sync ]; then
     reserved=$(idgit_reserve "$repo" "$remote" "$branch" "$prefix" "$tasksDir" "$floor" 0 0 "$pending") || exit 1
     idgit_settle "$tasksDir" "$prefix" "$reserved"
     echo "synced=${pending:-none}"
-    echo "counter=$(printf '%s\n' "$reserved" | sed -n 's/^next=//p') on $remote/$branch"
+    echo "counter=$(task_kv "$reserved" next) on $remote/$branch"
     exit 0
 fi
 
@@ -108,7 +108,7 @@ if [ "$CMD" = local ]; then
             # Claim what is pending, so no other clone is handed those numbers later.
             reserved=$(idgit_reserve "$repo" "$remote" "$branch" "$prefix" "$tasksDir" "$next" 0 0 "$pending") || exit 1
             idgit_settle "$tasksDir" "$prefix" "$reserved"
-            counter=$(printf '%s\n' "$reserved" | sed -n 's/^next=//p')
+            counter=$(task_kv "$reserved" next)
             [ "$counter" -gt "$next" ] && next=$counter
         else
             # Offline: the counter as last fetched, when this clone ever fetched it.
@@ -164,7 +164,7 @@ marked=$( { grep -l '^<<<<<<< ' "$tasksDir/$prefix-"*.md 2>/dev/null || true; } 
 
 pending="$(idgit_cache_list "$tasksDir" "$prefix" pending) $(idgit_local_only "$repo" "$remote" "$tasksDir" "$prefix" | tr '\n' ' ')"
 reserved=$(idgit_reserve "$repo" "$remote" "$branch" "$prefix" "$tasksDir" "$floor" 0 1 "$pending") || exit 1
-counter=$(printf '%s\n' "$reserved" | sed -n 's/^next=//p')
+counter=$(task_kv "$reserved" next)
 idgit_settle "$tasksDir" "$prefix" "$reserved"
 task_config_edit "$configFile" set idSource git del nextId || { echo "ERROR: could not update $configFile" >&2; exit 1; }
 

@@ -161,14 +161,22 @@ task_me_file() {
 
 # task_me <projectDir> -> the user's id: the override file's first line, else $TASK_ME
 # (the skill passes the Claude account email there), normalised; nothing when neither
-# is set. Scripts never discover an id on their own.
+# is usable. An override that is not a usable id falls through to TASK_ME.
+# Scripts never discover an id on their own.
 task_me() {
-    local f v=""
+    local f v="" id=""
     f=$(task_me_file "$1")
     [ -r "$f" ] && v=$(sed -n 1p "$f" 2>/dev/null || true)
-    [ -n "$v" ] || v="${TASK_ME:-}"
-    [ -n "$v" ] || return 0
-    task_assignee_norm "$v" --store || true
+    [ -z "$v" ] || id=$(task_assignee_norm "$v" --store) || id=""
+    [ -n "$id" ] || [ -z "${TASK_ME:-}" ] || id=$(task_assignee_norm "$TASK_ME" --store) || id=""
+    [ -z "$id" ] || printf '%s\n' "$id"
+    return 0
+}
+
+# task_kv <key=value lines> <key> -> the first value of <key>; nothing when absent.
+# The one reader for the key=value output the scripts print to each other.
+task_kv() {
+    printf '%s\n' "$1" | sed -n "s/^$2=//p" | head -n 1
     return 0
 }
 

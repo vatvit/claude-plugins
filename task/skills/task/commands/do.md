@@ -5,19 +5,25 @@ Load a task and work on it. This is the main entry point for execution.
 ## Start
 
 Invoking `/task do` *is* the go-ahead. Do not ask whether to start the task or whether to
-set it `in-progress` — just do it. The only questions this section may ask are the
-`active_status=conflict` one in step 5 and, with assignees on, taking over someone else's task in step 6.
+set it `in-progress` — just do it. The only questions this section may ask are, with assignees on,
+taking over someone else's task in step 3, and the `active_status=conflict` one in step 6.
 
 1. `resolve-task.sh <tasksDir> <prefix> <id>` — id, file, frontmatter, the current workflow
    step and its `step_file=` if one exists. `<id>` may also be an epic-name; an unknown one
    fails with the resolver's error: report it and stop.
 2. If the task's status is `rejected` or `completed`, do not start it: drop it from the
    list with `session-active.sh <tasksDir> <prefix> remove <id>` and tell the user. Stop.
-3. `type=epic` → this is the **Epic flow** below, not a plain workflow run.
-4. `set-status.sh <tasksDir> <prefix> <id> in-progress` — without asking, and harmless if
+3. **Assignees on** (`assignees=` from `resolve-config.sh` is not `off`), before anything is written:
+   `assign.sh <projectDir> <id> me --claim`. `claim=claimed` → say "assigned to you". `mine` → say nothing.
+   `other` → it is someone else's: ask whether to take it over (`assign.sh <projectDir> <id> me`) or leave
+   it. Leave it → stop here: its status and the session's active tasks stay untouched. Exit 3 → ask for the
+   user's id (`commands/assign.md`), then retry. An epic is claimed the same way; its sub-tasks are not
+   touched here, each is claimed when the Epic flow runs it.
+4. `type=epic` → this is the **Epic flow** below, not a plain workflow run.
+5. `set-status.sh <tasksDir> <prefix> <id> in-progress` — without asking, and harmless if
    it already is. It writes the status, cascades to the parent epic and updates
    `active-tasks` in one call — report its output as `commands/status.md` describes.
-5. If it prints `active_status=conflict`, the session is on an unrelated task. Ask, and do
+6. If it prints `active_status=conflict`, the session is on an unrelated task. Ask, and do
    exactly what the user picks:
    - **Append** — `session-active.sh <tasksDir> <prefix> add <id> --force`
    - **Switch** — `session-active.sh <tasksDir> <prefix> set <id>`: this becomes the only
@@ -27,11 +33,6 @@ set it `in-progress` — just do it. The only questions this section may ask are
      offer to put it back.
    A sub-task whose parent epic is the active task is not a conflict; the script appends it
    silently and says `epic=`.
-6. **Assignees on** (`assignees=` from `resolve-config.sh` is not `off`):
-   `assign.sh <projectDir> <id> me --claim`. `claim=claimed` → say "assigned to you". `mine` → say nothing.
-   `other` → it is someone else's: ask whether to take it over (`assign.sh <projectDir> <id> me`) or
-   leave it as it is. Either way, carry on with the work only if the user says so. Exit 3 → ask for the user's
-   id (`commands/assign.md`), then retry.
 7. `epic=<name>` → `resolve-epic.sh` and read the epic file. Goal, Scope, Out of Scope and
    Success Criteria constrain every step that follows, architecture most of all.
 8. Read the project's CLAUDE.md.

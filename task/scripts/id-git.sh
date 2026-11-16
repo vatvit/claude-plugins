@@ -270,7 +270,7 @@ idgit_reserve() {
 # the remote counter.
 idgit_settle() {
     local next new c old_c
-    next=$(printf '%s\n' "$3" | sed -n 's/^next=//p')
+    next=$(task_kv "$3" next)
     new=$(printf '%s\n' "$3" | sed -n 's/^clash=//p' | tr '\n' ' ')
     old_c=$(idgit_cache_list "$1" "$2" clash)
     for c in $new; do

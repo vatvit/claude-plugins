@@ -30,7 +30,7 @@ task/
     ├── id-git.sh             sourced: the git id source (probe, fetch, reserve by push, clone cache)
     ├── renumber.sh           move a task to a fresh id; rewrites only the tasks named, reports the rest
     ├── assign.sh             a task's assignee / the user's own id (override) / the project's assignees mode
-    ├── lib.sh                global roots, worktree → main tree, task_canonical_id (number → PREFIX-NNN), task_fm_set (the one frontmatter writer), task_highest_id, _TASK_JSON_AWK (the one JSON reader, as awk functions), task_config_read, task_config_set_num (nextId in place), task_config_edit (keys set/removed), task_id_replace / task_id_lines (the one id matcher, boundary-aware), task_assignees_mode / task_assignee_norm / task_me_file / task_me (the assignee mode, id normaliser, override path, user id)
+    ├── lib.sh                global roots, worktree → main tree, task_canonical_id (number → PREFIX-NNN), task_fm_set (the one frontmatter writer), task_highest_id, _TASK_JSON_AWK (the one JSON reader, as awk functions), task_config_read, task_config_set_num (nextId in place), task_config_edit (keys set/removed), task_id_replace / task_id_lines (the one id matcher, boundary-aware), task_assignees_mode / task_assignee_norm / task_me_file / task_me (the assignee mode, id normaliser, override path, user id), task_kv (the one reader of the key=value output scripts print to each other)
     └── test/*.test.sh        each sources test/lib.sh: TMP, counters, check/contains/lacks, report;
                               run.sh runs all; Dockerfile = bash:5 + git, the container target
 ```
@@ -113,7 +113,7 @@ bash scripts/test/switch-back.test.sh      # 18 cases — back from git to local
 bash scripts/test/renumber.test.sh         # 22 cases — renumber.sh: move, created kept, artifacts, --update only, refs, id boundaries, epic index
 bash scripts/test/net-timeout.test.sh      # 11 cases — git calls within TASK_ID_NET_TIMEOUT: hung remote falls back, hung push fails clean, long lock wait, lock heartbeat
 bash scripts/test/lock.test.sh             #  3 cases — a stale id lock is broken (busybox stat)
-bash scripts/test/assignee.test.sh         # 93 cases — assignees mode, me= (override, TASK_ME), column, mine + unassigned view, shorthands, assign.sh, no HOME
+bash scripts/test/assignee.test.sh         # 100 cases — assignees mode, me= (override, TASK_ME), column, mine + unassigned view, shorthands (= only), assign.sh, no HOME, epics named me/mode
 bash scripts/test/run.sh                   # every suite
 ```
 

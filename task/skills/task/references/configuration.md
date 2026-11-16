@@ -45,7 +45,7 @@ Optional `assignees` (`off` default, `unassigned`, `self`) turns on who-a-task-i
 `off`, with a warning. With it on, `resolve-config.sh` also prints `me=`, the user's id: the
 per-project override at `<git-common-dir>/task/me` (or `<project>/.task/me` without git) if set,
 otherwise `$TASK_ME`. The override is personal: it is never committed and never kept in HOME.
-`assign.sh <project-dir> mode …` and `assign.sh <project-dir> me <id>` write the two, the first for a
+`assign.sh <project-dir> --mode …` and `assign.sh <project-dir> --me <id>` write the two, the first for a
 project-local config only.
 
 This file is a shared data contract: other tools read `tasksDir` out of it. It stays where

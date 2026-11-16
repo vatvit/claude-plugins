@@ -72,15 +72,15 @@ stamp_created() {
 
 # --- Resolve config -----------------------------------------------------------
 CONFIG=$("$SCRIPT_DIR/resolve-config.sh" "$PROJECT_DIR")
-tasksDir=$(printf '%s\n' "$CONFIG" | sed -n 's/^tasksDir=//p')
-prefix=$(printf '%s\n' "$CONFIG" | sed -n 's/^prefix=//p')
-nextId=$(printf '%s\n' "$CONFIG" | sed -n 's/^nextId=//p')
-configFile=$(printf '%s\n' "$CONFIG" | sed -n 's/^configFile=//p')
-configScope=$(printf '%s\n' "$CONFIG" | sed -n 's/^configScope=//p')
+tasksDir=$(task_kv "$CONFIG" tasksDir)
+prefix=$(task_kv "$CONFIG" prefix)
+nextId=$(task_kv "$CONFIG" nextId)
+configFile=$(task_kv "$CONFIG" configFile)
+configScope=$(task_kv "$CONFIG" configScope)
 
-idSource=$(printf '%s\n' "$CONFIG" | sed -n 's/^idSource=//p')
-idRemote=$(printf '%s\n' "$CONFIG" | sed -n 's/^idRemote=//p')
-idBranch=$(printf '%s\n' "$CONFIG" | sed -n 's/^idBranch=//p')
+idSource=$(task_kv "$CONFIG" idSource)
+idRemote=$(task_kv "$CONFIG" idRemote)
+idBranch=$(task_kv "$CONFIG" idBranch)
 
 [ -n "$tasksDir" ] && [ -n "$prefix" ] || { echo "ERROR: config missing tasksDir/prefix" >&2; exit 1; }
 case "${idSource:-local}" in
@@ -183,7 +183,7 @@ if [ "$MODE" = git ]; then
             echo "ERROR: $id.md appeared while its id was being reserved; the id is spent, run again." >&2
             exit 1; }
     done
-    candidate=$(printf '%s\n' "$reserved" | sed -n 's/^next=//p')
+    candidate=$(task_kv "$reserved" next)
 else
     allocated=0; numbers=""
     while [ "$allocated" -lt "$COUNT" ]; do

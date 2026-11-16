@@ -16,8 +16,6 @@ raw="$(mktemp)"
 # hint <ID> <option prefix or value> <evidence>. The first hint for an ID wins, so the
 # stronger evidence is hinted first.
 hint() { printf '%s\t%s\t%s\n' "$1" "$2" "$3" >> "$raw"; }
-# json_str <file> <key> — the first "key": "string" in a JSON file; empty when absent.
-json_str() { grep -o "\"$2\"[ \t]*:[ \t]*\"[^\"]*\"" "$1" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/' || true; }
 # toml_str <file> <key> — the first `key = "string"` in a TOML file; empty when absent.
 toml_str() { awk -v k="$2" '$0 ~ "^" k "[ \t]*=[ \t]*\"" { sub(/^[^"]*"/, ""); sub(/".*/, ""); print; exit }' "$1" 2>/dev/null || true; }
 # mentions <file> <word...> — the words that appear quoted in <file> (a dependency list), comma-joined.

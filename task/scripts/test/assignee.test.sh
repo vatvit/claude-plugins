@@ -119,11 +119,11 @@ task "$NG/t" 001 "one"
 me_of() { sed -n 's/^me=//p'; }
 check "neither: me= empty" "" "$(env -u TASK_ME bash "$SC/resolve-config.sh" "$NG" | me_of)"
 check "TASK_ME, normalised" "bob@x.io" "$(TASK_ME=' Bob@X.io ' bash "$SC/resolve-config.sh" "$NG" | me_of)"
-out=$(bash "$SC/assign.sh" "$NG" me 'Ann@Y.io')
+out=$(bash "$SC/assign.sh" "$NG" --me 'Ann@Y.io')
 check "override written outside git: <proj>/.task/me" "ann@y.io" "$(cat "$NG/.task/me")"
 contains "... and reported" "file=$NG/.task/me" "$out"
 check "override wins over TASK_ME" "ann@y.io" "$(TASK_ME=bob bash "$SC/resolve-config.sh" "$NG" | me_of)"
-out=$(bash "$SC/assign.sh" "$NG" me 'all' 2>&1); code=$?
+out=$(bash "$SC/assign.sh" "$NG" --me 'all' 2>&1); code=$?
 check "a reserved id is refused" "1" "$code"
 
 echo "-- T9 override in git: common dir, shared by worktrees, never tracked (R4, R15) --"
@@ -132,7 +132,7 @@ printf '{\n  "tasksDir": "t",\n  "prefix": "T",\n  "nextId": 2,\n  "assignees": 
 task "$GP/t" 001 "one"
 ( cd "$GP" && g init -q && g add -A && g commit -qm init && g worktree add -q --detach .wt ) || { echo "FAIL: git fixture"; exit 1; }
 before=$(cd "$GP" && git status --porcelain)
-bash "$SC/assign.sh" "$GP" me carol >/dev/null
+bash "$SC/assign.sh" "$GP" --me carol >/dev/null
 check "override in the git common dir" "carol" "$(cat "$GP/.git/task/me" 2>/dev/null)"
 check "git status unchanged" "$before" "$(cd "$GP" && git status --porcelain)"
 check "a linked worktree reads the same id" "carol" "$(env -u TASK_ME bash "$SC/resolve-config.sh" "$GP/.wt" | me_of)"
@@ -140,7 +140,7 @@ check "a linked worktree reads the same id" "carol" "$(env -u TASK_ME bash "$SC/
 echo "-- T10 override location not writable: session only (R4) --"
 RO="$TMP/ro"; mkdir -p "$RO/t"; : > "$RO/.task"   # a file where the dir would go: even root cannot mkdir it
 printf '{\n  "tasksDir": "t",\n  "prefix": "T",\n  "assignees": "self"\n}\n' > "$RO/.task-config.json"
-out=$(bash "$SC/assign.sh" "$RO" me dan 2>&1); code=$?
+out=$(bash "$SC/assign.sh" "$RO" --me dan 2>&1); code=$?
 check "not writable: exit 0" "0" "$code"
 contains "not writable: says session scope" "scope=session — $RO/.task not writable" "$out"
 lacks "not writable: no file= line" "file=" "$out"
@@ -167,23 +167,23 @@ check "no config: exit 1" "1" "$code"
 mkdir -p "$TMP/offp/t"; printf '{\n  "tasksDir": "t",\n  "prefix": "T"\n}\n' > "$TMP/offp/.task-config.json"; task "$TMP/offp/t" 001 one
 out=$(bash "$SC/assign.sh" "$TMP/offp" 1 bob 2>&1); code=$?
 check "mode off: refused" "1" "$code"
-contains "... with the way to turn it on" "mode unassigned|self" "$out"
+contains "... with the way to turn it on" "--mode unassigned|self" "$out"
 out=$(env -u TASK_ME bash "$SC/assign.sh" "$RO" 1 2>&1); code=$?
 check "me unknown: exit 3" "3" "$code"
 
 echo "-- T12 assign.sh mode (R13) --"
 MP="$TMP/modep"; mkdir -p "$MP"; printf '{\n  "tasksDir": "t",\n  "prefix": "T",\n  "nextId": 7\n}\n' > "$MP/.task-config.json"
-bash "$SC/assign.sh" "$MP" mode self >/dev/null
+bash "$SC/assign.sh" "$MP" --mode self >/dev/null
 check "mode self written, the rest kept" '{|  "tasksDir": "t",|  "prefix": "T",|  "nextId": 7,|  "assignees": "self"|}' \
   "$(tr '\n' '|' < "$MP/.task-config.json" | sed 's/|$//')"
-bash "$SC/assign.sh" "$MP" mode off >/dev/null
+bash "$SC/assign.sh" "$MP" --mode off >/dev/null
 check "mode off removes the key" '{|  "tasksDir": "t",|  "prefix": "T",|  "nextId": 7|}' \
   "$(tr '\n' '|' < "$MP/.task-config.json" | sed 's/|$//')"
-out=$(bash "$SC/assign.sh" "$MP" mode team 2>&1); code=$?
+out=$(bash "$SC/assign.sh" "$MP" --mode team 2>&1); code=$?
 check "bad mode refused" "1" "$code"
 GH="$TMP/ghome"; GPJ="$TMP/gproj"; mkdir -p "$GH/.claude/project-tasks" "$GPJ"; GPJ="$(cd "$GPJ" && pwd -P)"
 printf '{\n  "projects": {\n    "%s": {"tasksDir": "%s/t", "prefix": "T", "nextId": 1}\n  }\n}\n' "$GPJ" "$GPJ" > "$GH/.claude/project-tasks/config.json"
-out=$(env -u CLAUDE_CONFIG_DIR HOME="$GH" bash "$SC/assign.sh" "$GPJ" mode self 2>&1); code=$?
+out=$(env -u CLAUDE_CONFIG_DIR HOME="$GH" bash "$SC/assign.sh" "$GPJ" --mode self 2>&1); code=$?
 check "global-registry project refused" "1" "$code"
 contains "... names where to edit" "set \"assignees\": \"self\"" "$out"
 
@@ -200,5 +200,26 @@ for h in unset missing file; do
     check "HOME $h: assign works" "ann@y.io" "$(fm)"
     contains "HOME $h: default view" "+ 3 assigned to others" "$(run "$SC/list-tasks.sh" "$WITH" T $ON --me=me@x.io)"
 done
+
+echo "-- T14 review fixes (PLUG-138 follow-up) --"
+# ~ is a substring match: me and all are plain text there, never the shorthands.
+check "assignee~me is a substring, not mine" "T-001" "$(ids "$(L "$WITH" $ON --me=ann assignee~me)")"
+out=$(bash "$SC/list-tasks.sh" "$WITH" T $ON 'assignee~me' 2>&1); code=$?
+check "assignee~me needs no id" "0" "$code"
+check "assignee~all matches only text" "" "$(ids "$(L "$WITH" $ON --me=ann assignee~all)")"
+# A saved id that is not usable falls back to TASK_ME.
+mkdir -p "$NG/.task"; printf 'me\n' > "$NG/.task/me"
+check "unusable override: TASK_ME wins" "bob@x.io" "$(TASK_ME=bob@x.io bash "$SC/resolve-config.sh" "$NG" | me_of)"
+bash "$SC/assign.sh" "$NG" --me ann@y.io >/dev/null
+# Epics named like the old verbs are ordinary ids.
+task "$NG/t" 002 "epic mode" "" "type: epic
+epic-name: mode"
+task "$NG/t" 003 "epic me" "" "type: epic
+epic-name: me"
+bash "$SC/assign.sh" "$NG" mode bob >/dev/null 2>&1
+check "an epic named mode can be assigned" "bob" "$(sed -n 's/^assignee: //p' "$NG/t/T-002.md")"
+out=$(bash "$SC/assign.sh" "$NG" me me --claim 2>&1)
+contains "an epic named me can be claimed" "claim=claimed" "$out"
+check "... and is the user's" "ann@y.io" "$(sed -n 's/^assignee: //p' "$NG/t/T-003.md")"
 
 report assignee

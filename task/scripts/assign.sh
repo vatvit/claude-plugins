@@ -9,14 +9,15 @@
 #       the user's id from resolve-config.sh) or `_` (unassigned).
 #       --claim: write only when the task is unassigned; prints
 #       claim=claimed|mine|other — what /task do uses. Never takes over a task.
-#   assign.sh <project-dir> me <id>
+#   assign.sh <project-dir> --me <id>
 #       Remember the user's own id for this project, outside version control:
 #       <git-common-dir>/task/me, or <project>/.task/me without git. When that
 #       cannot be written, prints `scope=session — <dir> not writable` (exit 0):
 #       the id then lives only as long as the session that keeps it.
-#   assign.sh <project-dir> mode off|unassigned|self
+#   assign.sh <project-dir> --mode off|unassigned|self
 #       Write the project's assignee mode into .task-config.json (off removes the
 #       key). A project configured in the global registry is refused: edit it there.
+#   The two settings are flags, so any task id or epic-name (even `me` or `mode`) is a task.
 #
 # Output (key=value): id= old= new= [claim=]; me= file= [scope=]; assignees=.
 # Exit 1 on bad input, mode off (for set/claim) or an unknown task; exit 3 when
@@ -30,7 +31,7 @@ if [ "${1:-}" = "--help" ]; then
     exit 0
 fi
 
-USAGE="Usage: assign.sh <project-dir> <id> [<who>|me|_] [--claim] | me <id> | mode off|unassigned|self"
+USAGE="Usage: assign.sh <project-dir> <id> [<who>|me|_] [--claim] | --me <id> | --mode off|unassigned|self"
 PROJ_ARG="${1:?$USAGE}"
 VERB="${2:?$USAGE}"
 shift 2
@@ -40,7 +41,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/lib.sh"
 
 cfg=$("$SCRIPT_DIR/resolve-config.sh" "$PROJ_ARG") || exit 1
-val() { printf '%s\n' "$cfg" | sed -n "s/^$1=//p" | head -n 1; }
+val() { task_kv "$cfg" "$1"; }
 PROJECT_DIR=$(val projectDir)
 TASKS_DIR=$(val tasksDir)
 PREFIX=$(val prefix)
@@ -48,7 +49,7 @@ MODE=$(val assignees); MODE="${MODE:-off}"
 ME=$(val me)
 
 case "$VERB" in
-    mode)
+    --mode)
         new="${1:?$USAGE}"
         case "$new" in off|unassigned|self) ;; *) echo "ERROR: mode is off, unassigned or self, not: $new" >&2; exit 1 ;; esac
         if [ "$(val configScope)" != "local" ]; then
@@ -61,7 +62,7 @@ case "$VERB" in
         echo "assignees=$new"
         ;;
 
-    me)
+    --me)
         raw="${1:-}"
         id=$(task_assignee_norm "$raw" --store) || { echo "ERROR: not a usable id: \"$raw\" (no comma, quote or newline; not me, all or _)" >&2; exit 1; }
         f=$(task_me_file "$PROJECT_DIR")
@@ -76,6 +77,8 @@ case "$VERB" in
         fi
         ;;
 
+    -*) echo "$USAGE" >&2; exit 1 ;;
+
     *)
         RAW_ID="$VERB"; WHO="me"; CLAIM=0
         for a in "$@"; do
@@ -85,11 +88,11 @@ case "$VERB" in
             esac
         done
         if [ "$MODE" = "off" ]; then
-            echo "ERROR: assignees are off in this project; turn them on with: assign.sh <project-dir> mode unassigned|self" >&2
+            echo "ERROR: assignees are off in this project; turn them on with: assign.sh <project-dir> --mode unassigned|self" >&2
             exit 1
         fi
         case "$WHO" in
-            me) [ -n "$ME" ] || { echo "ERROR: assigning to me needs your id (assign.sh <project-dir> me <id>, or TASK_ME)" >&2; exit 3; }
+            me) [ -n "$ME" ] || { echo "ERROR: assigning to me needs your id (assign.sh <project-dir> --me <id>, or TASK_ME)" >&2; exit 3; }
                 NEW="$ME" ;;
             _)  NEW="" ;;
             *)  NEW=$(task_assignee_norm "$WHO" --store) || { echo "ERROR: not a usable id: \"$WHO\"" >&2; exit 1; } ;;
@@ -97,9 +100,7 @@ case "$VERB" in
         [ "$CLAIM" -eq 0 ] || [ -n "$NEW" ] || { echo "ERROR: --claim needs someone to assign to" >&2; exit 1; }
 
         meta=$("$SCRIPT_DIR/resolve-task.sh" "$TASKS_DIR" "$PREFIX" "$RAW_ID") || exit 1
-        ID=$(printf '%s\n' "$meta"   | sed -n 's/^id=//p'       | head -n 1)
-        FILE=$(printf '%s\n' "$meta" | sed -n 's/^file=//p'     | head -n 1)
-        OLD=$(printf '%s\n' "$meta"  | sed -n 's/^assignee=//p' | head -n 1)
+        ID=$(task_kv "$meta" id); FILE=$(task_kv "$meta" file); OLD=$(task_kv "$meta" assignee)
         oldn=$(task_assignee_norm "$OLD" || printf '%s' "$OLD")
 
         if [ "$CLAIM" -eq 1 ]; then

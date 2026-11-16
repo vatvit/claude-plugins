@@ -89,8 +89,9 @@ function passes(id, skip,   i, f, op, n, a, j, val, ok, nt, t, k) {
         for (j = 1; j <= n; j++) {
             if (a[j] == "_")   { if (val == "") ok = 1 }
             else if (f == "assignee" && aon()) {
-                if (a[j] == "all") ok = 1
-                else if (a[j] == "me") { if (val != "" && asg(id) == ame()) ok = 1 }
+                # me and all are shorthands of = only; under ~ they are plain text.
+                if (op == "=" && a[j] == "all") ok = 1
+                else if (op == "=" && a[j] == "me") { if (val != "" && asg(id) == ame()) ok = 1 }
                 else if (op == "=") { if (val != "" && asg(id) == (tolower(a[j]) "")) ok = 1 }
                 else if (matches(val, op, a[j])) ok = 1
             }

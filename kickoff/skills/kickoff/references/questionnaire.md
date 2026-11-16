@@ -329,7 +329,7 @@ that is never split, commas included: `gaps.sh` looks for that tool in the proje
   meant for the client, so they live outside it.
 - **R12** — a team turns on the task plugin's assignees (`"assignees": "unassigned"` or `"self"`): each task
   says who it is for, and the list shows the user's own and the unassigned ones first. "Just me" writes nothing,
-  and the task config stays as it was. It can be changed later with the task plugin's `assign.sh <project> mode …`.
+  and the task config stays as it was. It can be changed later with the task plugin's `assign.sh <project> --mode …`.
   (Numbered after R11 because ids are the keys of recorded answers and are never renumbered.)
 - **R10** is asked in the DROP form of §F: every practice is in the workflow unless the user drops it.
   Nothing ticked (or `n/a`) keeps them all; the answer recorded is the resulting set, `None` when all
@@ -373,7 +373,7 @@ one question about the work that follows. A0 says which of the two rows applies.
 | `docs/project/quality.md` | F1–F12: level, checks by aspect, gate, tools |
 | the rest of `docs/` | not kickoff's: docs-manager sets it up when installed |
 | project `CLAUDE.md` | instructions only: pointer to the charter, A6, I0, R1–R6, C5, E3, E4, F1, F7, F9 — never project knowledge |
-| `.task-config.json`, `tasks/_workflow/` | R7–R10, when the task plugin is installed |
+| `.task-config.json`, `tasks/_workflow/` | R7–R10 and R12 (`assignees`, a team only), when the task plugin is installed |
 | crew / task-roadmap config | R5, R11, when installed |
 | tasks | only those the user picks in §N, never more |
 

@@ -34,9 +34,10 @@ PRIMARY_CONFIG="$(task_global_roots | head -n 1)/config.json"
 # on, `me=` added: the user's id for this project, empty when unknown (PLUG-138).
 # Without the key the lines pass through untouched, so a solo project sees no change.
 with_assignees() {
-    local raw mode
-    if ! printf '%s\n' "$1" | grep -q '^assignees='; then printf '%s\n' "$1"; return 0; fi
-    raw=$(printf '%s\n' "$1" | sed -n 's/^assignees=//p' | head -n 1)
+    local raw mode nl='
+'
+    case "$nl$1" in *"${nl}assignees="*) ;; *) printf '%s\n' "$1"; return 0 ;; esac
+    raw=$(task_kv "$1" assignees)
     mode=$(task_assignees_mode "$raw")
     printf '%s\n' "$1" | grep -v '^assignees=' || true
     printf 'assignees=%s\n' "$mode"
@@ -71,8 +72,8 @@ if [ -f "$LOCAL_CONFIG" ] && [ -s "$LOCAL_CONFIG" ]; then
         # shellcheck source=id-git.sh
         . "$SCRIPT_DIR/id-git.sh"
         out=$(printf '%s\n' "$out" | grep -v '^nextId=' || true)
-        td=$(printf '%s\n' "$out" | sed -n 's/^tasksDir=//p')
-        px=$(printf '%s\n' "$out" | sed -n 's/^prefix=//p')
+        td=$(task_kv "$out" tasksDir)
+        px=$(task_kv "$out" prefix)
         n=$(idgit_cache_get "$td" "$px")
         [ -z "$n" ] || out="$out
 nextId=$n"

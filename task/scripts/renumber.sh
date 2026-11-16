@@ -27,8 +27,8 @@ usage() { echo "Usage: renumber.sh <project-dir> <OLD-ID> [--update <ID>...]" >&
 PROJECT_DIR="$(task_project_dir "$1")"; RAW_OLD="$2"; shift 2
 
 CONFIG=$("$SCRIPT_DIR/resolve-config.sh" "$PROJECT_DIR")
-tasksDir=$(printf '%s\n' "$CONFIG" | sed -n 's/^tasksDir=//p')
-prefix=$(printf '%s\n' "$CONFIG" | sed -n 's/^prefix=//p')
+tasksDir=$(task_kv "$CONFIG" tasksDir)
+prefix=$(task_kv "$CONFIG" prefix)
 [ -n "$tasksDir" ] && [ -n "$prefix" ] || { echo "ERROR: config missing tasksDir/prefix" >&2; exit 1; }
 
 # canon <raw> -> PREFIX-NNN for an existing task of this project, or exit 1.

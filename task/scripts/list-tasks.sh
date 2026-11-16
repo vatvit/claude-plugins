@@ -126,7 +126,7 @@ if [ "$ASSIGNEES" != "off" ]; then
         ME="$(task_assignee_norm "$ME" --store)" || { echo "ERROR: --me is not a usable id" >&2; exit 1; }
     fi
     if [ "$WANTS_ME" -eq 1 ] && [ -z "$ME" ]; then
-        echo "ERROR: assignee=me needs your id (assign.sh <project-dir> me <id>, or TASK_ME)" >&2
+        echo "ERROR: assignee=me needs your id (assign.sh <project-dir> --me <id>, or TASK_ME)" >&2
         exit 3
     fi
     printf '#C\tassignees\t%s\n' "$ASSIGNEES" >> "$IN"

@@ -333,3 +333,16 @@ question), which can now be built against the `assignees` key.
 Version bump held back on the user's instruction: several features ship together later. `task` stays at 1.6.1 in
 `plugin.json` and `marketplace.json`. The version named under Implementation is the one this change will get
 when it is released. Keywords and docs stay as written.
+
+## Review follow-up (2026-11-16)
+
+A code review of the committed change found these; each was first pinned by a test that failed, and a mutant was seen to fail too.
+- `/task do` wrote `in-progress` and the active-tasks entry before the claim: the claim is now Start step 3, ahead of
+  the epic branch and the status write, and "leave it" stops with nothing written. Epics are claimed like any task;
+  their sub-tasks are claimed as the Epic flow runs each one (`commands/do.md`).
+- `assignee~me` / `assignee~all` were read as the shorthands; they are shorthands of `=` only (`list-render.awk`, T14).
+- An override file holding an unusable id hid `TASK_ME`; `task_me` now falls through (T14).
+- `assign.sh me|mode` collided with epics named `me` or `mode`: the settings are now `--me <id>` and `--mode <m>` (T14).
+- `task_kv` in lib.sh is the one reader of key=value script output; it replaced copies in assign.sh, id-source.sh,
+  allocate-id.sh, renumber.sh, resolve-config.sh and id-git.sh. `with_assignees` matches with `case`, not `| grep -q`.
+- Suites ALL GREEN on the host and in `task-test`. No version bump (release held back).
