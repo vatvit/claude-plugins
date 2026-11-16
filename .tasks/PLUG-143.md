@@ -1,6 +1,6 @@
 ---
 title: "EPIC: remote-docs — a plugin that manages remote documents (Drive, artifacts) inside docs/, by folder purpose"
-status: in-progress
+status: completed
 type: epic
 epic-name: remote-docs
 priority: medium
@@ -169,7 +169,7 @@ no git at all, with Drive as its only docs store.
 | PLUG-146 | 3818007 | `questions`: what to ask once per attachment; publish only in git |
 | PLUG-147 | 940235e | `guard` before every write, `repoint` after converting an Office file; how-to *Writing* |
 | PLUG-148 | bea20e3 | cards kept on Drive: `pack` / `unpack`, written back under the Docs revision guard |
-| PLUG-149 | (this commit) | `EXTRACT?` in `check`, `extracted`; how-to *Extracting decisions* |
+| PLUG-149 | f1bcca9 | `EXTRACT?` in `check`, `extracted`; how-to *Extracting decisions* |
 
 Against the Success Criteria: suites pass alone (remote-docs copied out alone) and together (docs-manager
 unchanged and green); `purposes` gives a fresh session the map; Doc writes guarded, Sheet writes
@@ -182,6 +182,6 @@ folder.
 
 ## Current State
 
-**All six sub-tasks completed and pushed** (2026-11-16). Epic left in-progress for the user to agree it is
-done. Next: the version bumps (remote-docs first release, docs-manager major/minor for the removal) when
+**Epic completed** (2026-11-16, user: "finish the epic"); all six sub-tasks pushed. Follow-ups, not part
+of this epic: the version bumps (remote-docs first release, docs-manager major/minor for the removal) when
 the user says, and a live run of the guarded flows on a test Drive folder.
