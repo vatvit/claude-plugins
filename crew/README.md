@@ -93,3 +93,9 @@ message habits. See [skills/crew/references/playbook.md](skills/crew/references/
 ## Testing
 
 See [CLAUDE.md](CLAUDE.md#testing).
+
+## Upgrading
+
+What a project needs after you update to a release. A release not listed here needs nothing beyond
+updating and running `/reload-plugins` in every open session. Entries start with the releases of
+2026-11-16; for earlier ones, see the git history.

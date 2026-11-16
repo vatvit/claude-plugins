@@ -63,6 +63,23 @@ bash scripts/remote.sh extracted docs/external/team/drafts.gdrive.md   # reviewe
 
 Pure bash and awk, bash 3.2 and BSD or GNU userland, no network calls. Tests: see [`CLAUDE.md`](CLAUDE.md#testing).
 
+## Upgrading
+
+What a project needs after you update to a release. A release not listed here needs nothing beyond
+updating and running `/reload-plugins` in every open session. Entries start with the releases of
+2026-11-16; for earlier ones, see the git history.
+
+### 1.1.0
+
+- **`PURPOSE?`** (a note, not a failure) for each attached folder with no declared purpose. Until it has
+  one the folder is read-only for Claude. Ask Claude to set the folder purpose: it runs
+  `remote.sh questions` and asks only what is missing.
+- **`EXTRACT?` fails `check`** for every artifact card, and for cards in folders declaring `truth: no`
+  (`collaboration`, `output`, a custom purpose). Ask Claude to extract decisions from them; it proposes
+  each into its doc, then runs `remote.sh extracted`. Once per card, and again only when the file changes.
+- **`.source.md` is read per key.** A sub-folder's `.source.md` now takes from its parent every key it
+  does not set itself (`publish:` included), where before it hid the parent's file entirely. Run `check`.
+
 ## License
 
 MIT

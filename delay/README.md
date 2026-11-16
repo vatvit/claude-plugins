@@ -206,3 +206,9 @@ keep the first. A job queued by 1.x is not run: it ends `invalid` and must be qu
 bash delay/scripts/test/delay.test.sh
 docker run --rm -v "$PWD":/w -w /w bash:5 bash delay/scripts/test/delay.test.sh
 ```
+
+## Upgrading
+
+What a project needs after you update to a release. A release not listed here needs nothing beyond
+updating and running `/reload-plugins` in every open session. Entries start with the releases of
+2026-11-16; for earlier ones, see the git history.

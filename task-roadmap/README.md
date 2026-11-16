@@ -51,3 +51,9 @@ deps: [T-006, T-008]    # must-finish-first dependencies
 ```
 
 Runtime-free and offline: the output HTML has no external dependencies.
+
+## Upgrading
+
+What a project needs after you update to a release. A release not listed here needs nothing beyond
+updating and running `/reload-plugins` in every open session. Entries start with the releases of
+2026-11-16; for earlier ones, see the git history.

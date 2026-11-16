@@ -243,7 +243,13 @@ Choose **User scope** to enable a plugin for all your projects, or **Project sco
 with collaborators. Restart open sessions (or run `/reload-plugins`) to load it.
 
 **Update:** `/plugin marketplace update vatvit-plugins`, then update the plugins from the `/plugin`
-menu. Removing and re-adding the marketplace isn't needed, and it uninstalls its plugins.
+menu. Removing and re-adding the marketplace isn't needed, and it uninstalls its plugins. Then:
+
+1. Run `/reload-plugins` in **every open session**; a session not reloaded keeps the old version.
+2. Read the **Upgrading** section of each updated plugin's README: what a release needs in a project,
+   if anything.
+3. In each project, ask Claude to run the plugins' checks ("check the docs", "close the gaps"). They
+   report what an update left to do, and each line says how to fix it.
 
 ## Development
 
@@ -253,7 +259,8 @@ bash test suite under `<plugin>/scripts/test/`. The suites run on the host and i
 are in [CLAUDE.md](CLAUDE.md).
 
 Before a release, `bash scripts/check-descriptions.sh` checks that every plugin's description is
-at most 250 characters and identical, with its version, in `plugin.json` and `marketplace.json`.
+at most 250 characters and identical, with its version, in `plugin.json` and `marketplace.json`,
+and that every README has an Upgrading section with an entry for a major release.
 Its tests: `bash scripts/test/check-descriptions.test.sh`, on the host or in `bash:5`.
 
 ## License

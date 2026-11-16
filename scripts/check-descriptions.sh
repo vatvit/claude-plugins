@@ -2,7 +2,9 @@
 # Check every plugin's marketplace metadata before a release (PLUG-137):
 #   - its description is at most MAX characters: a pitch, not a changelog;
 #   - <plugin>/.claude-plugin/plugin.json and .claude-plugin/marketplace.json carry the
-#     identical description and version.
+#     identical description and version;
+#   - its README has an `## Upgrading` section, and a major release (X.0.0, X >= 2) has its
+#     `### X.0.0` entry there: what a project must do after updating (PLUG-150).
 # Repo tooling, not a plugin: no plugin sources it.
 #   bash scripts/check-descriptions.sh [repo-root]     exit 0 = all good, 1 = findings
 set -uo pipefail
@@ -42,6 +44,21 @@ pj_field() { awk "$field_awk"' /"'"$2"'"[ \t]*:/ { print val($0, "'"$2"'"); exit
 # Characters, not bytes: drop UTF-8 continuation bytes, so an em dash counts once on every target.
 chars() { printf '%s' "$1" | LC_ALL=C tr -d '\200-\277' | wc -c | tr -d ' '; }
 
+# upgrading_entry <readme> <version> -> 0 section present, entry present; 1 no section; 2 no entry.
+# The section runs from `## Upgrading` to the next `## ` heading.
+upgrading_entry() {
+  awk -v v="$2" '
+    /^## / { ins = ($0 == "## Upgrading"); if (ins) sec = 1; next }
+    ins && ($0 == "### " v || index($0, "### " v " ") == 1) { ent = 1 }
+    END { exit sec ? (ent ? 0 : 2) : 1 }
+  ' "$1"
+}
+
+# major_release <version> -> 0 for X.0.0 with X >= 2; 1.0.0 is a first release, with nothing to upgrade
+major_release() {
+  case "$1" in *.0.0) [ "${1%%.*}" -ge 2 ] 2>/dev/null ;; *) return 1 ;; esac
+}
+
 rc=0; n=0
 fail() { echo "FAIL $1: $2"; rc=1; }
 rows="$(market_rows)"
@@ -55,10 +72,17 @@ while IFS=$'\t' read -r name src ver desc; do
   pdesc="$(pj_field "$pj" description)"; pver="$(pj_field "$pj" version)"
   [ "$pdesc" = "$desc" ] || fail "$name" "plugin.json description differs from marketplace.json"
   [ "$pver" = "$ver" ] || fail "$name" "version: plugin.json $pver, marketplace.json $ver"
+  readme="$ROOT/${src#./}/README.md"
+  if [ ! -f "$readme" ]; then fail "$name" "no ${src#./}/README.md"; continue; fi
+  upgrading_entry "$readme" "$ver"; u=$?
+  if [ "$u" -eq 1 ]; then fail "$name" "README has no ## Upgrading section"
+  elif [ "$u" -eq 2 ] && major_release "$ver"; then
+    fail "$name" "major release $ver has no ### $ver entry under ## Upgrading"
+  fi
 done <<EOF
 $rows
 EOF
 
 [ "$n" -gt 0 ] || { echo "check-descriptions: no plugins read from $MARKET" >&2; exit 2; }
-[ "$rc" -eq 0 ] && echo "descriptions ok: $n plugins, each at most $MAX characters and in sync"
+[ "$rc" -eq 0 ] && echo "descriptions ok: $n plugins, each at most $MAX characters and in sync, Upgrading notes present"
 exit "$rc"

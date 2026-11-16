@@ -205,13 +205,18 @@ forget because neither is exercised by any test.
    capability is unreachable no matter how good it is
 4. The plugin's section in the root `README.md`, when the capability is worth a line there. It
    carries no versions, so a bump alone never touches it
+5. The plugin README's `## Upgrading` section, when the release needs anything in a project that
+   already uses the plugin: a capability moved or removed, a check that now fails on existing files, a
+   renamed setting. Add `### <version>` with what to do and which check reports it; a release needing
+   nothing gets no entry. A major release (X.0.0, X ≥ 2) always has one (PLUG-150)
 
 **The plugin description is a pitch, not a changelog: 250 characters at most.** It says what
 the plugin is for, in a sentence or two. The `/plugin` screen prints it in full, and when each
 release added its feature to the text, five of seven grew to 800–2600 characters (PLUG-137). A new
 capability goes to the README (step 4) and the trigger phrases (step 3), not here. Before a
-release, run `bash scripts/check-descriptions.sh`: it fails on a description over the limit and
-on any plugin whose `plugin.json` and `marketplace.json` disagree on description or version.
+release, run `bash scripts/check-descriptions.sh`: it fails on a description over the limit, on
+any plugin whose `plugin.json` and `marketplace.json` disagree on description or version, on a README
+with no `## Upgrading` section, and on a major release with no entry there (step 5).
 
 **Check trigger phrases against the other plugins' skill descriptions.** Two plugins
 competing for the same words is a coin flip at activation time. Today the vocabularies are

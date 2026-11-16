@@ -122,3 +122,13 @@ marketplace repo, with no sibling plugins present.
 
 Previously developed at `vatvit/claude-skill-task` as a symlink-installed skill; this plugin
 is now the source of truth.
+
+## Upgrading
+
+What a project needs after you update to a release. A release not listed here needs nothing beyond
+updating and running `/reload-plugins` in every open session. Entries start with the releases of
+2026-11-16; for earlier ones, see the git history.
+
+### 1.7.0
+
+- Nothing required. Assignees are opt-in: in a project shared by a team, say "turn on assignees".

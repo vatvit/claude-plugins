@@ -367,6 +367,19 @@ coreutils) catch different portability bugs.
 
 When installed, invoke the tool as `bash <PLUGIN_ROOT>/scripts/docs.sh …` (the skill resolves the path).
 
+## Upgrading
+
+What a project needs after you update to a release. A release not listed here needs nothing beyond
+updating and running `/reload-plugins` in every open session. Entries start with the releases of
+2026-11-16; for earlier ones, see the git history.
+
+### 2.0.0
+
+- **Remote cards moved to the remote-docs plugin.** Install remote-docs in any project that has
+  `*.gdrive.md` or `*.artifact.md` cards; without it nothing validates, refreshes or stamps them. The
+  card files themselves are unchanged. docs-manager still lists them in `_index.md` and checks their
+  links, and its `check` only counts them (`REMOTE CARDS: N`).
+
 ## License
 
 MIT

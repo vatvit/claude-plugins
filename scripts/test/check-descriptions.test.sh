@@ -15,6 +15,7 @@ fixture() {
   rm -rf "$1"; mkdir -p "$1/.claude-plugin" "$1/p1/.claude-plugin"
   printf '{\n  "name": "m",\n  "owner": {\n    "name": "Owner"\n  },\n  "plugins": [\n    {\n      "name": "p1",\n      "source": "./p1",\n      "description": "%s",\n      "version": "%s"\n    }\n  ]\n}\n' "$2" "$3" > "$1/.claude-plugin/marketplace.json"
   printf '{\n  "name": "p1",\n  "description": "%s",\n  "version": "%s",\n  "author": {\n    "name": "Owner"\n  }\n}\n' "$4" "$5" > "$1/p1/.claude-plugin/plugin.json"
+  printf '# p1\n\n## Upgrading\n\nNothing so far.\n' > "$1/p1/README.md"
 }
 run() { out="$(bash "$CHECK" "$1" 2>&1)"; code=$?; }
 
@@ -41,6 +42,28 @@ run "$T/d"
 fixture "$T/e" "$S" 1.0.1 "$S" 1.0.0
 run "$T/e"
 [ "$code" -eq 1 ] && echo "$out" | grep -q 'FAIL p1: version: plugin.json 1.0.0, marketplace.json 1.0.1' && ok "version mismatch fails" || bad "version mismatch: $code $out"
+
+# --- Upgrading notes (PLUG-150) ---------------------------------------------------------------
+fixture "$T/u1" "$S" 1.0.0 "$S" 1.0.0
+printf '# p1\n\nNo section.\n' > "$T/u1/p1/README.md"
+run "$T/u1"
+[ "$code" -eq 1 ] && echo "$out" | grep -q 'FAIL p1: README has no ## Upgrading section' && ok "UP1 a README without Upgrading fails" || bad "UP1: $code $out"
+fixture "$T/u2" "$S" 2.0.0 "$S" 2.0.0
+run "$T/u2"
+[ "$code" -eq 1 ] && echo "$out" | grep -q 'FAIL p1: major release 2.0.0 has no ### 2.0.0 entry under ## Upgrading' && ok "UP2 a major release without its entry fails" || bad "UP2: $code $out"
+printf '# p1\n\n### 2.0.0\n\n## Upgrading\n\nNothing.\n' > "$T/u2/p1/README.md"
+run "$T/u2"
+[ "$code" -eq 1 ] && ok "UP3 the entry must sit under Upgrading" || bad "UP3: $code $out"
+printf '# p1\n\n## Upgrading\n\n### 2.0.0 — remote cards moved\n\n- Install x.\n\n## License\n' > "$T/u2/p1/README.md"
+run "$T/u2"
+[ "$code" -eq 0 ] && ok "UP4 a major release with its entry passes" || bad "UP4: $code $out"
+printf '# p1\n\n## Upgrading\n\n### 2.0.0\n\n## License\n\n### 3.0.0\n' > "$T/u2/p1/README.md"
+fixture "$T/u5" "$S" 3.0.0 "$S" 3.0.0; cp "$T/u2/p1/README.md" "$T/u5/p1/README.md"
+run "$T/u5"
+[ "$code" -eq 1 ] && ok "UP5 an entry after the section ends does not count" || bad "UP5: $code $out"
+fixture "$T/u6" "$S" 1.3.0 "$S" 1.3.0
+run "$T/u6"
+[ "$code" -eq 0 ] && ok "UP6 a minor release needs no entry" || bad "UP6: $code $out"
 
 mkdir -p "$T/f"
 run "$T/f"

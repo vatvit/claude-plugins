@@ -113,3 +113,14 @@ a question, an option, a default or a condition, edit that file, keeping to its 
 ## Requirements
 
 None: bash 3.2+ and awk (BSD, GNU or busybox). It works without the other plugins.
+
+## Upgrading
+
+What a project needs after you update to a release. A release not listed here needs nothing beyond
+updating and running `/reload-plugins` in every open session. Entries start with the releases of
+2026-11-16; for earlier ones, see the git history.
+
+### 0.12.0
+
+- Nothing required. In a project shared by a team, "close the gaps" now asks who works on the tasks and
+  can turn on the task plugin's assignees mode.

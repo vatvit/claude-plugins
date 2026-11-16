@@ -118,6 +118,12 @@ The `session-storage` skill tells Claude how and when to use key-value storage w
 - Claude Code with hooks support
 - `bash` (POSIX-compatible shell)
 
+## Upgrading
+
+What a project needs after you update to a release. A release not listed here needs nothing beyond
+updating and running `/reload-plugins` in every open session. Entries start with the releases of
+2026-11-16; for earlier ones, see the git history.
+
 ## License
 
 MIT
