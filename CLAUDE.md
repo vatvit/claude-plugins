@@ -219,7 +219,8 @@ hand off / hold / hot spot / slot / stuck slot / land / copy / snapshot / inbox 
 kickoff owns *kickoff / kick off / new project / start a project / bootstrap / questionnaire / charter /
 quality level / quality gate / existing project / close the gaps / e2e viewer / test viewer / replay a test / watch a test run /
 what to do next after kickoff / which tasks after kickoff*
-(delay says *run the tests later*; kickoff says *which tests to have* and *seeing* a run, delay *timing* it).
+(delay says *run the tests later*; kickoff says *which tests to have* and *seeing* a run, delay *timing* it; crew says *assign tasks to sessions*, task says *assignee* / *assign a task to a person* /
+*my tasks*, PLUG-138).
 No plugin puts a bare *init* in its trigger phrases: that is the built-in `/init`. An explicit
 argument such as `/kickoff:kickoff init` is namespaced and fine (PLUG-070).
 Bare *pdf / word / excel / docx /

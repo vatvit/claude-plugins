@@ -116,6 +116,62 @@ task_highest_id() {
     printf '%s\n' "$max"
 }
 
+# --- Assignees (PLUG-138): opt-in, `off` unless the project config says otherwise ---
+
+# task_assignees_mode <raw> -> off | unassigned | self. Absent or empty is off; any
+# other value is off too, with one WARNING on stderr, so a typo never turns it on.
+task_assignees_mode() {
+    case "$1" in
+        ''|off)     printf 'off\n' ;;
+        unassigned) printf 'unassigned\n' ;;
+        self)       printf 'self\n' ;;
+        *) echo "WARNING: assignees=\"$1\" is not off, unassigned or self — treated as off" >&2
+           printf 'off\n' ;;
+    esac
+    return 0
+}
+
+# task_assignee_norm <value> [--store] -> the value trimmed and lowercased (ids compare
+# case-insensitively). Return 1, printing nothing, for a comma, a quote or a newline
+# (they would break the filter syntax or the frontmatter line). With --store, also for
+# a value that cannot be a stored id: empty, or one of the shorthands me / all / _.
+task_assignee_norm() {
+    local v="$1" nl='
+'
+    case "$v" in *,*|*\"*|*"$nl"*) return 1 ;; esac
+    v=$(printf '%s' "$v" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')
+    if [ "${2:-}" = "--store" ]; then
+        case "$v" in ''|me|all|_) return 1 ;; esac
+    fi
+    printf '%s\n' "$v"
+}
+
+# task_me_file <projectDir> -> where the user's own id for this project is kept: in the
+# git common dir (shared by every worktree, never tracked; as idgit_cache_file does), or
+# <projectDir>/.task/me without git. Never in HOME: a sandbox has none that lasts.
+task_me_file() {
+    local cd
+    if cd=$(git -C "$1" rev-parse --git-common-dir 2>/dev/null) \
+        && cd=$(cd "$1" && cd "$cd" 2>/dev/null && pwd -P); then
+        printf '%s/task/me\n' "$cd"
+    else
+        printf '%s/.task/me\n' "$1"
+    fi
+}
+
+# task_me <projectDir> -> the user's id: the override file's first line, else $TASK_ME
+# (the skill passes the Claude account email there), normalised; nothing when neither
+# is set. Scripts never discover an id on their own.
+task_me() {
+    local f v=""
+    f=$(task_me_file "$1")
+    [ -r "$f" ] && v=$(sed -n 1p "$f" 2>/dev/null || true)
+    [ -n "$v" ] || v="${TASK_ME:-}"
+    [ -n "$v" ] || return 0
+    task_assignee_norm "$v" --store || true
+    return 0
+}
+
 # The one JSON reader for the config files, as awk functions. Both files are flat
 # objects of scalars: .task-config.json itself, and each project's entry in a global
 # registry. Any layout is read: one line or many, CRLF, tabs, a value holding , or :

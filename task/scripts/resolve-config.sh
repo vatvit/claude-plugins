@@ -8,6 +8,8 @@
 #   configFile=/absolute/path/to/config
 #   configScope=local|global
 #   projectDir=/absolute/path   (in a linked git worktree: the main tree)
+#   assignees=off|unassigned|self  only when the config has the key
+#   me=<id>                     only when assignees is not off: the user's id, empty if unknown
 #
 # Search order:
 #   1. <project-dir>/.task-config.json  (project-local, preferred)
@@ -26,6 +28,21 @@ PROJECT_DIR="$(task_project_dir "${1:-$(pwd)}")"
 LOCAL_CONFIG="$PROJECT_DIR/.task-config.json"
 # Where a new registry belongs: the active account's root.
 PRIMARY_CONFIG="$(task_global_roots | head -n 1)/config.json"
+
+# with_assignees <key=value lines> -> the same lines, with `assignees=` normalised to
+# off | unassigned | self (task_assignees_mode warns on anything else) and, when it is
+# on, `me=` added: the user's id for this project, empty when unknown (PLUG-138).
+# Without the key the lines pass through untouched, so a solo project sees no change.
+with_assignees() {
+    local raw mode
+    if ! printf '%s\n' "$1" | grep -q '^assignees='; then printf '%s\n' "$1"; return 0; fi
+    raw=$(printf '%s\n' "$1" | sed -n 's/^assignees=//p' | head -n 1)
+    mode=$(task_assignees_mode "$raw")
+    printf '%s\n' "$1" | grep -v '^assignees=' || true
+    printf 'assignees=%s\n' "$mode"
+    [ "$mode" = "off" ] || printf 'me=%s\n' "$(task_me "$PROJECT_DIR")"
+    return 0
+}
 
 # --- Try project-local config first ---
 if [ -f "$LOCAL_CONFIG" ] && [ -s "$LOCAL_CONFIG" ]; then
@@ -60,7 +77,7 @@ if [ -f "$LOCAL_CONFIG" ] && [ -s "$LOCAL_CONFIG" ]; then
         [ -z "$n" ] || out="$out
 nextId=$n"
     fi
-    printf '%s\n' "$out"
+    with_assignees "$out"
     printf 'configFile=%s\n' "$LOCAL_CONFIG"
     printf 'configScope=local\n'
     printf 'projectDir=%s\n' "$PROJECT_DIR"
@@ -105,10 +122,13 @@ if [ -z "$GLOBAL_CONFIG" ]; then
 fi
 
 # Expand ~ in values and output
-echo "$result" | while IFS='=' read -r key val; do
-    [ -z "${HOME:-}" ] || val="${val/#\~/$HOME}"
-    printf '%s=%s\n' "$key" "$val"
-done
+global_values() {
+    echo "$result" | while IFS='=' read -r key val; do
+        [ -z "${HOME:-}" ] || val="${val/#\~/$HOME}"
+        printf '%s=%s\n' "$key" "$val"
+    done
+}
+with_assignees "$(global_values)"
 printf 'configFile=%s\n' "$GLOBAL_CONFIG"
 printf 'configScope=global\n'
 printf 'projectDir=%s\n' "$PROJECT_DIR"

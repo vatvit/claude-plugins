@@ -24,6 +24,13 @@ Filter syntax (`=`, `~`, `,` for OR, `_` for unset, several fields ANDed) is the
 (`tags=…`, quoting a tag with spaces or commas, AND by repeating `tags=`) is in
 `references/tags.md`.
 
+**Assignees on** (`assignees=` from `resolve-config.sh` is not `off`): add
+`--assignees=<mode> --me=<me>` to every call. The table gains an Assignee column. The open-task list
+shows the user's and unassigned tasks, then `+ N assigned to others — /task list assignee=all`, while epic
+views show everyone. `assignee=me`, `assignee=_` (unassigned) and `assignee=all` are the shorthands.
+Exit 3 (`needs your id`) → ask for it as `commands/assign.md` *The user's id* says, then retry. With the
+mode off or absent, pass neither flag: the list is exactly as it was.
+
 The Created column (the date, right after ID) appears only when a listed task has a
 `created:` field; `sort=created` puts the oldest first and undated tasks last, and `digest` prints the date.
 

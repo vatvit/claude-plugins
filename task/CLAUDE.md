@@ -29,7 +29,8 @@ task/
     ├── id-source.sh          switch a project to the git id source and back / sync pending ids / show it
     ├── id-git.sh             sourced: the git id source (probe, fetch, reserve by push, clone cache)
     ├── renumber.sh           move a task to a fresh id; rewrites only the tasks named, reports the rest
-    ├── lib.sh                global roots, worktree → main tree, task_canonical_id (number → PREFIX-NNN), task_fm_set (the one frontmatter writer), task_highest_id, _TASK_JSON_AWK (the one JSON reader, as awk functions), task_config_read, task_config_set_num (nextId in place), task_config_edit (keys set/removed), task_id_replace / task_id_lines (the one id matcher, boundary-aware)
+    ├── assign.sh             a task's assignee / the user's own id (override) / the project's assignees mode
+    ├── lib.sh                global roots, worktree → main tree, task_canonical_id (number → PREFIX-NNN), task_fm_set (the one frontmatter writer), task_highest_id, _TASK_JSON_AWK (the one JSON reader, as awk functions), task_config_read, task_config_set_num (nextId in place), task_config_edit (keys set/removed), task_id_replace / task_id_lines (the one id matcher, boundary-aware), task_assignees_mode / task_assignee_norm / task_me_file / task_me (the assignee mode, id normaliser, override path, user id)
     └── test/*.test.sh        each sources test/lib.sh: TMP, counters, check/contains/lacks, report;
                               run.sh runs all; Dockerfile = bash:5 + git, the container target
 ```
@@ -83,6 +84,10 @@ at all, whether to skip a step, append-or-switch when two tasks compete for a se
   asking (`references/tags.md`). `tags` is decoded in `read-tasks.sh` only, into `["a", "b"]`.
 - **`.task-config.json` is a shared data contract.** `task-roadmap` reads `tasksDir` from
   it. Moving or renaming it breaks that plugin — the file stays where it is.
+- **Assignees off means today's output, byte for byte.** With `assignees` absent or `off`, a
+  hand-written `assignee:` changes nothing: no column, no narrowing, no `me=` line. Everything in
+  `list-render.awk` is gated on `aon()`, and `assignee.test.sh` T1 compares the whole output with and
+  without the field. The user's id is never committed and never in HOME (PLUG-138).
 - **Works without HOME.** With HOME unset, missing or read-only, a project's own `.task-config.json`
   and `_workflow/` are enough. `task_global_roots` skips the `~/.claude` root when HOME is empty, and
   the "no config" error offers a global registry only where one could be created (root `CLAUDE.md`,
@@ -108,6 +113,7 @@ bash scripts/test/switch-back.test.sh      # 18 cases — back from git to local
 bash scripts/test/renumber.test.sh         # 22 cases — renumber.sh: move, created kept, artifacts, --update only, refs, id boundaries, epic index
 bash scripts/test/net-timeout.test.sh      # 11 cases — git calls within TASK_ID_NET_TIMEOUT: hung remote falls back, hung push fails clean, long lock wait, lock heartbeat
 bash scripts/test/lock.test.sh             #  3 cases — a stale id lock is broken (busybox stat)
+bash scripts/test/assignee.test.sh         # 93 cases — assignees mode, me= (override, TASK_ME), column, mine + unassigned view, shorthands, assign.sh, no HOME
 bash scripts/test/run.sh                   # every suite
 ```
 

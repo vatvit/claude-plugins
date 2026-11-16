@@ -58,10 +58,13 @@ Listing is scripted, with filters, grouping, sorting and epic views that collaps
 Every new task records when it was created; the list shows it and `sort=created` orders by it.
 Optional tags label tasks across epics, and the list filters and groups by them; Claude can
 review the backlog to apply a tag, from a short digest instead of every file.
+Teams can opt in to assignees: the list then shows your tasks and the unassigned ones first, and
+`/task do` takes an unassigned task for you.
 
 ```
 /task create <title>   /task list [filters]   /task show <id>
 /task do <id>          /task finish [id]      /task status <id> [status]   /task workflow
+/task assign <id> [who]
 ```
 
 Tasks can live in the repo or anywhere you point `.task-config.json` at. [More →](task/README.md)

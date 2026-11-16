@@ -18,6 +18,12 @@ If it prints a `WARNING`/`ERROR` about `idSource` or a push, the project allocat
 
 Then ask: "Add more details?"
 
+## Assignee
+
+With `assignees=self` from `resolve-config.sh`, put `assignee: <me>` in the body's frontmatter. If `me=`
+is empty, ask first (`commands/assign.md`, *The user's id*). With `unassigned` or `off`, write no
+`assignee` line.
+
 ## Tags
 
 Before writing the body, run `tags.sh <tasksDir> <prefix> list`. Put the tags in use that

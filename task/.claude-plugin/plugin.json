@@ -7,5 +7,5 @@
     "url": "https://github.com/vatvit"
   },
   "license": "MIT",
-  "keywords": ["tasks", "workflow", "epics", "planning", "tickets", "project-management", "git-worktree", "tags", "created-date", "git", "id-allocation"]
+  "keywords": ["tasks", "workflow", "epics", "planning", "tickets", "project-management", "git-worktree", "tags", "created-date", "git", "id-allocation", "assignee", "team"]
 }

@@ -40,6 +40,14 @@ id. Optional `idSource` (`local` default, or `git`), `idRemote` and `idBranch` c
 come from; with `git` the file has no `nextId` and `resolve-config.sh` reports the clone's cached
 one (`id-sources.md`).
 
+Optional `assignees` (`off` default, `unassigned`, `self`) turns on who-a-task-is-for for a team
+(`commands/assign.md`). It is committed, because it is the team's choice. Any other value counts as
+`off`, with a warning. With it on, `resolve-config.sh` also prints `me=`, the user's id: the
+per-project override at `<git-common-dir>/task/me` (or `<project>/.task/me` without git) if set,
+otherwise `$TASK_ME`. The override is personal: it is never committed and never kept in HOME.
+`assign.sh <project-dir> mode …` and `assign.sh <project-dir> me <id>` write the two, the first for a
+project-local config only.
+
 This file is a shared data contract: other tools read `tasksDir` out of it. It stays where
 it is and keeps its name.
 
@@ -62,8 +70,8 @@ it is and keeps its name.
 }
 ```
 
-First run in an unconfigured project: ask for `tasksDir` and `prefix`, then write
-`.task-config.json` in the project root.
+First run in an unconfigured project: ask for `tasksDir`, `prefix`, and "just you, or a team?" for
+`assignees` (default: just you, which means no key at all), then write `.task-config.json` in the project root.
 
 ## Layout
 

@@ -50,6 +50,15 @@ function listof(id, f, arr,   s) {
 }
 # The date part of `created: YYYY-MM-DD HH:MM`; sort=created uses the whole value.
 function created_col(id) { return substr(V[id, "created"], 1, 10) }
+# Assignees (PLUG-138): everything below is inert unless list-tasks.sh sent `#C assignees`
+# on. Ids compare lowercased, as whole strings with "" appended (never numerically).
+function aon()          { return C["assignees"] == "unassigned" || C["assignees"] == "self" }
+function asg(id)        { return tolower(V[id, "assignee"]) "" }
+function ame()          { return tolower(C["me"]) "" }
+# The default view hides another person's task: on, no assignee= filter, not an epic view.
+function by_other(id)   { return adef && ame() != "" && asg(id) != "" && asg(id) != ame() }
+# With the user's id unknown nothing is hidden; unassigned tasks come first instead.
+function upre(id)       { return (adef && ame() == "") ? (asg(id) == "" ? "0" : "1") : "" }
 function tags_col(id,   n, t, i, s) {
     n = listof(id, "tags", t); s = ""
     for (i = 1; i <= n; i++) s = s (i > 1 ? ", " : "") t[i]
@@ -79,6 +88,12 @@ function passes(id, skip,   i, f, op, n, a, j, val, ok, nt, t, k) {
         if (is_list(f)) nt = listof(id, f, t)
         for (j = 1; j <= n; j++) {
             if (a[j] == "_")   { if (val == "") ok = 1 }
+            else if (f == "assignee" && aon()) {
+                if (a[j] == "all") ok = 1
+                else if (a[j] == "me") { if (val != "" && asg(id) == ame()) ok = 1 }
+                else if (op == "=") { if (val != "" && asg(id) == (tolower(a[j]) "")) ok = 1 }
+                else if (matches(val, op, a[j])) ok = 1
+            }
             else if (is_list(f)) { for (k = 1; k <= nt; k++) if (matches(t[k], op, tolower(a[j]))) ok = 1 }
             else if (matches(val, op, a[j])) ok = 1
         }
@@ -91,9 +106,9 @@ function sortkey(id,   v) {
     if (C["sort"] != "") {
         v = V[id, C["sort"]]
         if (v == "") v = "~~~"
-        return v "|" id
+        return upre(id) v "|" id
     }
-    return prank(V[id, "priority"]) "|" id
+    return upre(id) prank(V[id, "priority"]) "|" id
 }
 # Insertion sort — POSIX awk has no asort, and busybox awk has no sorting at all.
 function ssort(arr, keys, n,   i, j, t, tk) {
@@ -116,7 +131,7 @@ function group_hint(v, field) {
 
 BEGIN { FS = "\t" }
 $1 == "#C" { C[$2] = $3; next }
-$1 == "#F" { nf++; FF[nf] = $2; FO[nf] = $3; FV[nf] = $4; next }
+$1 == "#F" { nf++; FF[nf] = $2; FO[nf] = $3; FV[nf] = $4; if ($2 == "assignee") hasaf = 1; next }
 $1 == "#E" { EIDX[$2] = $3; next }
 $1 == "#V" { nv++; VN[nv] = $2; VI[nv] = $3; next }
 {
@@ -127,11 +142,13 @@ $1 == "#V" { nv++; VN[nv] = $2; VI[nv] = $3; next }
 END {
     expand = (C["all"] == "1" || C["statusfilter"] == "1")
     if (C["active"] != "") { n = split(C["active"], aa, ","); for (i = 1; i <= n; i++) ACT[aa[i]] = 1 }
+    adef = (aon() && !hasaf && nv == 0)
 
     if (C["mode"] == "summary")      render_summary()
     else if (C["mode"] == "digest")  render_digest()
     else if (nv > 0)                 render_epics()
     else                             render_classic()
+    if (nothers > 0) { out_text(""); out_text("+ " nothers " assigned to others — /task list assignee=all") }
 
     print_out()
 }
@@ -202,6 +219,7 @@ function render_classic(   i, id, n, gf, gn, gname, j, hidden, cnt) {
         id = ids[i]
         if (!passes(id)) continue
         if (is_closed(id) && !expand) continue
+        if (by_other(id)) { nothers++; continue }
         n++; SEL[n] = id
     }
     if (n == 0) { out_text("No matching tasks."); return }
@@ -211,7 +229,7 @@ function render_classic(   i, id, n, gf, gn, gname, j, hidden, cnt) {
 
     if (gf == "") {
         # Flat: by id, which is the classic shape, unless sort= asks otherwise.
-        for (i = 1; i <= n; i++) SELK[i] = (C["sort"] == "" ? SEL[i] : sortkey(SEL[i]))
+        for (i = 1; i <= n; i++) SELK[i] = (C["sort"] == "" ? upre(SEL[i]) SEL[i] : sortkey(SEL[i]))
         ssort(SEL, SELK, n)
         showheader = 1
         for (i = 1; i <= n; i++) out_row(SEL[i])
@@ -253,7 +271,8 @@ function render_digest(   i, id, n, line, e, t) {
         if (nv > 0) { if (!in_views(id) || !passes(id, "epic")) continue }
         else if (!passes(id)) continue
         if (is_closed(id) && !expand) continue
-        n++; SEL[n] = id; SELK[n] = id
+        if (by_other(id)) { nothers++; continue }
+        n++; SEL[n] = id; SELK[n] = upre(id) id
     }
     if (n == 0) { out_text("No matching tasks."); return }
     ssort(SEL, SELK, n)
@@ -267,6 +286,7 @@ function render_digest(   i, id, n, line, e, t) {
         if (e != "")                 line = line "  epic: " e
         if ((t = created_col(id)) != "") line = line "  created: " t
         if ((t = tags_col(id)) != "") line = line "  tags: " t
+        if (aon() && V[id, "assignee"] != "") line = line "  assignee: " V[id, "assignee"]
         out_text(line)
         out_text("  " V[id, "title"])
         if (V[id, "excerpt"] != "")  out_text("  " V[id, "excerpt"])
@@ -280,6 +300,7 @@ function render_summary(   i, id, n, gf, gn, j, gname, cnt, line, shown) {
         id = ids[i]
         if (!passes(id)) continue
         if (is_closed(id) && !expand) continue
+        if (by_other(id)) { nothers++; continue }
         n++; SEL[n] = id
     }
     gf = C["group"]; if (gf == "") gf = "status"
@@ -327,8 +348,9 @@ function collect_groups(SEL, n, gf,   i, id, gname, gn, j, k, nt, t) {
 }
 
 # --- printing -------------------------------------------------------------
-function print_out(   i, id, wid, wst, wpr, wep, wtg, anyp, anye, anyt, anyc, wcr, line, ind, mk, wmk) {
+function print_out(   i, id, wid, wst, wpr, wep, wtg, anyp, anye, anyt, anyc, wcr, anya, was, line, ind, mk, wmk) {
     wid = 2; wst = 6; wpr = 8; wep = 4; wtg = 4; wcr = 7; anyp = 0; anye = 0; anyt = 0; anyc = 0; wmk = 0
+    anya = 0; was = 8
     for (i = 1; i <= no; i++) {
         if (OT[i] != "row") continue
         id = OA[i]
@@ -337,6 +359,7 @@ function print_out(   i, id, wid, wst, wpr, wep, wtg, anyp, anye, anyt, anyc, wc
         if (V[id, "priority"] != "") { anyp = 1; wpr = max(wpr, length(V[id, "priority"])) }
         if (epic_col(id) != "")      { anye = 1; wep = max(wep, length(epic_col(id))) }
         if (created_col(id) != "")   { anyc = 1; wcr = max(wcr, length(created_col(id))) }
+        if (aon() && V[id, "assignee"] != "") { anya = 1; was = max(was, length(V[id, "assignee"])) }
         if (tags_col(id) != "")      { anyt = 1; wtg = max(wtg, length(tags_col(id))) }
     }
     if (C["active"] != "") wmk = 2
@@ -347,6 +370,7 @@ function print_out(   i, id, wid, wst, wpr, wep, wtg, anyp, anye, anyt, anyc, wc
         if (wmk) line = line pad("", wmk)
         line = line pad("ID", wid + 2)
         if (anyc) line = line pad("Created", wcr + 2)
+        if (anya) line = line pad("Assignee", was + 2)
         if (!hidestatus) line = line pad("Status", wst + 2)
         if (anyp) line = line pad("Priority", wpr + 2)
         if (anye) line = line pad("Epic", wep + 2)
@@ -362,6 +386,7 @@ function print_out(   i, id, wid, wst, wpr, wep, wtg, anyp, anye, anyt, anyc, wc
         if (wmk) line = line mk
         line = line pad(id, wid + 2)
         if (anyc) line = line pad(created_col(id), wcr + 2)
+        if (anya) line = line pad(V[id, "assignee"], was + 2)
         if (!hidestatus) line = line pad(status_of(id), wst + 2)
         if (anyp) line = line pad(V[id, "priority"], wpr + 2)
         if (anye) line = line pad(epic_col(id), wep + 2)

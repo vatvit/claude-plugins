@@ -5,8 +5,8 @@ Load a task and work on it. This is the main entry point for execution.
 ## Start
 
 Invoking `/task do` *is* the go-ahead. Do not ask whether to start the task or whether to
-set it `in-progress` — just do it. The only question this section may ask is the
-`active_status=conflict` one in step 5.
+set it `in-progress` — just do it. The only questions this section may ask are the
+`active_status=conflict` one in step 5 and, with assignees on, taking over someone else's task in step 6.
 
 1. `resolve-task.sh <tasksDir> <prefix> <id>` — id, file, frontmatter, the current workflow
    step and its `step_file=` if one exists. `<id>` may also be an epic-name; an unknown one
@@ -27,10 +27,15 @@ set it `in-progress` — just do it. The only question this section may ask is t
      offer to put it back.
    A sub-task whose parent epic is the active task is not a conflict; the script appends it
    silently and says `epic=`.
-6. `epic=<name>` → `resolve-epic.sh` and read the epic file. Goal, Scope, Out of Scope and
+6. **Assignees on** (`assignees=` from `resolve-config.sh` is not `off`):
+   `assign.sh <projectDir> <id> me --claim`. `claim=claimed` → say "assigned to you". `mine` → say nothing.
+   `other` → it is someone else's: ask whether to take it over (`assign.sh <projectDir> <id> me`) or
+   leave it as it is. Either way, carry on with the work only if the user says so. Exit 3 → ask for the user's
+   id (`commands/assign.md`), then retry.
+7. `epic=<name>` → `resolve-epic.sh` and read the epic file. Goal, Scope, Out of Scope and
    Success Criteria constrain every step that follows, architecture most of all.
-7. Read the project's CLAUDE.md.
-8. Show the summary, then go straight on to **Work the step**:
+8. Read the project's CLAUDE.md.
+9. Show the summary, then go straight on to **Work the step**:
 
 ```
 TASK-012: Login / logout endpoints

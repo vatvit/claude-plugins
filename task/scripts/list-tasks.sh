@@ -23,6 +23,15 @@
 #                     A Created column (date only) shows when any task has one.
 #   --strict-epic     Do not add the implicit `,_` to an `epic=` filter
 #   --active=A,B      Mark these ids with a `*`
+#   --assignees=MODE  The project's assignee mode (off | unassigned | self, from
+#                     resolve-config.sh). Off, or absent: today's list exactly.
+#                     On: an Assignee column; the open-task list shows my and
+#                     unassigned tasks, then `+ N assigned to others`; epic views
+#                     are never narrowed. assignee=me (needs --me; exit 3 without),
+#                     assignee=_ (unassigned), assignee=all (everyone); ids match
+#                     case-insensitively.
+#   --me=ID           The user's id (resolve-config.sh's me=); empty = unknown,
+#                     then nothing is hidden and unassigned tasks come first.
 #   --help            This text
 #
 # Prints the finished table on stdout. Everything the /task list prose used to
@@ -30,8 +39,9 @@
 # the >5 collapse, the closed-sub-task collapse in epic views, the Epic column
 # and its id lookup, and dropping columns no task populates.
 #
-# Exit 1 only when an epic reference cannot be resolved; an empty result is a
-# successful empty listing.
+# Exit 1 when an epic reference cannot be resolved or an argument is bad; exit 3
+# when assignee=me is asked with no --me (the skill asks the user, then retries).
+# An empty result is a successful empty listing.
 #
 # No dependencies — pure bash + awk.
 set -euo pipefail
@@ -46,6 +56,8 @@ PREFIX="${2:?Usage: list-tasks.sh <tasksDir> <prefix> [args...]}"
 shift 2
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib.sh
+. "$SCRIPT_DIR/lib.sh"
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 IN="$WORK/input.tsv"
@@ -61,6 +73,9 @@ ACTIVE=""
 HAS_STATUS_FILTER=0
 EPIC_REFS=""
 EPIC_FILTER_NAMES=""
+ASSIGNEES=""
+ME=""
+WANTS_ME=0
 
 # --- Parse arguments ------------------------------------------------------
 for arg in "$@"; do
@@ -68,6 +83,8 @@ for arg in "$@"; do
         --help)         exec "$0" --help ;;
         --strict-epic)  STRICT_EPIC=1 ;;
         --active=*)     ACTIVE="${arg#--active=}" ;;
+        --assignees=*)  ASSIGNEES="${arg#--assignees=}" ;;
+        --me=*)         ME="${arg#--me=}" ;;
         all)            WANT_ALL=1 ;;
         summary)        MODE="summary" ;;
         digest)         MODE="digest" ;;
@@ -83,6 +100,7 @@ for arg in "$@"; do
             field="${arg%%=*}"; vals="${arg#*=}"
             case "$field" in
                 status) HAS_STATUS_FILTER=1 ;;
+                assignee) case ",$vals," in *,me,*) WANTS_ME=1 ;; esac ;;
                 epic)
                     EPIC_FILTER_NAMES="$vals"
                     # Smart default: an epic filter also shows the tasks without an epic,
@@ -100,6 +118,20 @@ for arg in "$@"; do
             fi ;;
     esac
 done
+
+# --- Assignees: off unless the caller passes the project's mode ------------
+ASSIGNEES="$(task_assignees_mode "$ASSIGNEES")"
+if [ "$ASSIGNEES" != "off" ]; then
+    if [ -n "$ME" ]; then
+        ME="$(task_assignee_norm "$ME" --store)" || { echo "ERROR: --me is not a usable id" >&2; exit 1; }
+    fi
+    if [ "$WANTS_ME" -eq 1 ] && [ -z "$ME" ]; then
+        echo "ERROR: assignee=me needs your id (assign.sh <project-dir> me <id>, or TASK_ME)" >&2
+        exit 3
+    fi
+    printf '#C\tassignees\t%s\n' "$ASSIGNEES" >> "$IN"
+    printf '#C\tme\t%s\n' "$ME" >> "$IN"
+fi
 
 # --- Epic index: epic-name -> task id -------------------------------------
 INDEX_FILE="$TASKS_DIR/_epic-index.json"

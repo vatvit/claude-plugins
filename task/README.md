@@ -22,6 +22,7 @@ Runtime-free: pure bash + awk, no dependencies, no network.
 /task finish [id]           Run every remaining workflow step to completion
                             (an epic, by id or name: every open sub-task, then the epic)
 /task status <id> [status]  Show or change status (cascades to the parent epic)
+/task assign <id> [who]     Say who a task is for (opt-in, for teams)
 /task workflow              Show the project's workflow steps
 ```
 
@@ -56,6 +57,13 @@ IDs accept either form: `4`, `004` or `TASK-004`.
   took the number meanwhile, and `id-source.sh <project-dir> local` switches back. Details and troubleshooting: `skills/task/references/id-sources.md`.
   When two tasks did end up with one id, `scripts/renumber.sh` moves one to a fresh id
   (`skills/task/references/renumber.md`).
+
+- **Assignees, for teams, off by default.** With `"assignees": "unassigned"` or `"self"` in the
+  config, a task can say who it is for (`assignee: ann@example.com`). `/task list` then shows your
+  tasks and the unassigned ones, plus a count of everyone else's (`assignee=all` to see them).
+  `/task do` takes an unassigned task for you, and `/task assign` hands one over. Your id is the
+  Claude account email, or one you give once per project, and it is kept outside git. A solo project
+  never sees any of it.
 
 ## Configuration
 

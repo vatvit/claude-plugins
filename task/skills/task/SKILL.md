@@ -1,8 +1,8 @@
 ---
 name: task
-description: Use for task management when user references task IDs (TASK-001, DOCS-004), creates/lists/shows tasks, updates task status, works on tasks, works on or finishes a whole epic ("work on the epic", "finish the epic"), tags tasks or filters them by tag ("tag this task", "tagged", "list tasks with tag performance", "filter by tag", "review the backlog for a tag", "tag the backlog"), lists tasks by when they were created ("created column", "sort by created", "oldest tasks first"), summarises the backlog ("backlog digest", "what is each task about"), shares task ids across clones and machines through git ("task ids clash between machines", "duplicate task id", "sync task ids through git", "idSource git", "set up the task-ids branch", "switch task ids back to local"), renumbers a task ("renumber a task", "change a task's id", "two tasks with the same id"), checks workflows, or invokes /task. Also invoke automatically when creating tech debt tickets, subtasks, or any task management during work. Manages task files for planning and tracking project work (storage location configurable per project).
+description: Use for task management when user references task IDs (TASK-001, DOCS-004), creates/lists/shows tasks, updates task status, works on tasks, works on or finishes a whole epic ("work on the epic", "finish the epic"), tags tasks or filters them by tag ("tag this task", "tagged", "list tasks with tag performance", "filter by tag", "review the backlog for a tag", "tag the backlog"), lists tasks by when they were created ("created column", "sort by created", "oldest tasks first"), summarises the backlog ("backlog digest", "what is each task about"), shares task ids across clones and machines through git ("task ids clash between machines", "duplicate task id", "sync task ids through git", "idSource git", "set up the task-ids branch", "switch task ids back to local"), renumbers a task ("renumber a task", "change a task's id", "two tasks with the same id"), says who a task is for in a team ("assignee", "assign a task to a person", "who is this task for", "my tasks", "unassigned tasks", "turn on assignees"), checks workflows, or invokes /task. Also invoke automatically when creating tech debt tickets, subtasks, or any task management during work. Manages task files for planning and tracking project work (storage location configurable per project).
 version: 1.5.0
-argument-hint: <create|list|show|do|finish|status|workflow> [args]
+argument-hint: <create|list|show|do|finish|status|assign|workflow> [args]
 disable-model-invocation: false
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
@@ -25,6 +25,7 @@ skill resolves per project. The file *is* the state — there is no database.
 /task finish [id]              Complete a task by running all remaining workflow steps;
                                an epic (id or epic-name) finishes every open sub-task, then itself
 /task status <id> [status]     Show or change task status
+/task assign <id> [who|me|_]   Say who a task is for (projects with assignees on)
 /task workflow                 Show workflow steps
 /task                          Show this help
 ```
@@ -44,7 +45,8 @@ judgement calls that cost real work when got wrong.
   only to the path `allocate-id.sh` printed back.
 - **Never change a task's `status` without the user asking.** `/task status`, `/task do`
   and `/task finish` change status because the user invoked them. Nothing else does, and
-  never silently while working.
+  never silently while working. The same holds for `assignee`: only `/task assign`, and
+  `/task do` claiming an unassigned task, change it.
 - **A task in flight is append-only.** Before implementation starts the task text can be
   reshaped freely; after it, the file is history — add sections, do not rewrite them.
 - **Keep "Current State" current.** It is what the next session (or the next context)
@@ -57,8 +59,10 @@ judgement calls that cost real work when got wrong.
 ```
 
 It prints `tasksDir=`, `prefix=`, `nextId=`, `configFile=`, `configScope=`, `projectDir=`. Exits 1 when the
-project has no config — then ask the user for `tasksDir` and `prefix` and write
-`.task-config.json` in the project root. `nextId` in that output is informational; allocating
+project has no config — then ask the user for `tasksDir`, `prefix` and whether the tasks are
+shared by a team (`assignees`, `references/configuration.md`) and write `.task-config.json` in
+the project root. When the signed-in Claude account's email is in your context, run it with
+`TASK_ME=<that email>`: with assignees on it then prints `assignees=` and `me=`, the user's id. `nextId` in that output is informational; allocating
 from it is the first guardrail above.
 
 **In a git worktree, the task files are the main tree's.** The scripts map a linked worktree
@@ -79,6 +83,7 @@ never from a pasted absolute path.
 | `do` | `commands/do.md` |
 | `finish` | `commands/finish.md` |
 | `status` | `commands/status.md` |
+| `assign` | `commands/assign.md` |
 | `workflow` | `commands/workflow.md` |
 
 Read exactly the one being run. Each is self-contained for its command; where it needs a
