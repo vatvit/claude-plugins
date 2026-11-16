@@ -16,8 +16,8 @@ created: 2026-11-16 14:55
 | 20 | Requirements | done | the epic's Decisions are the requirements; per-slice ones in each sub-task |
 | 60 | Architecture | done | ## Architecture: the seam between the two plugins (A1–A7) |
 | 80 | Subtasks | done | PLUG-144 … PLUG-149 |
-| 90 | Implementation | — | |
-| 110 | Reflection | — | |
+| 90 | Implementation | done | ## Implementation: PLUG-144 … PLUG-149, one commit each |
+| 110 | Reflection | done | per sub-task; remote-docs CLAUDE.md, how-to, README, SKILL and root vocabulary current |
 
 ## Goal
 
@@ -160,10 +160,28 @@ no git at all, with Drive as its only docs store.
 - A decision made in a collaboration file or artifact ends up in a `truth: yes` doc, and `check` says
   when a working file changed since the last extraction.
 
+## Implementation (2026-11-16)
+
+| Task | Commit | What |
+|---|---|---|
+| PLUG-144 | e4f7c7b | remote-docs split out of docs-manager, behaviour unchanged |
+| PLUG-145 | 7d26f15 | folder purpose and scope in `.source.md`, resolved per key; `purpose`, `purposes`; pointer mode |
+| PLUG-146 | 3818007 | `questions`: what to ask once per attachment; publish only in git |
+| PLUG-147 | 940235e | `guard` before every write, `repoint` after converting an Office file; how-to *Writing* |
+| PLUG-148 | bea20e3 | cards kept on Drive: `pack` / `unpack`, written back under the Docs revision guard |
+| PLUG-149 | (this commit) | `EXTRACT?` in `check`, `extracted`; how-to *Extracting decisions* |
+
+Against the Success Criteria: suites pass alone (remote-docs copied out alone) and together (docs-manager
+unchanged and green); `purposes` gives a fresh session the map; Doc writes guarded, Sheet writes
+`guard`ed and appended; `EXTRACT?` says when a working file changed since its last review. Versions
+not bumped yet (user): remote-docs is new, docs-manager lost the remote code in PLUG-144.
+
+Open: Slides untested with the connector (PLUG-147); the guarded flows (Docs `requiredRevisionId`, cards
+on Drive) are documented from the tested connector facts but not yet run end to end on a real shared
+folder.
+
 ## Current State
 
-Planning rows done (Context, Requirements, Architecture A1–A7, Subtasks). docs-manager PLUG-140/141 committed
-as fd367c5, version left at 1.12.1 (user). **PLUG-144 (the split) completed**, pushed as
-e4f7c7b. **PLUG-145 (purpose and scope), PLUG-146 (attachment questions), PLUG-147 (writing) and PLUG-148 (cards on Drive) completed.** Running the rest one by one (user, 2026-11-16: commit and
-push each, no version bumps): PLUG-146, PLUG-147, PLUG-148, PLUG-149. Design for all of them: the approved
-plan, recorded in each task's Requirements/Architecture as it starts.
+**All six sub-tasks completed and pushed** (2026-11-16). Epic left in-progress for the user to agree it is
+done. Next: the version bumps (remote-docs first release, docs-manager major/minor for the removal) when
+the user says, and a live run of the guarded flows on a test Drive folder.

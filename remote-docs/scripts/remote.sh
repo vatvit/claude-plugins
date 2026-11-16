@@ -17,6 +17,7 @@
 #   repoint <card> <id> <url> <type> <time>   the card follows a converted file (PLUG-147)
 #   pack <dir>                  an attachment's .source.md files and cards as one text, for Drive (PLUG-148)
 #   unpack <text> <dir>         that text back into files, in an empty folder
+#   extracted <card>            record that the card's material was reviewed for decisions (PLUG-149)
 #
 # A remote card is `<name>.<provider>.md` (PLUG-112): Google Drive (`gdrive`) or a Claude Artifact
 # (`artifact`, PLUG-141). The name alone classifies it. Default root is "docs". Moved out of
@@ -134,7 +135,9 @@ remote_place() {
 #        | keyed (an access key in a card outside a publish: local folder; PLUG-141)
 #        | copy | copy-stale | copy-unstamped | copy-unasked | copy-orphan (a card's local text
 #          copy, `file` is the copy: in step with the card, behind it, never stamped, not agreed
-#          in `.source.md`, without a card; PLUG-115).
+#          in `.source.md`, without a card; PLUG-115)
+#        | extract (a card whose material may hold decisions and changed since it was last reviewed
+#          for them; an extra row, after the card's own; PLUG-149).
 # An empty field is "-": tab is whitespace to `read`, so a truly empty field would collapse
 # and shift the ones after it.
 remote_status() {
@@ -151,7 +154,11 @@ remote_status() {
     elif [ -n "$(fm_field "$card" remote-id)" ] && [ -n "$(fm_field "$card" remote-modified)" ]; then
       printf 'remote\t%s\t-\t%s\n' "$(remote_place "$root" "$card")" "$card"
     else
-      printf 'incomplete\t%s\t-\t%s\n' "$(remote_place "$root" "$card")" "$card"
+      printf 'incomplete\t%s\t-\t%s\n' "$(remote_place "$root" "$card")" "$card"; continue
+    fi
+    if wants_extraction "$card" "$root" \
+       && [ "$(fm_field "$card" extracted-at)" != "$(fm_field "$card" remote-modified)" ]; then
+      printf 'extract\t%s\t-\t%s\n' "$(remote_place "$root" "$card")" "$card"
     fi
   done <<EOF
 $(list_remote_cards "$root")
@@ -178,6 +185,17 @@ EOF
   return 0
 }
 
+# wants_extraction <card> <root> -> 0 if the card's material is never where a decision lives, so a
+# decision made in it must be extracted into a `truth: yes` doc (PLUG-149): every artifact (PLUG-141),
+# and any card whose folder declares `truth: no` (directly or through its purpose) and is not
+# `reference` material. An undeclared folder is not asked: its fallback `truth: no` is a safe default,
+# not a statement that work happens there.
+wants_extraction() {
+  [ "$(remote_provider "$1")" = artifact ] && return 0
+  [ "$(src_val "$1" truth "$2")" = no ] || return 1
+  [ "$(src_val "$1" purpose "$2")" != reference ]
+}
+
 cmd_status() {
   local root="${1:-$ROOT_DEFAULT}"
   [ -d "$root" ] || { echo "No such root: $root" >&2; return 1; }
@@ -196,6 +214,7 @@ cmd_check() {
       copy-unstamped) echo "LOCAL COPY UNSTAMPED: $f (run: remote.sh copy-stamp $card <time>)"; rc=1 ;;
       copy-unasked)   echo "LOCAL COPY NOT AGREED: $f (its .source.md does not say processed: local: ask the user, or delete it)"; rc=1 ;;
       copy-orphan)    echo "LOCAL COPY ORPHAN: $f (no card beside it)"; rc=1 ;;
+      extract)   echo "EXTRACT?: $card (changed since it was last reviewed for decisions: propose each into the doc it belongs to, then: remote.sh extracted $card)"; rc=1 ;;
     esac
   done <<EOF
 $(remote_status "$root")
@@ -704,6 +723,22 @@ cmd_unpack() {
   echo "UNPACKED: $dir"
 }
 
+# extracted <card> — record that the card's material, as of its `remote-modified`, was reviewed for
+# decisions and each one proposed into its doc (PLUG-149). The only writer of `extracted-at:`; `stamp`
+# never touches it, so a newer version of the file makes `check` ask again.
+cmd_extracted() {
+  local card="${1:-}" t
+  [ -n "$card" ] || { echo "Usage: remote.sh extracted <remote-card>" >&2; return 2; }
+  is_remote_card "$card" || { echo "Not a remote card: $card" >&2; return 1; }
+  [ -f "$card" ] || { echo "No such card: $card" >&2; return 1; }
+  t="$(fm_field "$card" remote-modified)"
+  [ -n "$t" ] && [ -n "$(fm_field "$card" remote-id)" ] \
+    || { echo "Incomplete card: $card (needs remote-id and remote-modified first)" >&2; return 1; }
+  if [ "$(fm_field "$card" extracted-at)" = "$t" ]; then echo "UNCHANGED: $card"; return 0; fi
+  fm_set "$card" extracted-at "$t"
+  echo "STAMPED: $card"
+}
+
 cmd_purpose() {
   local path="${1:-}" root="${2:-$ROOT_DEFAULT}"
   [ -n "$path" ] || { echo "Usage: remote.sh purpose <dir|file> [root]" >&2; return 2; }
@@ -762,5 +797,6 @@ case "$sub" in
   repoint)    cmd_repoint "$@" ;;
   pack)       cmd_pack "$@" ;;
   unpack)     cmd_unpack "$@" ;;
-  *) echo "Usage: remote.sh {status|check|list|purposes} [root] | stamp <card> <time> | gone <card> | copy-stamp <card> <time> | diff <dir> <listing.tsv> | purpose <path> [root] | questions <dir> [root] | guard <card> <time> | repoint <card> <id> <url> <type> <time> | pack <dir> | unpack <packed.md> <dir>" >&2; exit 2 ;;
+  extracted)  cmd_extracted "$@" ;;
+  *) echo "Usage: remote.sh {status|check|list|purposes} [root] | stamp <card> <time> | gone <card> | copy-stamp <card> <time> | diff <dir> <listing.tsv> | purpose <path> [root] | questions <dir> [root] | guard <card> <time> | repoint <card> <id> <url> <type> <time> | pack <dir> | unpack <packed.md> <dir> | extracted <card>" >&2; exit 2 ;;
 esac

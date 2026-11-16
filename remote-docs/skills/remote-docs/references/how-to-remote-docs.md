@@ -44,6 +44,7 @@ bash <PLUGIN_ROOT>/scripts/remote.sh guard <card> <time>         # right before 
 bash <PLUGIN_ROOT>/scripts/remote.sh repoint <card> <id> <url> <type> <time>   # the card follows a converted file
 bash <PLUGIN_ROOT>/scripts/remote.sh pack <dir>                  # an attachment's card set as one text, for Drive
 bash <PLUGIN_ROOT>/scripts/remote.sh unpack <text> <empty-dir>   # that text back into files
+bash <PLUGIN_ROOT>/scripts/remote.sh extracted <card>            # its material was reviewed for decisions
 ```
 
 `status` emits `state<TAB>place<TAB>file<TAB>card`, `-` for an empty field. `state` is `remote |
@@ -85,7 +86,7 @@ scopes: [user, project, client, team, company]   # optional: the order, narrowes
 - `writes: free` — write as the task needs, and say what you changed.
 - `truth: yes` — decisions live here; when a decision changes, it changes here.
 - `truth: no` — never treat what is here as decided. A decision made here is extracted into a
-  `truth: yes` doc.
+  `truth: yes` doc (*Extracting decisions*).
 - `cards: pointer` — the folder has **one card**, for the folder itself (its `remote-id` is the folder's),
   saying what the folder is for and how it is organised. `diff` then reports the folder as `changed`
   when any file in it changed, never single files as `new` or `gone`. Use per-file cards
@@ -305,9 +306,8 @@ catalogue or refresh the project's artifacts. It is *Attaching — the procedure
 
 **An artifact is never where a decision lives.** It is an intermediate document, a collaboration item or
 an output, not documentation. When cataloguing or refreshing one, look for decisions or facts the
-project relies on and propose writing each into the doc it belongs to under the docs root; apply each
-only once the user approves it. The card then cites the artifact as illustration or evidence, never
-stands in for the doc.
+project relies on and extract them (*Extracting decisions*). The card then cites the artifact as
+illustration or evidence, never stands in for the doc.
 
 **The access key.** A share link may carry `sk=…`, which lets anyone holding the link open the
 artifact. **Strip it**: `remote-url` and every link in the card are written without it. In a
@@ -415,3 +415,34 @@ Creating the doc for a new attachment: write the cards in a temp folder, `pack` 
 Doc in the attached Drive folder (or where the user says) with that text; record its id and URL as
 above. With docs-manager installed, these cards are not in `_index.md` (they are not in the repo);
 `remote.sh purposes` still names the attachment.
+
+### Extracting decisions
+
+Working material is never where a decision lives: a decision made in a draft, a meeting note or an
+artifact is only safe once it is in the doc where decisions live. `check` asks for this:
+
+```
+EXTRACT?: docs/external/team/drafts.gdrive.md (changed since it was last reviewed for decisions: …)
+```
+
+It asks for **every artifact card**, and for every card in a folder that **declares** `truth: no` and is
+not `reference` material (a `collaboration` or `output` folder, or a custom purpose saying `truth: no`).
+An undeclared folder is not asked. It asks again whenever the file has changed since the last review,
+because `stamp` moves `remote-modified` and never `extracted-at`.
+
+1. **Read the file** (its current version) and look for decisions, and for facts the project relies on:
+   a choice made, a scope cut, a date agreed, a number fixed.
+2. **For each, find the doc it belongs to**: a `truth: yes` doc under the docs root, or in an attached
+   `agreements` folder. Propose the exact text and where it goes, citing the source. Apply it only once
+   the user approves; writing to an attached doc follows *Writing to a remote file*.
+3. **Record it on the card**, in a section listing what was extracted and where:
+
+   ```markdown
+   ## Extracted
+
+   - Launch moved to March → [roadmap](../../roadmap.md#launch)
+   ```
+
+   A decision the user declined is not listed. docs-manager, where installed, checks these links.
+4. **`remote.sh extracted <card>`**, which records the card's current `remote-modified` as
+   `extracted-at:`. Run it also when nothing was found: the review is what it records.

@@ -34,6 +34,11 @@ the card says the answer is there, and tells you when Drive has a newer version 
   are rejected by Google itself when someone wrote in between; Sheets have no such guard, so Claude appends
   where it can. An Office file is converted to Google format first, on your say-so, and the card follows
   the new file (`remote.sh repoint`).
+- **Decisions pulled out of working material.** A decision made in a draft, a collaboration folder or a
+  Claude Artifact is not safe there. `check` reports every such card that changed since it was last
+  reviewed (`EXTRACT?`); Claude proposes each decision into the doc where decisions live, lists it on the
+  card, and records the review (`remote.sh extracted`). **Upgrading:** existing artifact cards, and cards
+  in `collaboration` or `output` folders, fail `check` until reviewed once.
 - **Cards shared with the team, on request.** An attachment's cards can live on Drive in one Google Doc,
   so every teammate's Claude reads the same map (and a project without git can keep its docs there).
   Claude pulls it into a temp folder (`remote.sh unpack`), works there, and writes it back (`remote.sh
@@ -53,6 +58,7 @@ bash scripts/remote.sh diff docs/external/vendor /tmp/listing.tsv
 bash scripts/remote.sh purposes docs                                 # what each attached folder is for
 bash scripts/remote.sh purpose docs/external/team/drafts             # one folder, inheritance resolved
 bash scripts/remote.sh guard docs/external/team/plan.gdrive.md 2026-11-12T08:00:00.000Z   # before a write
+bash scripts/remote.sh extracted docs/external/team/drafts.gdrive.md   # reviewed for decisions
 ```
 
 Pure bash and awk, bash 3.2 and BSD or GNU userland, no network calls. Tests: see [`CLAUDE.md`](CLAUDE.md#testing).

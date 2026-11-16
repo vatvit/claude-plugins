@@ -294,6 +294,7 @@ aattach() {
 R=$(fresh ar1); A=$(aattach "$R")
 st=$(bash "$RD" status "$R" 2>&1)
 check "AR1b status: remote row" "yes" "$(has "$st" "$(printf 'remote\tfiled\t-\t%s/dashboard.artifact.md' "$A")")"
+for c in dashboard prototype; do bash "$RD" extracted "$A/$c.artifact.md" >/dev/null; done   # reviewed for decisions (PLUG-149)
 bash "$RD" check "$R" >/dev/null 2>&1; check "AR1c check clean" "0" "$?"
 out=$(bash "$RD" list "$R")
 check "AR1d list lists it" "yes" "$(has "$out" "$(printf '%s/prototype.artifact.md\tcommit\t%s\tPrototype' "$A" "$TA1")")"
@@ -334,7 +335,7 @@ acard "$A/keyed.artifact.md" "Keyed" k9 "$TA1" "?sk=s3cr3t"
 acard "$A/task.artifact.md" "Task" t1 "$TA1" "?task=1&ask=2"
 out=$(bash "$RD" check "$R" 2>&1); rc=$?
 check "AR5a key in remote-url fails check" "1:yes" "$rc:$(has "$out" "REMOTE KEY: $A/keyed.artifact.md")"
-check "AR5b a parameter merely ending in sk is no key" "no" "$(has "$out" 'task.artifact.md')"
+check "AR5b a parameter merely ending in sk is no key" "no" "$(has "$out" "REMOTE KEY: $A/task.artifact.md")"
 check "AR5c the key itself is not printed" "no" "$(has "$out" 's3cr3t')"
 st=$(bash "$RD" status "$R" 2>&1)
 check "AR5d status: keyed row" "yes" "$(has "$st" "$(printf 'keyed\tfiled\t-\t%s/keyed.artifact.md' "$A")")"
@@ -581,6 +582,47 @@ check "CD3e one bad path: nothing at all is written" "1:0" "$?:$(ls -A "$R/ub" 2
 bash "$RD" unpack "$R/doc.md" "$U" >/dev/null 2>&1; check "CD3f a folder that is not empty is refused" "1" "$?"
 printf '<!-- remote-docs: x.gdrive.md -->\n' >> "$A/a.gdrive.md"
 bash "$RD" pack "$A" >/dev/null 2>&1; check "CD3g pack refuses a card holding a marker line" "1" "$?"
+
+echo "== extracting decisions (PLUG-149) =="
+
+fmv() { ( . "$(dirname "$RD")/lib.sh"; fm_field "$1" "$2" ); }
+
+# --- EX1: a card in a truth: no folder is reviewed for decisions; the stamp says when -------------
+R=$(fresh ex); A="$R/external/out"
+src "$A" "provider: gdrive" "purpose: output"
+rcard "$A/report.gdrive.md" "Report" - R1 "$W1"
+out=$(bash "$RD" check "$R" 2>&1); rc=$?
+check "EX1a never extracted: EXTRACT?, check fails" "1:yes" "$rc:$(has "$out" "EXTRACT?: $A/report.gdrive.md")"
+out=$(bash "$RD" extracted "$A/report.gdrive.md" 2>&1)
+check "EX1b extracted records the card's time" "$W1:yes" "$(fmv "$A/report.gdrive.md" extracted-at):$(has "$out" 'STAMPED')"
+bash "$RD" check "$R" >/dev/null 2>&1; check "EX1c check clean after it" "0" "$?"
+check "EX1d a second run changes nothing" "yes" "$(has "$(bash "$RD" extracted "$A/report.gdrive.md")" 'UNCHANGED')"
+bash "$RD" stamp "$A/report.gdrive.md" "$W2" >/dev/null 2>&1
+out=$(bash "$RD" check "$R" 2>&1); rc=$?
+check "EX1e the file changed: EXTRACT? again; stamp never writes extracted-at" "1:yes:$W1" "$rc:$(has "$out" "EXTRACT?: $A/report.gdrive.md")$(:):$(fmv "$A/report.gdrive.md" extracted-at)"
+
+# --- EX2: where decisions live, reference material, or nothing declared: never asked --------------
+for p in agreements reference; do
+  src "$A" "provider: gdrive" "purpose: $p"
+  bash "$RD" check "$R" >/dev/null 2>&1; check "EX2 $p folder: no EXTRACT?" "0" "$?"
+done
+src "$A" "provider: gdrive"
+out=$(bash "$RD" check "$R" 2>&1)
+check "EX2 undeclared folder: no EXTRACT?" "no" "$(has "$out" 'EXTRACT?')"
+src "$A" "provider: gdrive" "purpose: client review copies" "writes: free" "truth: no"
+out=$(bash "$RD" check "$R" 2>&1)
+check "EX3 a custom purpose with truth: no is reviewed" "yes" "$(has "$out" "EXTRACT?: $A/report.gdrive.md")"
+
+# --- EX4: an artifact is never where a decision lives, whatever its folder says -------------------
+R=$(fresh ex4); A="$R/external/proto"
+src "$A" "provider: artifact" "purpose: reference"
+printf -- '---\ntitle: t\ndescription: Dashboard\nremote-id: a1\nremote-url: https://claude.ai/artifact/a1\nremote-modified: %s\n---\n' "$W1" > "$A/dash.artifact.md"
+out=$(bash "$RD" check "$R" 2>&1)
+check "EX4 artifact in a reference folder: EXTRACT?" "yes" "$(has "$out" "EXTRACT?: $A/dash.artifact.md")"
+
+# --- EX5: extracted needs a complete card ----------------------------------------------------------
+rcard "$A/x.gdrive.md" "X" remote-modified
+bash "$RD" extracted "$A/x.gdrive.md" >/dev/null 2>&1; check "EX5 incomplete card refused" "1" "$?"
 
 echo "== how-to examples (PLUG-140) =="
 # The how-to examples parse as their prose says (moved from docs-manager, PLUG-140/PLUG-144): the folder attachment's .source.md, the only

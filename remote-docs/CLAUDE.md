@@ -16,7 +16,8 @@ remote-docs/
 ├── .claude-plugin/plugin.json
 ├── scripts/
 │   ├── lib.sh             ← this plugin's helpers: docs walk, frontmatter (copied from docs-manager)
-│   ├── remote.sh          ← the CLI: status / check / list / stamp / gone / copy-stamp / diff
+│   ├── remote.sh          ← the CLI: status / check / list / stamp / gone / copy-stamp / diff, purpose /
+│   │                         purposes / questions, guard / repoint, pack / unpack, extracted
 │   └── test/remote.test.sh
 ├── skills/remote-docs/
 │   ├── SKILL.md
@@ -59,11 +60,11 @@ the scripts stay offline.
   the same names (see *The contract with docs-manager* above).
 - **The Drive id lives in the card** (`remote-id:`): a documented exception to "the file name is the
   link", since there is no local file. Do not add a `source:` key to local cards on its strength.
-- **`stamp` is the only writer of `remote-modified:`**, as docs-manager's `external stamp` is of `digest:`, diff-guarded,
+- **`stamp` is the only writer of `remote-modified:`** (besides `repoint`, which moves a card to a new file), as docs-manager's `external stamp` is of `digest:`, diff-guarded,
   shape-checked (RFC 3339, `Z` or a `±hh:mm` offset). The value comes from the provider through Claude.
 - **`.source.md` is per-folder data, not config** (no plugin here takes a config file for it). It is a
-  dot-file, so `docs_find` never lists it; scripts find it by path: `source_of` takes
-  the nearest one from the card's folder up, since a folder attachment's sub-folders share one.
+  dot-file, so `docs_find` never lists it; scripts find it by path: `src_key` takes
+  each key from the nearest one that sets it, from the card's folder up (PLUG-145).
 - **`RD_KEEP_IGNORED=1` is the one opt-out of `drop_git_ignored`**, used by `list`,
   `diff` and the local-copy listing, so a local-only (git-ignored) attachment stays findable
   while no committed `_index.md` names it.
@@ -78,7 +79,7 @@ the scripts stay offline.
   `include`, `exclude` in `.source.md`) is applied with `case` globs in `remote_in_scope`, the one place.
 - **A local copy is `<name>.<provider>.local.md`, classified by name** (`is_remote_copy`), never a card and
   never a document (`list_docs` skips it). Its stamp is the card's `copy-modified`, written only by
-  `copy-stamp`, which refuses unless `source_of` the card says `processed: local`: the agreement is
+  `copy-stamp`, which refuses unless the card's `.source.md` chain says `processed: local`: the agreement is
   checked by the script, not only by the skill (PLUG-115). Stale = `copy-modified` ≠ `remote-modified`,
   string inequality. Copies are listed with `RD_KEEP_IGNORED=1`, so a git-ignored copy is still checked.
 - **No bytes through the MCP.** Copies are Drive's text rendering, written as text; a binary download is
@@ -131,6 +132,16 @@ the scripts stay offline.
 - **`unpack` validates every marker before writing anything** (`pack_path_ok`: relative, no `..`, a
   `.source.md` or a card) and only into an empty folder: the text comes from a shared document anyone
   with access can edit.
+
+## Extracting decisions (PLUG-149)
+
+- **`wants_extraction` is the one rule** for which cards are asked: every artifact, plus a card whose
+  folder resolves to `truth: no` *from a declaration* (a suggested purpose's default counts) and whose
+  purpose is not `reference`. An undeclared folder's fallback `truth: no` never counts: it is a safe
+  default, not a statement that work happens there.
+- **`extracted` is the only writer of `extracted-at:`**; `stamp` never touches it, so a newer version of
+  the file makes `check` fail with `EXTRACT?` again (EX1e). It is an extra `status` row (`extract`),
+  printed after the card's own, and never for an incomplete card.
 
 ## Testing
 

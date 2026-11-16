@@ -218,14 +218,14 @@ competing for the same words is a coin flip at activation time. Today the vocabu
 disjoint: docs-manager owns *docs / index / links / diagram / picture / CLAUDE.md / AGENTS.md /
 external docs / catalogue / ingest / reference material / onboard / survey / legacy project / scattered docs*,
 remote-docs owns *Google Drive doc as reference / Drive folder / refresh the Drive docs / local copy of a Drive doc /
-remote card / Claude artifact as reference / artifact card / folder purpose / what is this Drive folder for / team folder / company folder / scope of the folder / write to the Drive doc / update the shared sheet / convert to Google Docs / share the cards with the team / cards on Drive* (moved from docs-manager in PLUG-144; purpose PLUG-145), task-roadmap owns *roadmap / gantt /
+remote card / Claude artifact as reference / artifact card / folder purpose / what is this Drive folder for / team folder / company folder / scope of the folder / write to the Drive doc / update the shared sheet / convert to Google Docs / share the cards with the team / cards on Drive / extract decisions* (moved from docs-manager in PLUG-144; purpose PLUG-145), task-roadmap owns *roadmap / gantt /
 timeline*, session-storage owns *storage / session data*, delay owns *delay / run later / run
 tonight / run at night / wake* and says *job*, never *task*, crew owns *crew / coordinator / worker /
 hand off / hold / hot spot / slot / stuck slot / land / copy / snapshot / inbox / mailbox / watchdog / progress report / adopt / import holds / end the crew / disband / working solo / crew active / crew task* and says *slot*, never *job* or *queue* alone,
 kickoff owns *kickoff / kick off / new project / start a project / bootstrap / questionnaire / charter /
 quality level / quality gate / existing project / close the gaps / e2e viewer / test viewer / replay a test / watch a test run /
 what to do next after kickoff / which tasks after kickoff*
-(delay says *run the tests later*; kickoff says *which tests to have* and *seeing* a run, delay *timing* it; crew says *assign tasks to sessions*, task says *assignee* / *assign a task to a person* /
+(docs-manager says *extract the external document*, remote-docs *extract decisions*; delay says *run the tests later*; kickoff says *which tests to have* and *seeing* a run, delay *timing* it; crew says *assign tasks to sessions*, task says *assignee* / *assign a task to a person* /
 *my tasks*, PLUG-138).
 No plugin puts a bare *init* in its trigger phrases: that is the built-in `/init`. An explicit
 argument such as `/kickoff:kickoff init` is namespaced and fine (PLUG-070).
