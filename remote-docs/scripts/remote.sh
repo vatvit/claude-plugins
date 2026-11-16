@@ -13,6 +13,8 @@
 #   purpose <path> [root]       what a folder is for: purpose, writes, truth, scope, cards (PLUG-145)
 #   purposes [root]             the same for every folder holding a `.source.md`
 #   questions <dir> [root]      what is still to be asked once for an attachment folder (PLUG-146)
+#   guard <card> <time>         before a write: READ-ONLY / STALE / PROPOSE / OK (PLUG-147)
+#   repoint <card> <id> <url> <type> <time>   the card follows a converted file (PLUG-147)
 #
 # A remote card is `<name>.<provider>.md` (PLUG-112): Google Drive (`gdrive`) or a Claude Artifact
 # (`artifact`, PLUG-141). The name alone classifies it. Default root is "docs". Moved out of
@@ -530,6 +532,85 @@ EOF
   return 0
 }
 
+# wider_than_project <path> -> 0 if the scope in force at <path> comes after `project` in the scope
+# order: a team's or a company's material, written to with more care
+wider_than_project() {
+  local sc
+  sc="$(src_val "$1" scope /)"; sc="${sc:-project}"
+  src_scopes "$1" / | awk -v s="$sc" '$0 == "project" { p = NR } ($0 "") == s { i = NR } END { exit !(p && i > p) }'
+}
+
+# guard <card> <provider-time> — run right before writing to the file a card describes (PLUG-147).
+# <provider-time> is the file's modified time as the provider reports it now. In this order:
+#   exit 3  READ-ONLY  the folder's `writes:` is never (the fallback): no write at all
+#   exit 1  STALE      the file changed since the card was stamped: re-read it, re-plan, tell the user
+#   exit 0  PROPOSE    writes: propose, or free in a scope wider than project: show the change, apply
+#                      it only when the user approves
+#   exit 0  OK         writes: free
+# After the write, `stamp` records the file's new time.
+cmd_guard() {
+  local card="${1:-}" t="${2:-}" w have
+  [ -n "$card" ] && [ -n "$t" ] || { echo "Usage: remote.sh guard <remote-card> <rfc3339-time>" >&2; return 2; }
+  is_remote_card "$card" || { echo "Not a remote card: $card" >&2; return 1; }
+  [ -f "$card" ] || { echo "No such card: $card" >&2; return 1; }
+  valid_rfc3339 "$t" || { echo "Not an RFC 3339 time: $t" >&2; return 1; }
+  w="$(src_val "$card" writes /)"; w="${w:-never}"
+  if [ "$w" = never ]; then
+    echo "READ-ONLY: $card (its folder says writes: never; ask the user to change the folder's purpose first)"; return 3
+  fi
+  have="$(fm_field "$card" remote-modified)"
+  if [ "$have" != "$t" ]; then
+    echo "STALE: $card card ${have:--}, provider $t (changed since it was read: re-read it, re-plan, tell the user)"; return 1
+  fi
+  if [ "$w" = propose ]; then echo "PROPOSE: show the change; apply it only when the user approves"
+  elif wider_than_project "$card"; then
+    echo "PROPOSE (scope $(src_val "$card" scope /): wider than the project): show the change; apply it only when the user approves"
+  else echo OK; fi
+  return 0
+}
+
+# office_ext <name> -> the Office extension kept in a card's name (`plan.docx.gdrive.md` -> docx), if any
+office_ext() {
+  local e base="${1%.*.md}"
+  e="${base##*.}"; [ "$e" != "$base" ] || return 0
+  case "$e" in doc|docx|xls|xlsx|ppt|pptx|odt|ods|odp|rtf) echo "$e" ;; esac
+  return 0
+}
+
+# repoint <card> <new-id> <new-url> <new-type> <time> — an Office file was converted to a Google file,
+# which is a new file with a new link (PLUG-147). The card follows it: new remote-id, remote-url,
+# remote-type and remote-modified, `converted-from:` the old id, and the Office extension dropped from
+# its name when the new type is a Google one (`plan.docx.gdrive.md` -> `plan.gdrive.md`). Its local copy
+# is renamed with it. Refuses when the new name is taken. Never touches the provider: whether the
+# original is kept or trashed is the user's call.
+cmd_repoint() {
+  local card="${1:-}" id="${2:-}" url="${3:-}" type="${4:-}" t="${5:-}" old new prov ext
+  [ -n "$card" ] && [ -n "$id" ] && [ -n "$url" ] && [ -n "$type" ] && [ -n "$t" ] \
+    || { echo "Usage: remote.sh repoint <remote-card> <new-id> <new-url> <new-type> <rfc3339-time>" >&2; return 2; }
+  is_remote_card "$card" || { echo "Not a remote card: $card" >&2; return 1; }
+  [ -f "$card" ] || { echo "No such card: $card" >&2; return 1; }
+  valid_rfc3339 "$t" || { echo "Not an RFC 3339 time: $t" >&2; return 1; }
+  prov="$(remote_provider "$card")"; ext="$(office_ext "$card")"; new="$card"
+  case "$type" in
+    application/vnd.google-apps.*) [ -z "$ext" ] || new="${card%."$ext.$prov".md}.$prov.md" ;;
+  esac
+  if [ "$new" != "$card" ]; then
+    [ ! -e "$new" ] || { echo "Taken: $new (rename or remove it first)" >&2; return 1; }
+    [ ! -e "${new%.md}.local.md" ] || { echo "Taken: ${new%.md}.local.md" >&2; return 1; }
+  fi
+  old="$(fm_field "$card" remote-id)"
+  [ -z "$old" ] || [ "$old" = "$id" ] || fm_set "$card" converted-from "$old"
+  fm_set "$card" remote-id "$id"; fm_set "$card" remote-url "$url"; fm_set "$card" remote-type "$type"
+  fm_set "$card" remote-modified "$t"
+  if [ "$new" != "$card" ]; then
+    mv "$card" "$new"
+    [ ! -f "${card%.md}.local.md" ] || mv "${card%.md}.local.md" "${new%.md}.local.md"
+    echo "REPOINTED: $new (was $card)"
+  else
+    echo "REPOINTED: $card"
+  fi
+}
+
 cmd_purpose() {
   local path="${1:-}" root="${2:-$ROOT_DEFAULT}"
   [ -n "$path" ] || { echo "Usage: remote.sh purpose <dir|file> [root]" >&2; return 2; }
@@ -584,5 +665,7 @@ case "$sub" in
   purpose)    cmd_purpose "$@" ;;
   purposes)   cmd_purposes "$@" ;;
   questions)  cmd_questions "$@" ;;
-  *) echo "Usage: remote.sh {status|check|list|purposes} [root] | stamp <card> <time> | gone <card> | copy-stamp <card> <time> | diff <dir> <listing.tsv> | purpose <path> [root] | questions <dir> [root]" >&2; exit 2 ;;
+  guard)      cmd_guard "$@" ;;
+  repoint)    cmd_repoint "$@" ;;
+  *) echo "Usage: remote.sh {status|check|list|purposes} [root] | stamp <card> <time> | gone <card> | copy-stamp <card> <time> | diff <dir> <listing.tsv> | purpose <path> [root] | questions <dir> [root] | guard <card> <time> | repoint <card> <id> <url> <type> <time>" >&2; exit 2 ;;
 esac

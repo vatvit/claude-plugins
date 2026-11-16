@@ -490,6 +490,52 @@ if needs_git AQ2; then
   check "AQ2c all answered" "" "$(q "$A" "$R/docs")"
 fi
 
+echo "== writing to the provider (PLUG-147) =="
+
+W1=2026-11-10T13:37:23.036Z; W2=2026-11-12T08:00:00.000Z
+gd() { bash "$RD" guard "$@" 2>&1; }
+
+# --- WG: guard — read-only, stale, propose, ok; inherited; wider scope proposes -----------------
+R=$(fresh wg); A="$R/external/team"
+src "$A" "provider: gdrive" "purpose: reference"
+rcard "$A/spec.gdrive.md" "Spec" - ID1 "$W1"
+out=$(gd "$A/spec.gdrive.md" "$W1"); rc=$?
+check "WG1 writes: never -> READ-ONLY, exit 3" "3:yes" "$rc:$(has "$out" "READ-ONLY")"
+src "$A" "provider: gdrive" "purpose: agreements"
+out=$(gd "$A/spec.gdrive.md" "$W2"); rc=$?
+check "WG2 changed since the card was stamped -> STALE, exit 1" "1:yes" "$rc:$(has "$out" "STALE: $A/spec.gdrive.md card $W1, provider $W2")"
+out=$(gd "$A/spec.gdrive.md" "$W1"); rc=$?
+check "WG3 writes: propose -> PROPOSE, exit 0" "0:yes" "$rc:$(has "$out" "PROPOSE")"
+src "$A" "provider: gdrive" "purpose: output"
+out=$(gd "$A/spec.gdrive.md" "$W1"); rc=$?
+check "WG4 writes: free, project scope -> OK" "0:OK" "$rc:$out"
+rcard "$A/sub/deep.gdrive.md" "Deep" - ID2 "$W1"
+check "WG5 a sub-folder card inherits writes" "OK" "$(gd "$A/sub/deep.gdrive.md" "$W1")"
+src "$A" "provider: gdrive" "purpose: output" "scope: team"
+out=$(gd "$A/spec.gdrive.md" "$W1"); rc=$?
+check "WG6 writes: free in a team folder still proposes" "0:yes" "$rc:$(has "$out" "PROPOSE (scope team")"
+gd "$A/spec.gdrive.md" "yesterday" >/dev/null; check "WG7 a bad time is refused" "1" "$?"
+gd "$A/nope.gdrive.md" "$W1" >/dev/null; check "WG8 a missing card is refused" "1" "$?"
+
+# --- RP: repoint — an Office file converted to a Google file: new id, new name ------------------
+R=$(fresh rp); A="$R/external/team"
+src "$A" "provider: gdrive" "purpose: output" "processed: local"
+rcard "$A/plan.docx.gdrive.md" "Plan" - OLD "$W1"; printf 'text\n' > "$A/plan.docx.gdrive.local.md"
+out=$(bash "$RD" repoint "$A/plan.docx.gdrive.md" NEW "https://docs.google.com/document/d/NEW/edit" application/vnd.google-apps.document "$W2" 2>&1); rc=$?
+c="$A/plan.gdrive.md"
+check "RP1a renamed without the Office extension" "0:no:yes" "$rc:$([ -f "$A/plan.docx.gdrive.md" ] && echo yes || echo no):$([ -f "$c" ] && echo yes || echo no)"
+check "RP1b says where" "yes" "$(has "$out" "REPOINTED: $c (was $A/plan.docx.gdrive.md)")"
+check "RP1c fields" "NEW|https://docs.google.com/document/d/NEW/edit|application/vnd.google-apps.document|$W2|OLD" \
+    "$( . "$(dirname "$RD")/lib.sh"; for k in remote-id remote-url remote-type remote-modified converted-from; do fm_field "$c" "$k"; done | paste -sd'|' - )"
+check "RP1d the local copy follows" "yes" "$([ -f "$A/plan.gdrive.local.md" ] && echo yes || echo no)"
+rcard "$A/a.gdrive.md" "A" - A1 "$W1"
+bash "$RD" repoint "$A/a.gdrive.md" A2 "https://docs.google.com/document/d/A2/edit" application/vnd.google-apps.document "$W2" >/dev/null 2>&1
+check "RP2 a card without an Office extension keeps its name" "yes:A2" "$([ -f "$A/a.gdrive.md" ] && echo yes):$( . "$(dirname "$RD")/lib.sh"; fm_field "$A/a.gdrive.md" remote-id)"
+rcard "$A/b.xlsx.gdrive.md" "B" - B1 "$W1"; rcard "$A/b.gdrive.md" "B taken" - B9 "$W1"
+bash "$RD" repoint "$A/b.xlsx.gdrive.md" B2 "u" application/vnd.google-apps.spreadsheet "$W2" >/dev/null 2>&1
+check "RP3 refused when the new name is taken" "1:B1" "$?:$( . "$(dirname "$RD")/lib.sh"; fm_field "$A/b.xlsx.gdrive.md" remote-id)"
+bash "$RD" repoint "$A/a.gdrive.md" A3 u t "soon" >/dev/null 2>&1; check "RP4 a bad time is refused" "1" "$?"
+
 echo "== how-to examples (PLUG-140) =="
 # The how-to examples parse as their prose says (moved from docs-manager, PLUG-140/PLUG-144): the folder attachment's .source.md, the only
 # unindented `provider: gdrive` block in the how-to, copied out as a user would

@@ -25,7 +25,7 @@
     {
       "name": "remote-docs",
       "source": "./remote-docs",
-      "description": "Remote documents in your docs: Google Drive files and folders and Claude Artifacts kept as cards that say what each holds and where to look, refreshed against the provider. Works alone or with docs-manager.",
+      "description": "Google Drive and Claude Artifacts in your docs: cards that say what each file holds and where to look, a purpose per folder that says where Claude may read, write or keep decisions, and guarded writes. Works alone or with docs-manager.",
       "version": "1.0.0"
     },
     {

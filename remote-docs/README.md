@@ -28,6 +28,12 @@ the card says the answer is there, and tells you when Drive has a newer version 
   `free`), whether decisions live there, and whose material it is (`user`, `project`, `team`, `company`,
   or a scope of your own). A sub-folder inherits from its parent; nothing declared means read-only.
   A collaboration folder gets one card for the whole folder instead of one per file.
+- **Writes only where the folder allows, never over a teammate's change.** Before every write Claude
+  re-reads the file and runs `remote.sh guard`: read-only folders refuse, a file changed since Claude read
+  it is reported, `propose` folders (and team or company ones) wait for your approval. Google Docs writes
+  are rejected by Google itself when someone wrote in between; Sheets have no such guard, so Claude appends
+  where it can. An Office file is converted to Google format first, on your say-so, and the card follows
+  the new file (`remote.sh repoint`).
 - The procedure and the card format: [`how-to-remote-docs.md`](skills/remote-docs/references/how-to-remote-docs.md).
 
 ## Commands
@@ -42,6 +48,7 @@ bash scripts/remote.sh copy-stamp docs/external/vendor/pricing-model.gdrive.md 2
 bash scripts/remote.sh diff docs/external/vendor /tmp/listing.tsv
 bash scripts/remote.sh purposes docs                                 # what each attached folder is for
 bash scripts/remote.sh purpose docs/external/team/drafts             # one folder, inheritance resolved
+bash scripts/remote.sh guard docs/external/team/plan.gdrive.md 2026-11-12T08:00:00.000Z   # before a write
 ```
 
 Pure bash and awk, bash 3.2 and BSD or GNU userland, no network calls. Tests: see [`CLAUDE.md`](CLAUDE.md#testing).

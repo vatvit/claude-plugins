@@ -38,7 +38,7 @@ any of them with two commands.
 | [task](task/) | Markdown task files with a built-in workflow, epics and parallel-safe IDs |
 | [task-roadmap](task-roadmap/) | An abstract Gantt chart of your task set, regenerated when tasks change |
 | [docs-manager](docs-manager/) | Docs as a product: index pages, link checks, diagrams, catalogued reference files |
-| [remote-docs](remote-docs/) | Google Drive files and Claude Artifacts kept in your docs as cards, never copied |
+| [remote-docs](remote-docs/) | Google Drive and Claude Artifacts in your docs: cards, folder purposes, guarded writes |
 | [kickoff](kickoff/) | One questionnaire to start every project, turned into a charter and a scaffold |
 | [crew](crew/) | Several Claude sessions on one working tree and branch without lost edits |
 | [delay](delay/) | Queue slow test suites to run overnight in docker while the Mac sleeps |
@@ -105,14 +105,18 @@ Nothing is rendered by default, because GitHub, IDEs and Obsidian already draw f
 
 ### remote-docs
 
-**For:** reference material that lives on Google Drive or as a Claude Artifact, used from the docs
-without being copied into the repo.
+**For:** a team working on Google Drive (and with Claude Artifacts) through Claude: material read from
+the docs without being copied into the repo, and written back where each folder allows.
 
 - **Google Drive docs:** with a Drive MCP connected, a Drive doc or folder becomes a remote card saying
   what the file holds and where inside it to look. Claude opens Drive only when the card says the answer
   is there, and says when Drive has a newer version.
 - **Claude Artifacts:** an artifact link (a prototype, dashboard or write-up on claude.ai) gets the same
   kind of card, and its share key never reaches a committed file.
+- **A purpose per folder:** reference, agreements, collaboration, output, or your own words. It says
+  whether Claude reads only, proposes changes, or writes freely, and whether decisions live there.
+- **Guarded writes:** Claude re-reads a file before changing it and stops when a teammate changed it
+  first; an Office file is converted to Google format on your say-so before any edit.
 - **Local-only on request:** private cards can stay git-ignored, and a text copy can be kept for offline
   reading, with a check that says when it falls behind.
 

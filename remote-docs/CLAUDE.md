@@ -108,6 +108,18 @@ the scripts stay offline.
 - **No git, no publish question** (`in_git`: the nearest existing folder in a work tree; git not
   installed counts as no repo). Nothing then writes a `.gitignore`.
 
+## Writing (PLUG-147)
+
+- **Scripts never write to a provider.** `guard` decides whether Claude may, and is the one place that
+  does: READ-ONLY (exit 3) before STALE (exit 1) before PROPOSE/OK (exit 0). Keep that order: a read-only
+  folder must refuse even when the card is current.
+- **A scope wider than `project` proposes** even under `writes: free` (`wider_than_project`, by position
+  in the scope order, so a custom scope placed after `project` counts as wider).
+- **`repoint` is the only command that changes `remote-id`** on an existing card; it keeps the old one as
+  `converted-from:` and never renames onto an existing file (RP3).
+- Slides are unguarded until tested; the how-to says so. Docs' real guard is `requiredRevisionId`, which
+  only Claude can send.
+
 ## Testing
 
 ```bash

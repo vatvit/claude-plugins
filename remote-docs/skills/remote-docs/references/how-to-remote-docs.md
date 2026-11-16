@@ -40,6 +40,8 @@ bash <PLUGIN_ROOT>/scripts/remote.sh diff <dir> <listing.tsv>    # provider list
 bash <PLUGIN_ROOT>/scripts/remote.sh purpose <path> [root]       # what a folder is for, and what that allows
 bash <PLUGIN_ROOT>/scripts/remote.sh purposes [root]             # the same for every folder with a .source.md
 bash <PLUGIN_ROOT>/scripts/remote.sh questions <dir> [root]      # what is still to be asked for an attachment folder
+bash <PLUGIN_ROOT>/scripts/remote.sh guard <card> <time>         # right before a write: READ-ONLY / STALE / PROPOSE / OK
+bash <PLUGIN_ROOT>/scripts/remote.sh repoint <card> <id> <url> <type> <time>   # the card follows a converted file
 ```
 
 `status` emits `state<TAB>place<TAB>file<TAB>card`, `-` for an empty field. `state` is `remote |
@@ -333,3 +335,45 @@ container it compares only carded ids, so the hundreds of artifacts the project 
   say so and give its date: "from the local copy of 2026-11-11; Drive may be newer".
 - **Drive not reachable** (no MCP, signed out, no access): say so. Never answer from the card as if
   you had read the file; the card says where to look, not what is there now.
+
+### Writing to a remote file
+
+Claude may change a file on Drive only where its folder's purpose allows it (*Folder purpose*). The
+connectors differ in what they can do, and in how well they protect a teammate's change.
+
+1. **Load the `google-workspace` skill** before the first call that creates or changes a Google file. It
+   owns the *how* (Docs positions, Sheets value parsing, Slides layout, helper scripts); this file decides
+   *whether* and *where*. Connector tools may be deferred: load them first.
+2. **Read the file again, now**, and take its modified time from the provider.
+3. **`remote.sh guard <card> <time>`**, and do what it says:
+   - `READ-ONLY` (exit 3): no write. If the user wants one, the folder's purpose has to change first:
+     propose that, never write around it.
+   - `STALE` (exit 1): the file changed since the card was written. Tell the user, read what changed,
+     and re-plan the edit against the current text. Never apply an edit planned on the old one.
+   - `PROPOSE`: show the exact change and apply it only when the user approves (`writes: propose`, or a
+     team or company folder, where `writes: free` still proposes).
+   - `OK`: write, and say what you changed.
+4. **Write, guarded by the connector where it can:**
+
+   | File | Edit in place with | Guard against a teammate's change |
+   |---|---|---|
+   | Google Doc | Docs `update_doc` | `writeControl.requiredRevisionId` from the `read_doc` just done: a write after someone else's is **rejected**. Read again, re-plan, retry; never reuse the revision id a reply returns. `replaceAllText` matches text, so it cannot land at a stale position. |
+   | Google Sheet | Sheets `update_values`, `append_values` | **none**: the same cell is last write wins, silently. Prefer `append_values` on a shared sheet, keep off a tab another session is editing, and run `guard` right before. |
+   | Google Slides | Slides connector | **not tested yet**: treat it as unguarded, like a Sheet, until it is. |
+   | Office file (`.docx`, `.xlsx`, `.pptx` …) | **nothing**: no connector edits one in place | see *Converting* below |
+
+5. **Stamp the card** with the file's new modified time (`remote.sh stamp`), and update the card's text
+   if what the file holds changed. A local copy, if any, is rewritten and `copy-stamp`ed too.
+
+A write refused by the connector with *"requires additional permissions"* means the connector needs
+reconnecting with full access (`/mcp` or the connector settings), not that the write is impossible.
+
+**Converting an Office file.** To edit a `.docx` or `.xlsx` kept on Drive, ask the user to convert it to
+Google format first; in a folder that allows writes, offer this by default whenever an edit is wanted.
+Converting uploads the file again with conversion on: the result is a **new file with a new link**, and
+complex formatting, macros and tracked changes may not survive. Then:
+- `remote.sh repoint <card> <new-id> <new-url> <new-type> <time>`: the card takes the new id, link and
+  type, records `converted-from:` the old id, and drops the Office extension from its name
+  (`plan.docx.gdrive.md` becomes `plan.gdrive.md`); its local copy follows.
+- **Ask what to do with the original.** Keep it unless the user says otherwise; trash cannot be undone
+  through the connector. Tell teammates the link changed if the file was shared.
