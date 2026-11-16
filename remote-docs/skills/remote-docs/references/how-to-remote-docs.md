@@ -39,6 +39,7 @@ bash <PLUGIN_ROOT>/scripts/remote.sh copy-stamp <card> <time>    # record the ve
 bash <PLUGIN_ROOT>/scripts/remote.sh diff <dir> <listing.tsv>    # provider listing vs the attachment's cards
 bash <PLUGIN_ROOT>/scripts/remote.sh purpose <path> [root]       # what a folder is for, and what that allows
 bash <PLUGIN_ROOT>/scripts/remote.sh purposes [root]             # the same for every folder with a .source.md
+bash <PLUGIN_ROOT>/scripts/remote.sh questions <dir> [root]      # what is still to be asked for an attachment folder
 ```
 
 `status` emits `state<TAB>place<TAB>file<TAB>card`, `-` for an empty field. `state` is `remote |
@@ -170,12 +171,23 @@ reference material.
 2. **Read the file.** Get its metadata (id, title, mimeType, modifiedTime, view URL), then its content
    as text; read only as much as the card needs, as in *Reading a file* below. For a large file,
    delegate the reading to a sub-agent that returns the drafted card.
-3. **Ask about publishing, once per folder.** If the folder has no `.source.md` yet, look at
-   `git remote -v`. With a public remote (or one you cannot tell), ask before writing anything: a
-   card's summary of a private file *is* private content, and its URL names the file. Offer two
-   answers: **commit** the cards, or keep the folder **local-only** (git-ignored, so it never reaches the
-   remote). Record the answer as `publish:` in a new `.source.md`; for `local`, add the folder to
-   `.gitignore`, which is part of what the user chose. Never ask again for that folder.
+3. **Ask what is still open, once per folder.** Run `remote.sh questions <folder>` and ask **only** what
+   it prints, in that order, before writing any card. Record each answer in the folder's `.source.md`
+   (create it if needed); an answer recorded in a `.source.md` above counts too, so nothing is asked
+   twice. Ask them together in one message where you can.
+   - `purpose`: offer the four suggestions with a line each (*Folder purpose*) and **other**, in the
+     user's words. A suggestion settles `writes` and `truth`.
+   - `writes`, `truth`: only for a purpose in the user's own words. Ask both.
+   - `cards-at`: where the cards live. **`local`** (the default: under the docs root, in this
+     project) or **`drive`** (one shared document on Drive, so every teammate's Claude reads the same
+     cards; *Cards on Drive* below). Without git, say that `drive` is the way to share them.
+   - `publish`: printed only in a git repository. Look at `git remote -v`. With a private remote,
+     record `publish: commit` without asking. With a public remote (or one you cannot tell), ask: a
+     card's summary of a private file *is* private content, and its URL names the file. Offer
+     **commit** the cards, or keep the folder **local-only** (git-ignored, so it never reaches the
+     remote); for `local`, add the folder to `.gitignore`, which is part of what the user chose.
+   - **No git, no publish question**, and never write a `.gitignore`: nothing is published, and no one
+     reads it.
 4. **Write the card** in the folder the user chose (propose `external/<topic>/` as for any external),
    in the format above, then `remote.sh stamp <card> <modifiedTime>`.
 5. **Verify.** `remote.sh check` must be clean. With docs-manager installed, also its `index --write`
@@ -201,8 +213,8 @@ exclude: [*draft*]             # optional; an exclude always wins
 ---
 ```
 
-Ask the publish question as in step 3 above, write `.source.md`, then run **Refreshing** below: on a
-new attachment every file is `new`.
+Ask what `questions` prints, as in step 3 above, write `.source.md`, then run **Refreshing** below: on a
+new attachment every file is `new` (with `cards: pointer`, the folder itself is).
 
 ### Refreshing a Drive folder
 
@@ -243,7 +255,8 @@ copy-publish: local      # local: git-ignore the copies; commit: commit them wit
 ```
 
 For `copy-publish: local`, add `<folder>/*.gdrive.local.md` to `.gitignore`, as for `publish: local`. With a
-public remote, say plainly that `commit` publishes the files' contents.
+public remote, say plainly that `commit` publishes the files' contents. Without git, `questions` does not
+print `copy-publish`: ask only whether copies are wanted (`processed:`).
 
 Writing a copy:
 
@@ -278,7 +291,7 @@ catalogue or refresh the project's artifacts. It is *Attaching — the procedure
 2. **Read it.** An artifact someone else owns may come back as a summary plus the raw HTML saved to a
    file; read the HTML. A **bundled page** shows only a loader in the summary ("Unpacking…"): the card
    is written from the unpacked HTML, never from the loader. A large page: delegate the reading.
-3. **Ask about publishing** once per folder, as in step 3 there, and write `.source.md` with
+3. **Ask what `questions` prints**, as in step 3 there, and write `.source.md` with
    `provider: artifact` and no `remote-id`: artifacts are attached one by one.
 4. **Write the card** `<name>.artifact.md` (`<name>` = the artifact's title in kebab-case), with
    `remote-id` (the id from the URL), `remote-url` and `remote-type` (`html`, `doc`, … as the tool says),

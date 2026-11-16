@@ -100,6 +100,14 @@ the scripts stay offline.
   card's `remote-modified`. "Newest" is a string maximum, used only for equality, never to order cards.
   A deleted file does not change it; accepted, since a collaboration folder's files are temporary.
 
+## Attachment questions (PLUG-146)
+
+- **`questions` is the one list of what to ask**, and an answer is anything recorded in the `.source.md`
+  chain (`src_key`), so a question is never asked twice. The how-to says "ask only what it prints"; do
+  not add a question in prose without adding it here.
+- **No git, no publish question** (`in_git`: the nearest existing folder in a work tree; git not
+  installed counts as no repo). Nothing then writes a `.gitignore`.
+
 ## Testing
 
 ```bash

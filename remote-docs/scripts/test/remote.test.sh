@@ -461,6 +461,35 @@ check "PP8c a file changed: the pointer is changed" "$(printf 'changed\tFOLD\t%s
 src "$A" "provider: gdrive" "purpose: collaboration"
 bash "$RD" diff "$A" "$R/l.tsv" >/dev/null 2>&1; check "PP8d pointer without remote-id: refused" "1" "$?"
 
+echo "== attachment questions (PLUG-146) =="
+
+q() { bash "$RD" questions "$@" 2>&1 | paste -sd, -; }   # q <dir> <root> -> unanswered, comma-joined
+
+# --- AQ1: no git: never the publish questions ---------------------------------------------------
+R=$(fresh aq1); A="$R/external/new"
+check "AQ1a new folder, no git: purpose and cards-at" "purpose,cards-at" "$(q "$A" "$R")"
+src "$A" "provider: gdrive" "purpose: reference"
+check "AQ1b a recorded answer is not asked again" "cards-at" "$(q "$A" "$R")"
+src "$A" "provider: gdrive" "purpose: reference" "cards-at: local" "processed: local"
+check "AQ1c all answered; no publish or copy-publish without git" "" "$(q "$A" "$R")"
+src "$A" "provider: gdrive" "purpose: our client's drafts" "cards-at: local"
+check "AQ1d a custom purpose asks writes and truth" "writes,truth" "$(q "$A" "$R")"
+src "$R/external" "purpose: reference" "cards-at: drive"
+check "AQ1e answers inherited from a parent count" "" "$(q "$R/external/other" "$R")"
+src "$A" "provider: gdrive" "purpose: reference" "cards-at: cloud"
+out=$(bash "$RD" check "$R" 2>&1); rc=$?
+check "AQ1f cards-at is local or drive" "1:yes" "$rc:$(has "$out" "BAD SETTING: $A/.source.md cards-at=cloud")"
+
+# --- AQ2: in a git repo the publish questions come back ------------------------------------------
+if needs_git AQ2; then
+  R=$(fresh aq2); git -C "$R" init -q; A="$R/docs/external/new"
+  check "AQ2a git: publish asked too" "purpose,cards-at,publish" "$(q "$A" "$R/docs")"
+  src "$A" "provider: gdrive" "purpose: reference" "cards-at: local" "publish: commit" "processed: local"
+  check "AQ2b local copies agreed: copy-publish asked" "copy-publish" "$(q "$A" "$R/docs")"
+  src "$A" "provider: gdrive" "purpose: reference" "cards-at: local" "publish: commit" "processed: local" "copy-publish: local"
+  check "AQ2c all answered" "" "$(q "$A" "$R/docs")"
+fi
+
 echo "== how-to examples (PLUG-140) =="
 # The how-to examples parse as their prose says (moved from docs-manager, PLUG-140/PLUG-144): the folder attachment's .source.md, the only
 # unindented `provider: gdrive` block in the how-to, copied out as a user would

@@ -12,6 +12,7 @@
 #   diff <dir> <listing.tsv>    a provider listing vs the attachment's cards: new / changed / gone
 #   purpose <path> [root]       what a folder is for: purpose, writes, truth, scope, cards (PLUG-145)
 #   purposes [root]             the same for every folder holding a `.source.md`
+#   questions <dir> [root]      what is still to be asked once for an attachment folder (PLUG-146)
 #
 # A remote card is `<name>.<provider>.md` (PLUG-112): Google Drive (`gdrive`) or a Claude Artifact
 # (`artifact`, PLUG-141). The name alone classifies it. Default root is "docs". Moved out of
@@ -393,6 +394,7 @@ allowed() {
     writes) case "$2" in never|propose|free) return 0 ;; esac; return 1 ;;
     truth)  case "$2" in yes|no) return 0 ;; esac; return 1 ;;
     cards)  case "$2" in files|pointer) return 0 ;; esac; return 1 ;;
+    cards-at) case "$2" in local|drive) return 0 ;; esac; return 1 ;;
   esac
   return 0
 }
@@ -470,7 +472,7 @@ source_check() {
   while IFS= read -r d; do
     [ -n "$d" ] || continue
     f="$d/.source.md"
-    for k in writes truth cards; do
+    for k in writes truth cards cards-at; do
       v="$(fm_field "$f" "$k")"
       if [ -n "$v" ] && ! allowed "$k" "$v"; then echo "BAD SETTING: $f $k=$v"; rc=1; fi
     done
@@ -489,6 +491,43 @@ source_check() {
 $(source_dirs "$root")
 EOF
   return $rc
+}
+
+# in_git <path> -> 0 if <path> (or its nearest existing folder) is inside a git work tree. No git
+# installed counts as no repo: then nothing is published, so there is nothing to ask about it.
+in_git() {
+  local d="$1"
+  while [ ! -d "$d" ]; do d="$(dirname "$d")"; done
+  command -v git >/dev/null 2>&1 || return 1
+  [ "$(git -C "$d" rev-parse --is-inside-work-tree 2>/dev/null)" = true ]
+}
+
+# questions <dir> [root] — what is still unanswered for an attachment folder, one word per line, in
+# the order to ask (PLUG-146). An answer counts once any `.source.md` from <dir> up to <root> records
+# it, so nothing is asked twice; the folder need not exist yet.
+#   purpose               none resolved
+#   writes, truth         the purpose is the user's own words and its file lacks the key
+#   cards-at              where the cards live: local (the default answer) or drive
+#   publish, copy-publish only in a git work tree; copy-publish only with processed: local
+cmd_questions() {
+  local dir="${1:-}" root="${2:-$ROOT_DEFAULT}" p f k
+  [ -n "$dir" ] || { echo "Usage: remote.sh questions <dir> [root]" >&2; return 2; }
+  dir="${dir%/}"
+  IFS=$'\t' read -r p f <<EOF
+$(src_key "$dir" purpose "$root")
+EOF
+  if [ -z "$p" ]; then echo purpose
+  elif ! is_suggested "$p"; then
+    for k in writes truth; do [ -n "$(fm_field "$f" "$k")" ] || echo "$k"; done
+  fi
+  [ -n "$(src_val "$dir" cards-at "$root")" ] || echo cards-at
+  if in_git "$dir"; then
+    [ -n "$(src_val "$dir" publish "$root")" ] || echo publish
+    if [ "$(src_val "$dir" processed "$root")" = local ] && [ -z "$(src_val "$dir" copy-publish "$root")" ]; then
+      echo copy-publish
+    fi
+  fi
+  return 0
 }
 
 cmd_purpose() {
@@ -544,5 +583,6 @@ case "$sub" in
   diff)       cmd_diff "$@" ;;
   purpose)    cmd_purpose "$@" ;;
   purposes)   cmd_purposes "$@" ;;
-  *) echo "Usage: remote.sh {status|check|list|purposes} [root] | stamp <card> <time> | gone <card> | copy-stamp <card> <time> | diff <dir> <listing.tsv> | purpose <path> [root]" >&2; exit 2 ;;
+  questions)  cmd_questions "$@" ;;
+  *) echo "Usage: remote.sh {status|check|list|purposes} [root] | stamp <card> <time> | gone <card> | copy-stamp <card> <time> | diff <dir> <listing.tsv> | purpose <path> [root] | questions <dir> [root]" >&2; exit 2 ;;
 esac

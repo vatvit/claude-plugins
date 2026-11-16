@@ -164,6 +164,6 @@ no git at all, with Drive as its only docs store.
 
 Planning rows done (Context, Requirements, Architecture A1–A7, Subtasks). docs-manager PLUG-140/141 committed
 as fd367c5, version left at 1.12.1 (user). **PLUG-144 (the split) completed**, pushed as
-e4f7c7b. **PLUG-145 (purpose and scope) completed.** Running the rest one by one (user, 2026-11-16: commit and
+e4f7c7b. **PLUG-145 (purpose and scope) and PLUG-146 (attachment questions) completed.** Running the rest one by one (user, 2026-11-16: commit and
 push each, no version bumps): PLUG-146, PLUG-147, PLUG-148, PLUG-149. Design for all of them: the approved
 plan, recorded in each task's Requirements/Architecture as it starts.
