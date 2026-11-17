@@ -1,11 +1,11 @@
 {
   "name": "crew",
   "description": "Run several Claude Code sessions on one working tree and branch without lost edits: coordinator/worker playbook, task ownership, hand-offs, file holds, a slot queue and guard hooks.",
-  "version": "2.6.1",
+  "version": "2.7.0",
   "author": {
     "name": "Vat",
     "url": "https://github.com/vatvit"
   },
   "license": "MIT",
-  "keywords": ["parallel-sessions", "coordination", "crew", "commit-policy", "coordinator", "handoff", "hot-spot", "slot-queue", "snapshot", "git-guard", "multi-session", "worktree", "task-branch", "crew-end", "solo", "machine-wide-slots", "memory-budget", "slot-groups", "time-review", "stuck-slot", "slot-ignore", "watch-heartbeat"]
+  "keywords": ["parallel-sessions", "coordination", "crew", "commit-policy", "coordinator", "handoff", "hot-spot", "slot-queue", "snapshot", "git-guard", "multi-session", "worktree", "task-branch", "crew-end", "solo", "machine-wide-slots", "memory-budget", "slot-groups", "time-review", "stuck-slot", "slot-ignore", "watch-heartbeat", "working-coordinator"]
 }

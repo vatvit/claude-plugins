@@ -404,6 +404,16 @@ crew_line() { # "Max Coordinator coordinator · PLUG-W1 worker on PLUG-61"
     done
     printf '%s\n' "$out"
 }
+# working_note <name> — the working coordinator (PLUG-154): a coordinator with exactly one worker and
+# no task of its own is told to take one. Empty for a worker, with zero or several workers, and once
+# it owns a task. The one test status and SessionStart use.
+working_note() {
+    local n w=0
+    [ "$(sess_get "$1" role)" = coordinator ] && [ -z "$(sess_get "$1" task)" ] || return 0
+    for n in $(sess_names); do [ "$(sess_get "$n" role)" = worker ] && w=$((w + 1)); done
+    [ "$w" -eq 1 ] && echo "one worker: take a task of your own too ($(prefix_for "$1") task <ID>) and give the worker only separate tasks that run in parallel — the crew skill, Roles"
+    return 0
+}
 # caller_name — the caller's crew name, empty when unknown: CREW_AS (name or display name) wins,
 # else CREW_SID, which SessionStart exports for every later Bash command via CLAUDE_ENV_FILE
 caller_name() {

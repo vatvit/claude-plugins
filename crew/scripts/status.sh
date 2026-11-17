@@ -20,6 +20,7 @@ echo "crew $(crew_id)${ME:+ · you: $ME ($(sess_get "$ME" role))} · $br @ $head
 note="$(git_policy_note)"; [ -z "$note" ] || echo "commits and pushes: $note"
 note="$(tree_policy_note)"; [ -z "$note" ] || echo "worktrees: $note"
 echo "sessions: $(crew_line)"
+[ -z "$ME" ] || { note="$(working_note "$ME")"; [ -z "$note" ] || echo "you: $note"; }
 
 # collapse_untracked_dirs — dirty_owned lines on stdin, out with every untracked directory (as git
 # status shows it, one entry) folded into one "<dir>/ (N files)" line owned by the claimants of its

@@ -157,7 +157,8 @@ spec to build it.
 one session's `git add -A` or `git stash` wiping out another's work.
 
 Sessions opt in with `crew whoami "<name>" [worker|coordinator]`. crew then adds:
-- roles: one coordinator, the rest workers;
+- roles: one coordinator, the rest workers; with one worker the coordinator works on a task of its own
+  and the worker helps with separate tasks in parallel;
 - **one task, one session**: `crew task <ID>` records which task a session works on and refuses one
   another session owns, and `crew status` shows each session's task; to work on a task in parallel,
   split it into sub-tasks first;

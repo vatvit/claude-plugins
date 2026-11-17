@@ -5,7 +5,8 @@ other's edits.
 
 Sessions can talk to each other (SendMessage / ListAgents). crew adds the discipline that makes
 that safe:
-- roles: one coordinator, the rest workers;
+- roles: one coordinator, the rest workers; with one worker the coordinator works on a task of its own
+  and the worker helps with separate tasks in parallel (`status` tells it so);
 - one task, one session: the coordinator assigns each task to one session (`crew task <ID> --for
   <name>`), a session takes one with `crew task <ID>`, a task another session owns is refused
   (`--take` hands it over and tells the old owner), `status` shows who is on what, and a task that

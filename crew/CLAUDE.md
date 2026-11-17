@@ -96,6 +96,11 @@ crew/
   `crew_line` shows it, so status, SessionStart and whoami agree. A task another session owns is
   refused, never shared; `--take` moves it and mails the old owner. Silence is not leaving: a silent
   owner keeps its task until it leaves or the coordinator hands the task over.
+- **A one-worker crew is allowed; its coordinator works (PLUG-154).** Crew size changes during a run,
+  and the guards protect two sessions as much as five, so nothing blocks or warns about one worker.
+  The coordinator may own a task under the worker rules (no guard exempts it). `working_note` (lib.sh)
+  is the one test for the hint — coordinator, no task, exactly one worker — shown by `status` and
+  SessionStart. Guidance, not a mode: no config key.
 - **A crew name is the identity.** Holds, slots and claims are all keyed by name. The Claude
   session id only maps a hook payload to a name (`sessions/<name>`: `sid= role= since= display=`, and `task=` when set).
   Scripts learn the caller via `caller_name`, which takes `CREW_AS` (a name or a display name) when it
