@@ -36,6 +36,17 @@ steps in Part 1 are worded generically ("open the plugins section…") because t
 - Optional: one screenshot of an artifact with comments, in the Artifacts tip (offered in PLUG-151).
 - `bash docs/guides/build.sh`; both PDFs read back, images visible; second run `unchanged`.
 
+## Implementation — screenshots added (2026-11-17)
+
+- The user supplied 13 Cowork screenshots → `docs/guides/uk/images/01-*.png` (9) and `02-*.png` (4).
+- Part 1: install steps reworded to match the UI. Covers the Cowork toggle, Налаштування → Плагіни, «+ Додати» → URL + «Синхронізація»
+  (trust warning, auto-sync toggle), «Огляд» → «+», Конектори → Google Drive → «Підключити до Claude» → browser «Продовжити
+  підключення» → «Відкрити Claude.app», and «Додати папку». The marketplace appears in Cowork as «з джерела «claude-plugins»», not «vatvit-plugins».
+- Part 2: the install step uses the plugin page («Додати»), with a note on the «claude-plugins» source label and the «може виконувати код
+  без запиту дозволу» warning. The created-task slot became two images (create + `/task show`), and the list slot got its image.
+- Dropped at the user's word: Part 1 card creation, first-attach questions and answer slots. Part 2 first-run questions slot.
+- Build: `built` both, then `unchanged` on a second run; PDFs read back with images visible; `links` clean.
+
 ## Current State
 
-Proposed. Waiting for the user's screenshots.
+All slots replaced; PDFs rebuilt. Not committed. Open: the screenshots show the user's own project folder name and test task titles.
