@@ -28,6 +28,7 @@ claude-plugins/
 ├── crew/                      ← plugin
 ├── kickoff/                   ← plugin
 ├── .tasks/                    ← this repo's own task files (NOT a plugin)
+├── docs/                      ← this repo's own docs (NOT a plugin): README picture, user guides + PDF build (docs/guides/building.md)
 ├── scripts/                   ← repo tooling (release checks), NOT a plugin; no plugin sources it
 ├── .task-config.json          ← task skill config (tasksDir, prefix)
 ├── CLAUDE.md                  ← this file (repo-level)

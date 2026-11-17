@@ -239,6 +239,9 @@ From within Claude Code:
 /plugin install session-storage@vatvit-plugins
 ```
 
+New to Claude and not a programmer? There is a short guide in Ukrainian for Claude Desktop (Cowork):
+[docs-manager and remote-docs](docs/guides/uk/01-docs-manager-remote-docs.pdf), and [task](docs/guides/uk/02-task.pdf).
+
 Choose **User scope** to enable a plugin for all your projects, or **Project scope** to share it
 with collaborators. Restart open sessions (or run `/reload-plugins`) to load it.
 
